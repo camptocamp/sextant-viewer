@@ -1,35 +1,27 @@
 <!--
-SYNC IMPACT REPORT - Constitution v1.0.0
+SYNC IMPACT REPORT - Constitution v1.1.0
 
-VERSION CHANGE: Initial constitution creation (0.0.0 → 1.0.0)
+VERSION CHANGE: 1.0.0 → 1.1.0
 
-RATIONALE: MAJOR version bump - establishing initial governance framework for the Sextant Viewer project.
+RATIONALE: MINOR version bump - adding new principle (NuxtUI Component Library Standard)
+that introduces mandatory UI component constraints without breaking existing governance.
 
-MODIFIED PRINCIPLES: N/A (initial creation)
+MODIFIED PRINCIPLES: None (existing principles unchanged)
 
 ADDED SECTIONS:
-- Core Principles (7 principles)
-  I. MapContext as Source of Truth
-  II. Vue.js Best Practices
-  III. Clean Code & SOLID Principles
-  IV. Component Architecture
-  V. TypeScript-First Development
-  VI. Geospatial-SDK Integration
-  VII. Software Craftsmanship
-- Technology Stack Constraints
-- Code Quality Standards
-- Governance
+- Core Principles > VIII. NuxtUI Component Library Standard
+- Updated Technology Stack Constraints to reference NuxtUI component categories
 
-REMOVED SECTIONS: N/A (initial creation)
+REMOVED SECTIONS: None
 
 TEMPLATES REQUIRING UPDATES:
-✅ .specify/templates/plan-template.md - Constitution Check section aligned
-✅ .specify/templates/spec-template.md - Requirements section aligned with component architecture principles
-✅ .specify/templates/tasks-template.md - Task organization reflects component structure and Vue.js patterns
+✅ .specify/templates/plan-template.md - Constitution Check section will validate NuxtUI usage
+✅ .specify/templates/spec-template.md - Requirements section will reference UI component standards
+✅ .specify/templates/tasks-template.md - Task organization will include UI component implementation validation
 
 FOLLOW-UP TODOS: None
 
-CREATION DATE: 2026-01-05
+AMENDMENT DATE: 2026-01-07
 -->
 
 # Sextant Viewer Constitution
@@ -130,12 +122,44 @@ CREATION DATE: 2026-01-05
 
 **Rationale**: Craftsmanship ensures long-term maintainability, reduces defects, builds team expertise, and creates sustainable development velocity.
 
+### VIII. NuxtUI Component Library Standard
+
+**MUST** use NuxtUI components from `@nuxt/ui` for all user interface elements. Custom UI components **MUST NOT** be created when equivalent NuxtUI components exist. UI consistency **MUST** be maintained through exclusive use of NuxtUI's design system.
+
+**Implementation Requirements**:
+- All buttons **MUST** use `<UButton>` component
+- All forms **MUST** use NuxtUI form components (`<UInput>`, `<USelect>`, `<UCheckbox>`, etc.)
+- All overlays **MUST** use NuxtUI overlay components (`<UModal>`, `<UTooltip>`, `<UDrawer>`, etc.)
+- All navigation **MUST** use NuxtUI navigation components (`<UBreadcrumb>`, `<UTabs>`, `<UPagination>`, etc.)
+- All data display **MUST** use NuxtUI data components (`<UTable>`, `<UCard>`, `<UAccordion>`, etc.)
+- Layout components **MUST** use NuxtUI layout system (`<UContainer>`, `<UHeader>`, `<UFooter>`, etc.)
+- Custom components **MAY** wrap or extend NuxtUI components but **MUST NOT** replicate their functionality
+- Consult NuxtUI documentation (https://ui.nuxt.com/docs/components) before creating any UI component
+
+**Available NuxtUI Component Categories** (125+ components):
+- **Layout** (6): App, Container, Error, Footer, Header, Main
+- **Element** (18): Alert, Avatar, AvatarGroup, Badge, Banner, Button, Calendar, Card, Chip, Collapsible, FieldGroup, Icon, Kbd, Progress, Separator, Skeleton
+- **Form** (23): Checkbox, CheckboxGroup, ColorPicker, FileUpload, Form, FormField, Input, InputDate, InputMenu, InputNumber, InputTags, InputTime, PinInput, RadioGroup, Select, SelectMenu, Slider, Switch, Textarea
+- **Data** (10): Accordion, Carousel, Empty, Marquee, ScrollArea, Table, Timeline, Tree, User
+- **Navigation** (8): Breadcrumb, CommandPalette, FooterColumns, Link, NavigationMenu, Pagination, Stepper, Tabs
+- **Overlay** (10): ContextMenu, Drawer, DropdownMenu, Modal, Popover, Slideover, Toast, Tooltip
+- **Page** (27): AuthForm, BlogPost, BlogPosts, ChangelogVersion, ChangelogVersions, Page, PageAnchors, PageAside, PageBody, PageCard, PageColumns, PageCTA, PageFeature, PageGrid, PageHeader, PageHero, PageLinks, PageList, PageLogos, PageSection, PricingPlan, PricingPlans, PricingTable
+- **Dashboard** (10): DashboardGroup, DashboardNavbar, DashboardPanel, DashboardResizeHandle, DashboardSearch, DashboardSearchButton, DashboardSidebar, DashboardSidebarCollapse, DashboardSidebarToggle, DashboardToolbar
+- **AI Chat** (5): ChatMessage, ChatMessages, ChatPalette, ChatPrompt, ChatPromptSubmit
+- **Editor** (6): Editor, EditorDragHandle, EditorEmojiMenu, EditorMentionMenu, EditorSuggestionMenu, EditorToolbar
+- **Content** (5): ContentNavigation, ContentSearch, ContentSearchButton, ContentSurround, ContentToc
+- **Color Mode** (5): ColorModeAvatar, ColorModeButton, ColorModeImage, ColorModeSelect, ColorModeSwitch
+- **i18n** (1): LocaleSelect
+
+**Rationale**: Standardizing on NuxtUI ensures visual consistency, reduces maintenance burden, leverages battle-tested accessible components (WAI-ARIA compliant), provides integrated Tailwind CSS styling, and enables rapid development through comprehensive component coverage.
+
 ## Technology Stack Constraints
 
 ### Required Technologies
 
 **MUST** use the following core technologies:
 - **Frontend Framework**: Vue.js 3.5+ with Composition API
+- **UI Component Library**: NuxtUI 4.3+ (125+ components)
 - **State Management**: Pinia 3.0+
 - **Build Tool**: Vite 7.0+
 - **Map Library**: OpenLayers 10.0+ via geospatial-sdk
@@ -154,7 +178,7 @@ CREATION DATE: 2026-01-05
 
 Before introducing new dependencies:
 1. Document the specific problem being solved
-2. Evaluate existing solutions in current stack
+2. Evaluate existing solutions in current stack (especially NuxtUI for UI components)
 3. Justify why current stack is insufficient
 4. Consider bundle size and maintenance implications
 5. Obtain approval in implementation plan review
@@ -168,7 +192,8 @@ src/
 ├── components/          # Vue components organized by feature
 │   ├── map/            # Map-related components
 │   ├── layer/          # Layer management components
-│   └── common/         # Shared presentational components
+│   ├── stac/           # STAC browser components
+│   └── common/         # Shared presentational components (wrapping NuxtUI)
 ├── composables/        # Reusable logic hooks
 │   ├── useMapInteraction.ts
 │   ├── useMapView.ts
@@ -178,8 +203,6 @@ src/
 ├── utils/              # Pure utility functions
 │   └── map-config.ts
 ├── types/              # Custom TypeScript type definitions
-├── views/              # Route-level components
-└── router/             # Vue Router configuration
 ```
 
 ### Naming Conventions
@@ -217,7 +240,7 @@ context.value.layers[0].visible = false
 
 ### Error Handling
 
-- **User-facing errors**: Display in UI with clear messaging
+- **User-facing errors**: Display in UI with clear messaging (use NuxtUI Alert/Toast components)
 - **Development errors**: Use `console.error()` with context
 - **Production errors**: Plan for structured logging (future)
 - **Type errors**: Prevent at compile time, not runtime
@@ -253,4 +276,4 @@ This constitution supersedes all other development practices. When conflicts ari
 3. Exception requires documented justification in code/plan
 4. Repeated exceptions trigger constitution review
 
-**Version**: 1.0.0 | **Ratified**: 2026-01-05 | **Last Amended**: 2026-01-05
+**Version**: 1.1.0 | **Ratified**: 2026-01-05 | **Last Amended**: 2026-01-07

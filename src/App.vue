@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import MapViewer from '@/components/map/MapViewer.vue'
+
 </script>
 
 <template>
-  <RouterView />
+  <UApp>
+    <MapViewer />
+  </UApp>
 </template>

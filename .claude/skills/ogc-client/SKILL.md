@@ -333,7 +333,7 @@ async function addOgcApiLayerFromService(
     id: `ogc-api-${collectionId}-${Date.now()}`,
     url: serviceUrl,
     collection: collectionId,
-    visible: true,
+    visibility: true,
     label: collection.title || collectionId,
     style: {
       'fill-color': '#ff8833',
@@ -398,7 +398,7 @@ function addLayerToMap(layer: any) {
     id: `${serviceType.value}-${layer.name}-${Date.now()}`,
     url: serviceUrl.value,
     name: layer.name,
-    visible: true,
+    visibility: true,
     label: layer.title || layer.name
   }
 
@@ -589,7 +589,7 @@ async function addWmsLayerComplete(serviceUrl: string, layerName: string) {
     id: `wms-${layerName}-${Date.now()}`,
     url: serviceUrl,
     name: layerName,
-    visible: true,
+    visibility: true,
     opacity: 1,
     label: layer.title || layerName,
     // Optional: Add metadata from capabilities
@@ -629,7 +629,7 @@ async function addLayersFromCatalog(
         id: `wms-${name}-${Date.now()}`,
         url: serviceUrl,
         name: name,
-        visible: true,
+        visibility: true,
         label: layer.title || name
       })
     }
@@ -681,7 +681,7 @@ async function loadPresetService(key: keyof typeof KNOWN_SERVICES) {
 **Checklist:**
 1. Verify layer name matches capabilities
 2. Check MapContext in Vue DevTools
-3. Verify layer `visible: true`
+3. Verify layer `visibility: true`
 4. Check layer extent overlaps current view
 5. Inspect network requests for errors
 
