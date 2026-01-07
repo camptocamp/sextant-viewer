@@ -1,3 +1,7 @@
+#NuxtUI
+auto-imports.d.ts
+components.d.ts
+
 # Logs
 logs
 *.log
