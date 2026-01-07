@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { useLayerManagement } from '@/composables/useLayerManagement'
 
-const { dataLayers, getMenuItems, getLabel,  handleDeleteLayer} = useLayerManagement()
+const { dataLayers, getMenuItems, getLabel, handleDeleteLayer } = useLayerManagement()
 </script>
 
 <template>
   <div class="layer-manager">
-    <!-- Header -->
     <h3 class="my-2 px-3 text-lg font-semibold">Layers</h3>
 
-    <!-- Empty State -->
     <UEmpty
       v-if="dataLayers.length === 0"
       variant="naked"
@@ -23,9 +21,9 @@ const { dataLayers, getMenuItems, getLabel,  handleDeleteLayer} = useLayerManage
       <div
         v-for="(layer, index) in dataLayers"
         :key="layer.id || `layer-${index}`"
-        class="flex items-center py-1 gap-2 px-3 hover:bg-gray-50 dark:hover:bg-gray-800"
+        class="flex items-center gap-2 px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800"
       >
-        <UIcon name="i-tabler-stack-2" ></UIcon>
+        <UIcon name="i-tabler-stack-2"></UIcon>
         <!-- Layer Label with Truncation -->
         <UTooltip :text="getLabel(layer)">
           <span class="flex-1 truncate text-sm">
@@ -34,23 +32,21 @@ const { dataLayers, getMenuItems, getLabel,  handleDeleteLayer} = useLayerManage
         </UTooltip>
 
         <!-- Context Menu -->
-        <UDropdownMenu :items="getMenuItems(layer)"       :content="{side: 'right'}"         :ui="{
-                content: 'z-1 rounded py-2 px-0 shadow-dd min-w-48 backdrop-blur-md bg-white ',
-                item: 'cursor-pointer px-3 py-1 text-sm capitalize hover:bg-primary/20 ',
-                group: 'p-0',
-                separator: 'mx-0 my-3',
-              }"
+        <UDropdownMenu
+          :items="getMenuItems(layer)"
+          :content="{ side: 'right' }"
+          :ui="{
+            content: 'z-1 rounded py-2 px-0 shadow-dd min-w-48 backdrop-blur-md bg-white ',
+            item: 'cursor-pointer px-3 py-1 text-sm capitalize hover:bg-primary/20 ',
+            group: 'p-0',
+            separator: 'mx-0 my-3',
+          }"
         >
-          <UButton
-            icon="i-heroicons-ellipsis-vertical"
-            variant=""
-            size="sm"
-          />
+          <UButton icon="i-heroicons-ellipsis-vertical" variant="" size="sm" />
         </UDropdownMenu>
       </div>
     </div>
   </div>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>

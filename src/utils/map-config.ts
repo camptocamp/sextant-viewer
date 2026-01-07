@@ -18,21 +18,22 @@ export const DEFAULT_MAP_CONTEXT: MapContext = {
     {
       type: 'wms',
       url: 'https://data.geopf.fr/wms-r/wms',
-      name: 'INSEE.FILOSOFI.POPULATION'
-    }, {
+      name: 'INSEE.FILOSOFI.POPULATION',
+    },
+    {
       type: 'wfs',
       url: 'https://data.lillemetropole.fr/geoserver/dsp_ilevia/ows?REQUEST=GetCapabilities&SERVICE=WFS&VERSION=2.0.0',
       featureType: 'ilevia_traceslignes',
       label: 'Tracé des lignes de bus',
       visibility: true,
       attributions: 'camptocamp',
-      opacity: 0.5
+      opacity: 0.5,
     },
-     {
-  id: 'geojson',
-    type: 'geojson',
-    url: 'https://data.lillemetropole.fr/data/ogcapi/collections/roubaix:implantation_des_arceaux_velos_a_roubaix/items?f=geojson&limit=-1'
-},
+    {
+      id: 'geojson',
+      type: 'geojson',
+      url: 'https://data.lillemetropole.fr/data/ogcapi/collections/roubaix:implantation_des_arceaux_velos_a_roubaix/items?f=geojson&limit=-1',
+    },
   ],
   view: {
     center: [0, 0],
