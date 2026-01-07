@@ -12,6 +12,7 @@ const { dataLayers, getMenuItems, getLabel,  handleDeleteLayer} = useLayerManage
     <!-- Empty State -->
     <UEmpty
       v-if="dataLayers.length === 0"
+      variant="naked"
       icon="i-heroicons-queue-list"
       message="No layers added"
       description="Add layers to the map to see them here"
@@ -33,12 +34,17 @@ const { dataLayers, getMenuItems, getLabel,  handleDeleteLayer} = useLayerManage
         </UTooltip>
 
         <!-- Context Menu -->
-        <UDropdownMenu :items="getMenuItems(layer)">
+        <UDropdownMenu :items="getMenuItems(layer)"       :content="{side: 'right'}"         :ui="{
+                content: 'z-1 rounded py-2 px-0 shadow-dd min-w-48 backdrop-blur-md bg-white ',
+                item: 'cursor-pointer px-3 py-1 text-sm capitalize hover:bg-primary/20 ',
+                group: 'p-0',
+                separator: 'mx-0 my-3',
+              }"
+        >
           <UButton
             icon="i-heroicons-ellipsis-vertical"
-            variant="ghost"
-            size="xs"
-            :disabled="!layer.id"
+            variant=""
+            size="sm"
           />
         </UDropdownMenu>
       </div>
@@ -47,7 +53,4 @@ const { dataLayers, getMenuItems, getLabel,  handleDeleteLayer} = useLayerManage
 </template>
 
 <style scoped>
-.layer-manager {
-  min-height: 200px;
-}
 </style>

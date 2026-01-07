@@ -30,9 +30,8 @@ export function useLayerManagement() {
       [
         {
           label: 'Delete layer',
-          icon: 'i-heroicons-trash',
+          class: 'text-red-400',
           onSelect: () => handleDeleteLayer(layer),
-          disabled: !layer.id,
         },
       ],
     ]

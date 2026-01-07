@@ -16,44 +16,23 @@ export const DEFAULT_MAP_CONTEXT: MapContext = {
       attributions: '© OpenStreetMap contributors',
     },
     {
-      type: 'xyz',
-      id: 'layer-1',
-      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      visibility: true,
-      opacity: 0.7,
-      label: 'Satellite Imagery',
-      attributions: '© Esri',
-    },
-    {
       type: 'wms',
-      id: 'layer-2',
-      url: 'https://example.com/wms',
-      name: 'population_density',
+      url: 'https://data.geopf.fr/wms-r/wms',
+      name: 'INSEE.FILOSOFI.POPULATION'
+    }, {
+      type: 'wfs',
+      url: 'https://data.lillemetropole.fr/geoserver/dsp_ilevia/ows?REQUEST=GetCapabilities&SERVICE=WFS&VERSION=2.0.0',
+      featureType: 'ilevia_traceslignes',
+      label: 'Tracé des lignes de bus',
       visibility: true,
-      opacity: 0.8,
-      label: 'Population Density Data Layer',
-      attributions: '© Example Data Provider',
+      attributions: 'camptocamp',
+      opacity: 0.5
     },
-    {
-      type: 'wms',
-      id: 'layer-3',
-      url: 'https://example.com/wms',
-      name: 'long_layer_name',
-      visibility: true,
-      opacity: 0.6,
-      label:
-        'Very Long Layer Name That Should Be Truncated With Ellipsis To Test The Truncation Feature',
-      attributions: '© Test Data',
-    },
-    {
-      type: 'geojson',
-      id: 'layer-4',
-      url: 'https://example.com/boundaries.geojson',
-      visibility: true,
-      opacity: 1,
-      label: 'Administrative Boundaries',
-      attributions: '© OpenStreetMap',
-    },
+     {
+  id: 'geojson',
+    type: 'geojson',
+    url: 'https://data.lillemetropole.fr/data/ogcapi/collections/roubaix:implantation_des_arceaux_velos_a_roubaix/items?f=geojson&limit=-1'
+},
   ],
   view: {
     center: [0, 0],
