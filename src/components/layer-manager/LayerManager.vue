@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { useLayerManagement } from '@/composables/useLayerManagement'
 
-const { dataLayers, getMenuItems, getLabel } = useLayerManagement()
+const { dataLayers, getMenuItems, getLabel, sortableRef } = useLayerManagement()
 </script>
 
 <template>
-  <div class="layer-manager">
+  <div class="">
     <h3 class="my-2 px-3 text-lg font-semibold">Layers</h3>
 
     <UEmpty
@@ -16,14 +16,16 @@ const { dataLayers, getMenuItems, getLabel } = useLayerManagement()
       description="Add layers to the map to see them here"
     />
 
-    <div v-else class="">
+    <div v-else ref="sortableRef" class="layer-list">
       <div
         v-for="(layer, index) in dataLayers"
         :key="layer.id || `layer-${index}`"
-        class="flex items-center gap-2 px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800"
+        class="layer-item flex items-center gap-2 px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800"
       >
-        <UIcon name="i-tabler-stack-2"></UIcon>
-        <!-- Layer Label with Truncation -->
+        <UIcon
+          name="i-tabler-stack-2"
+          class="drag-handle cursor-move text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+        />
         <UTooltip :text="getLabel(layer)">
           <span class="flex-1 truncate text-sm">
             {{ getLabel(layer) }}
@@ -47,4 +49,25 @@ const { dataLayers, getMenuItems, getLabel } = useLayerManagement()
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.drag-handle {
+  touch-action: none;
+}
+
+:deep(.sortable-ghost) {
+  opacity: 0.4;
+  background-color: rgb(59 130 246 / 0.1);
+  border: 2px dashed rgb(59 130 246 / 0.5);
+}
+
+:deep(.sortable-drag) {
+  opacity: 0.8;
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.layer-item {
+  transition: transform 0.2s ease;
+}
+</style>

@@ -15,8 +15,8 @@ export const DEFAULT_MAP_CONTEXT: MapContext = {
       label: 'OpenStreetMap',
       attributions: '© OpenStreetMap contributors',
       extras: {
-        basemap: true
-      }
+        basemap: true,
+      },
     },
     {
       type: 'wms',
