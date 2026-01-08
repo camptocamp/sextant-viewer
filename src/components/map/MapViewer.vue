@@ -38,11 +38,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="mapContainer" class="relative h-full w-full">
-    <div class="map-panel absolute top-5 left-5 z-20 w-110">
-      <LayerManager />
-    </div>
-  </div>
+  <div ref="mapContainer" class="relative h-full w-full"></div>
 </template>
 
 <style scoped></style>

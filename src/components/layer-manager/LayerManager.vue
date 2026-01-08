@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useLayerManagement } from '@/composables/useLayerManagement'
 
-const { dataLayers, getMenuItems, getLabel, handleDeleteLayer } = useLayerManagement()
+const { dataLayers, getMenuItems, getLabel } = useLayerManagement()
 </script>
 
 <template>
@@ -16,7 +16,6 @@ const { dataLayers, getMenuItems, getLabel, handleDeleteLayer } = useLayerManage
       description="Add layers to the map to see them here"
     />
 
-    <!-- Layer List -->
     <div v-else class="">
       <div
         v-for="(layer, index) in dataLayers"
@@ -31,7 +30,6 @@ const { dataLayers, getMenuItems, getLabel, handleDeleteLayer } = useLayerManage
           </span>
         </UTooltip>
 
-        <!-- Context Menu -->
         <UDropdownMenu
           :items="getMenuItems(layer)"
           :content="{ side: 'right' }"

@@ -1,7 +1,8 @@
 import { computed, type ComputedRef } from 'vue'
 import { useMapStore } from '@/stores/map.store'
-import { isBasemapLayer, getLayerLabel, type LayerMenuItem } from '@/types/layer'
+import { isBasemapLayer, getLayerLabel } from '@/utils/layer.utils'
 import type { MapContextLayer } from '@geospatial-sdk/core'
+import type { DropdownMenuItem } from '@nuxt/ui/components/DropdownMenu.vue'
 
 /**
  * Composable for layer management functionality
@@ -25,7 +26,7 @@ export function useLayerManagement() {
   /**
    * Generate context menu items for a layer
    */
-  const getMenuItems = (layer: MapContextLayer): LayerMenuItem[][] => {
+  const getMenuItems = (layer: MapContextLayer): DropdownMenuItem[][] => {
     return [
       [
         {

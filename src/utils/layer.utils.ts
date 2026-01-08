@@ -1,16 +1,6 @@
 import type { MapContextLayer } from '@geospatial-sdk/core'
 
 /**
- * Menu item structure for layer context menu
- */
-export interface LayerMenuItem {
-  label: string
-  icon?: string
-  click: () => void
-  disabled?: boolean
-}
-
-/**
  * Type guard to identify basemap layers
  * @param layer - The layer to check
  * @param index - The layer's position in the layers array
