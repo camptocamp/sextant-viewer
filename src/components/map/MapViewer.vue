@@ -20,7 +20,6 @@ onMounted(async () => {
 watch(
   context,
   (newContext: MapContext, oldContext: MapContext) => {
-    console.log('MapViewer: context changed', { newContext, oldContext })
     if (!map) return
 
     const diff = computeMapContextDiff(newContext, oldContext)
