@@ -1,8 +1,20 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
-
 @import 'ol/ol.css';
 
-html,
-body {
+@theme {
+  --shadow-panel:
+    0 0 2px rgba(24, 39, 75, 0.17), 0 6px 12px -6px rgba(24, 39, 75, 0.12),
+    0 8px 24px -4px rgba(24, 39, 75, 0.08);
+}
+
+@layer base {
+  button {
+    @apply cursor-pointer;
+  }
+}
+@layer components {
+  .map-panel {
+    @apply shadow-panel rounded bg-white/50 py-1.5 backdrop-blur-md;
+  }
 }

@@ -20,7 +20,6 @@ onMounted(async () => {
 watch(
   context,
   (newContext: MapContext, oldContext: MapContext) => {
-    console.log('MapViewer: context changed', { newContext, oldContext })
     if (!map) return
 
     const diff = computeMapContextDiff(newContext, oldContext)
@@ -38,7 +37,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="mapContainer" class="h-full w-full"></div>
+  <div ref="mapContainer" class="relative h-full w-full"></div>
 </template>
 
 <style scoped></style>

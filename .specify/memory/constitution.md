@@ -1,27 +1,27 @@
 <!--
-SYNC IMPACT REPORT - Constitution v1.1.0
+SYNC IMPACT REPORT - Constitution v1.2.0
 
-VERSION CHANGE: 1.0.0 → 1.1.0
+VERSION CHANGE: 1.1.0 → 1.2.0
 
-RATIONALE: MINOR version bump - adding new principle (NuxtUI Component Library Standard)
-that introduces mandatory UI component constraints without breaking existing governance.
+RATIONALE: MINOR version bump - adding new principle (Minimal Comments Standard)
+that establishes documentation guidelines for code clarity without breaking existing governance.
 
 MODIFIED PRINCIPLES: None (existing principles unchanged)
 
 ADDED SECTIONS:
-- Core Principles > VIII. NuxtUI Component Library Standard
-- Updated Technology Stack Constraints to reference NuxtUI component categories
+- Core Principles > IX. Minimal Comments Standard
+- Updated Code Quality Standards to reflect comment policy
 
 REMOVED SECTIONS: None
 
 TEMPLATES REQUIRING UPDATES:
-✅ .specify/templates/plan-template.md - Constitution Check section will validate NuxtUI usage
-✅ .specify/templates/spec-template.md - Requirements section will reference UI component standards
-✅ .specify/templates/tasks-template.md - Task organization will include UI component implementation validation
+✅ .specify/templates/plan-template.md - Constitution Check section will validate comment discipline
+✅ .specify/templates/spec-template.md - No changes required (spec comments unaffected)
+✅ .specify/templates/tasks-template.md - No changes required (task descriptions independent)
 
 FOLLOW-UP TODOS: None
 
-AMENDMENT DATE: 2026-01-07
+AMENDMENT DATE: 2026-01-08
 -->
 
 # Sextant Viewer Constitution
@@ -153,6 +153,48 @@ AMENDMENT DATE: 2026-01-07
 
 **Rationale**: Standardizing on NuxtUI ensures visual consistency, reduces maintenance burden, leverages battle-tested accessible components (WAI-ARIA compliant), provides integrated Tailwind CSS styling, and enables rapid development through comprehensive component coverage.
 
+### IX. Minimal Comments Standard
+
+**MUST** write self-documenting code that requires minimal comments. Comments **MUST** explain "why" not "what". Comments **MUST NOT** duplicate information already expressed in code. Comments **MUST NOT** reference user stories, task IDs, or implementation metadata in production code.
+
+**Implementation Requirements**:
+- Code clarity through naming: `getUserPreferences()` not `getUP()` with comment
+- Comments only when intent is not obvious from code structure
+- Permitted comments: complex algorithms, non-obvious business rules, workarounds with context
+- Forbidden comments: user story references (US1, T024), obvious statements, redundant descriptions
+- No comments in HTML templates (use semantic element names and clear attribute bindings)
+- JSDoc **MAY** be used for public API documentation in libraries or shared utilities
+- Type annotations replace descriptive comments (TypeScript types are living documentation)
+
+**Examples**:
+
+```typescript
+// ❌ WRONG - Obvious, redundant, includes task reference
+// T024: Get the user name from the user object
+const userName = user.name
+
+// ❌ WRONG - User story reference
+// US1: Filter out basemap layers
+const dataLayers = layers.filter(l => !isBasemap(l))
+
+// ✅ CORRECT - Self-documenting through naming
+const userName = user.name
+const dataLayers = layers.filter(layer => !isBasemapLayer(layer))
+
+// ✅ CORRECT - Explains non-obvious "why"
+// Reverse array to display topmost layers first in UI
+const displayLayers = [...dataLayers].reverse()
+
+// ❌ WRONG - HTML comment
+<!-- Delete button for removing the layer -->
+<UButton @click="deleteLayer">Delete</UButton>
+
+// ✅ CORRECT - No comment, clear attribute
+<UButton @click="deleteLayer" aria-label="Delete layer">Delete</UButton>
+```
+
+**Rationale**: Minimal comments reduce maintenance burden (code and comments can drift), encourage better naming and structure, improve readability by reducing noise, and ensure documentation stays accurate through type systems and clear code.
+
 ## Technology Stack Constraints
 
 ### Required Technologies
@@ -220,6 +262,7 @@ src/
 - **Semicolons**: Not required (Prettier handles)
 - **Line Length**: ≤ 100 characters (enforced by Prettier)
 - **Import Order**: Framework → Third-party → Local (enforced by ESLint)
+- **Comments**: Minimal, "why" not "what", no task/story references
 
 ### Immutability Patterns
 
@@ -276,4 +319,4 @@ This constitution supersedes all other development practices. When conflicts ari
 3. Exception requires documented justification in code/plan
 4. Repeated exceptions trigger constitution review
 
-**Version**: 1.1.0 | **Ratified**: 2026-01-05 | **Last Amended**: 2026-01-07
+**Version**: 1.2.0 | **Ratified**: 2026-01-05 | **Last Amended**: 2026-01-08
