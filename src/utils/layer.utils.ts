@@ -3,11 +3,10 @@ import type { MapContextLayer } from '@geospatial-sdk/core'
 /**
  * Type guard to identify basemap layers
  * @param layer - The layer to check
- * @param index - The layer's position in the layers array
  * @returns true if layer is a basemap, false otherwise
  */
-export function isBasemapLayer(layer: MapContextLayer, index: number): boolean {
-  return (typeof layer.id === 'string' && layer.id.startsWith('basemap-')) || index === 0
+export function isBasemapLayer(layer: MapContextLayer): boolean {
+  return layer.extras?.basemap === true
 }
 
 /**

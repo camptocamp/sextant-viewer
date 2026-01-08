@@ -15,7 +15,7 @@ export function useLayerManagement() {
    * Compute non-basemap layers in reverse order (most visible first)
    */
   const dataLayers: ComputedRef<MapContextLayer[]> = computed(() => {
-    const filtered = mapStore.layers.filter((layer, index) => !isBasemapLayer(layer, index))
+    const filtered = mapStore.layers.filter((layer) => !isBasemapLayer(layer))
     return [...filtered].reverse()
   })
 
