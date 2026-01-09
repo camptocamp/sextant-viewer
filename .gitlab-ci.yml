@@ -15,8 +15,8 @@ build:
     #- ng build main --base-href "/"
 
     # 2. Déplacer le build dans public/ pour GitLab Pages
-    - mkdir -p ../public
-    - cp -r dist/* ../public/
+    #- mkdir -p ../public
+    - cp -r dist/* public/
 
     #3. Build pour sextant-test
     #- ng build main --base-href "/www/GN5/viewer/dist/"
