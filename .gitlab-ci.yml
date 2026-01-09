@@ -1,0 +1,42 @@
+image: node:lts-trixie
+
+stages:
+  - build
+  - pages
+
+build:
+  stage: build
+  script:
+     # 1. buid
+    - npm install
+    - npm run build
+    # transforme le nom de la branche (remplace / par _)
+    #- branch_transformed_name=`echo $CI_COMMIT_REF_NAME | sed 's/\//_/g'`
+    #- ng build main --base-href "/"
+
+    # 2. Déplacer le build dans public/ pour GitLab Pages
+    - mkdir -p ../public
+    - cp -r dist/* ../public/
+
+    #3. Build pour sextant-test
+    #- ng build main --base-href "/www/GN5/viewer/dist/"
+    #- mkdir -p ../public_sextant-test
+    #- cp -r dist/main/browser/* ../public_sextant-test/
+
+  artifacts:
+    paths:
+      - public
+      #- public_sextant-test
+    expire_in: 1 week
+
+
+
+pages:
+  stage: pages
+  script:
+    - echo "Publishing GitLab Pages"
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
