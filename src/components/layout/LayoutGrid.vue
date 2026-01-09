@@ -4,9 +4,9 @@ import LayerPanel from './LayerPanel.vue'
 
 <template>
   <div
-    class="pointer-events-none absolute inset-0 z-10 grid grid-cols-[400px_440px_minmax(900px,_1fr)_200px] gap-2 p-2 *:pointer-events-auto *:bg-white/70 *:backdrop-blur-sm"
+    class="pointer-events-none absolute inset-0 z-10 grid grid-cols-[400px_440px_minmax(900px,_1fr)_200px] gap-2 p-2 *:pointer-events-auto"
   >
-    <LayerPanel class="" />
+    <LayerPanel />
   </div>
 </template>
 

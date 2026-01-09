@@ -18,33 +18,39 @@ const isSelected = (layer: MapContextLayer) => {
 </script>
 
 <template>
-  <div class="py-4">
-    <UEmpty
-      v-if="dataLayers.length === 0"
-      variant="naked"
-      icon="i-heroicons-queue-list"
-      message="No layers added"
-      description="Add layers to the map to see them here"
-    />
+  <div class="flex h-full flex-col">
+    <div class="grow">
+      <UEmpty
+        v-if="dataLayers.length === 0"
+        variant="naked"
+        icon="i-heroicons-queue-list"
+        message="No layers added"
+        description="Add layers to the map to see them here"
+      />
 
-    <div v-else ref="sortableRef" class="layer-list">
-      <div
-        v-for="(layer, index) in dataLayers"
-        :key="layer.id || `layer-${index}`"
-        class="flex cursor-pointer items-center gap-2 border-2 border-transparent px-2.5 py-0.5 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
-        :class="[isSelected(layer) && 'bg-primary/10 border-l-primary']"
-        @click="handleLayerClick(layer)"
-      >
-        <UIcon
-          name="i-tabler-stack-2"
-          class="drag-handle cursor-move text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-        />
-        <UTooltip :text="getLabel(layer)">
-          <span class="flex-1 truncate text-sm">
-            {{ getLabel(layer) }}
-          </span>
-        </UTooltip>
+      <div v-else ref="sortableRef" class="layer-list">
+        <div
+          v-for="(layer, index) in dataLayers"
+          :key="layer.id || `layer-${index}`"
+          class="flex cursor-pointer items-center gap-2 border-2 border-transparent px-2.5 py-0.5 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+          :class="[isSelected(layer) && 'bg-primary/10']"
+          @click="handleLayerClick(layer)"
+        >
+          <UIcon
+            name="i-tabler-stack-2"
+            class="drag-handle cursor-move text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          />
+          <UTooltip :text="getLabel(layer)">
+            <span class="flex-1 truncate text-sm">
+              {{ getLabel(layer) }}
+            </span>
+          </UTooltip>
+        </div>
       </div>
+    </div>
+
+    <div v-if="selectedLayer" class="border-t-primary-500 mt-2 h-1/2 border-t">
+      <LayerDetailsPanel :layer="selectedLayer" />
     </div>
   </div>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { MapContextLayer } from '@geospatial-sdk/core'
 import { useLayersStore } from '@/stores/layers.store.ts'
+import { getLayerLabel } from '@/utils/layer.utils.ts'
 
 defineProps<{
   layer: MapContextLayer
@@ -17,12 +18,10 @@ const handleClose = () => {
   <div class="p-4">
     <div class="flex items-center justify-between">
       <h3 class="truncate text-lg font-semibold">
-        {{ layer.label || layer.id }}
+        {{ getLayerLabel(layer) }}
       </h3>
       <UButton icon="i-heroicons-x-mark" variant="ghost" size="sm" @click="handleClose" />
     </div>
-    <div>
-      <UBadge :label="layer.type" class="mt-1" />
-    </div>
+    <div>Contenu manquant !</div>
   </div>
 </template>

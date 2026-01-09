@@ -12,7 +12,7 @@ const tabItems = [
 </script>
 
 <template>
-  <UTabs :items="tabItems" :ui="{ content: 'mt-3' }">
+  <UTabs :items="tabItems" :ui="{ content: 'mt-3 h-full' }" class="sxt-panel">
     <template #list>
       <div class="flex flex-col gap-2">
         <LayerManager />
