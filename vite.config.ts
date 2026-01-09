@@ -10,7 +10,17 @@ import ui from '@nuxt/ui/vite'
 export default defineConfig({
   plugins: [
     vue(),
-    ui(),
+    ui({
+      ui: {
+        tabs: {
+          defaultVariants: {
+            color: 'neutral',
+            variant: 'link',
+          }
+
+        }
+      }
+    }),
     tailwindcss(),
     vueDevTools(),
   ],
