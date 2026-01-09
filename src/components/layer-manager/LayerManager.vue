@@ -20,7 +20,7 @@ const { dataLayers, getMenuItems, getLabel, sortableRef } = useLayerManagement()
       <div
         v-for="(layer, index) in dataLayers"
         :key="layer.id || `layer-${index}`"
-        class="layer-item flex items-center gap-2 px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800"
+        class="flex items-center gap-2 border-2 border-transparent px-2.5 py-0.5 hover:bg-gray-50 dark:hover:bg-gray-800"
       >
         <UIcon
           name="i-tabler-stack-2"
@@ -65,9 +65,5 @@ const { dataLayers, getMenuItems, getLabel, sortableRef } = useLayerManagement()
   box-shadow:
     0 4px 6px -1px rgb(0 0 0 / 0.1),
     0 2px 4px -2px rgb(0 0 0 / 0.1);
-}
-
-.layer-item {
-  transition: transform 0.2s ease;
 }
 </style>
