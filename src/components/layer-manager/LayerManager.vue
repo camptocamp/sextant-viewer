@@ -9,7 +9,11 @@ const layerStore = useLayersStore()
 const { selectedLayer } = storeToRefs(layerStore)
 
 const handleLayerClick = (layer: MapContextLayer) => {
-  layerStore.selectLayer(layer)
+  if (layer !== selectedLayer.value) {
+    layerStore.selectLayer(layer)
+  } else {
+    layerStore.deselectLayer()
+  }
 }
 
 const isSelected = (layer: MapContextLayer) => {
