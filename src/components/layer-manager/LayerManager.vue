@@ -4,7 +4,7 @@ import { useLayerManagement } from '@/composables/useLayerManagement'
 import { useLayersStore } from '@/stores/layers.store.ts'
 import { storeToRefs } from 'pinia'
 
-const { dataLayers, getMenuItems, getLabel, sortableRef } = useLayerManagement()
+const { dataLayers, getLabel, sortableRef } = useLayerManagement()
 const layerStore = useLayersStore()
 const { selectedLayer } = storeToRefs(layerStore)
 
@@ -44,26 +44,6 @@ const isSelected = (layer: MapContextLayer) => {
             {{ getLabel(layer) }}
           </span>
         </UTooltip>
-
-        <UDropdownMenu
-          :items="getMenuItems(layer)"
-          :content="{ side: 'right' }"
-          :ui="{
-            content: 'z-1 rounded py-2 px-0 shadow-dd min-w-48 backdrop-blur-md bg-white ',
-            item: 'cursor-pointer px-3 py-1 text-sm capitalize hover:bg-primary/20 ',
-            group: 'p-0',
-            separator: 'mx-0 my-3',
-          }"
-        >
-          <UButton
-            icon="i-heroicons-ellipsis-vertical"
-            variant=""
-            size="sm"
-            :ui="{
-              base: 'p-0',
-            }"
-          />
-        </UDropdownMenu>
       </div>
     </div>
   </div>
