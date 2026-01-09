@@ -9,7 +9,7 @@ build:
   script:
      # 1. buid
     - npm install
-    - npm run build
+    - npm run build --base-href "/viewer/"
     # transforme le nom de la branche (remplace / par _)
     #- branch_transformed_name=`echo $CI_COMMIT_REF_NAME | sed 's/\//_/g'`
     #- ng build main --base-href "/"
