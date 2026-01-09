@@ -1,6 +1,12 @@
 import { computed, ref, type Ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { MapContext, MapContextLayer, MapContextView } from '@geospatial-sdk/core'
+import {
+  changeLayerPositionInContext,
+  getLayerPosition,
+  type MapContext,
+  type MapContextLayer,
+  type MapContextView,
+} from '@geospatial-sdk/core'
 import { removeLayerFromContext } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 
@@ -28,6 +34,12 @@ export const useMapStore = defineStore('map', () => {
     context.value = removeLayerFromContext(context.value, layer)
   }
 
+  function changeLayerPosition(layer: MapContextLayer, delta: number) {
+    const oldPosition = getLayerPosition(context.value, layer)
+    const newPosition = oldPosition + delta
+    context.value = changeLayerPositionInContext(context.value, layer, newPosition)
+  }
+
   return {
     context,
     layers,
@@ -35,5 +47,6 @@ export const useMapStore = defineStore('map', () => {
     setView,
     addLayer,
     deleteLayer,
+    changeLayerPosition,
   }
 })
