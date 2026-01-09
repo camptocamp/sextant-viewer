@@ -15,7 +15,8 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "lint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/ index.html"
+    "format": "prettier --write --experimental-cli src/ index.html",
+    "format:check": "prettier -c --experimental-cli src/ index.html"
   },
   "dependencies": {
     "@camptocamp/ogc-client": "^1.3.1-dev.53a6449",
