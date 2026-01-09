@@ -11,22 +11,22 @@ export default defineConfig({
   plugins: [
     vue(),
     ui({
+      router: false,
       ui: {
         tabs: {
           defaultVariants: {
             color: 'neutral',
             variant: 'link',
-          }
-
-        }
-      }
+          },
+        },
+      },
     }),
     tailwindcss(),
     vueDevTools(),
   ],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
 })
