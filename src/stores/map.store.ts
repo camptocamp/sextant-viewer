@@ -1,13 +1,14 @@
 import { computed, ref, type Ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
+  addLayerToContext,
   changeLayerPositionInContext,
   getLayerPosition,
   type MapContext,
   type MapContextLayer,
   type MapContextView,
+  removeLayerFromContext,
 } from '@geospatial-sdk/core'
-import { removeLayerFromContext } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 
 export const useMapStore = defineStore('map', () => {
@@ -24,10 +25,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   function addLayer(layer: MapContextLayer) {
-    context.value = {
-      ...context.value,
-      layers: [...context.value.layers, layer],
-    }
+    context.value = addLayerToContext(context.value, layer)
   }
 
   function deleteLayer(layer: MapContextLayer): void {
