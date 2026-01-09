@@ -4,7 +4,7 @@ import { useLayerManagement } from '@/composables/useLayerManagement'
 import { useLayersStore } from '@/stores/layers.store.ts'
 import { storeToRefs } from 'pinia'
 
-const { dataLayers, getMenuItems, getLabel } = useLayerManagement()
+const { dataLayers, getMenuItems, getLabel, sortableRef } = useLayerManagement()
 const layerStore = useLayersStore()
 const { selectedLayer } = storeToRefs(layerStore)
 
@@ -32,7 +32,7 @@ const isSelected = (layer: MapContextLayer) => {
         v-for="(layer, index) in dataLayers"
         :key="layer.id || `layer-${index}`"
         class="flex cursor-pointer items-center gap-2 border-2 border-transparent px-2.5 py-0.5 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
-        :class="[isSelected(layer) && 'bg-primary/10 !border-primary']"
+        :class="[isSelected(layer) && 'bg-primary/10']"
         @click="handleLayerClick(layer)"
       >
         <UIcon
