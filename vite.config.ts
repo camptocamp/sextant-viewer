@@ -12,6 +12,7 @@ export default defineConfig({
     vue(),
     ui({
       router: false,
+      colorMode: false,
       ui: {
         tabs: {
           defaultVariants: {
