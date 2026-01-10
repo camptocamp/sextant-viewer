@@ -3,6 +3,7 @@ import type { MapContextLayer } from '@geospatial-sdk/core'
 import { useLayerManagement } from '@/composables/useLayerManagement'
 import { useLayersStore } from '@/stores/layers.store.ts'
 import { storeToRefs } from 'pinia'
+import SubdividedPanel from '@/components/layout/SubdividedPanel.vue'
 
 const { dataLayers, getLabel, sortableRef } = useLayerManagement()
 const layerStore = useLayersStore()
@@ -22,8 +23,8 @@ const isSelected = (layer: MapContextLayer) => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
-    <div class="grow">
+  <SubdividedPanel :show-subdivision="!!selectedLayer">
+    <template #default>
       <UEmpty
         v-if="dataLayers.length === 0"
         variant="naked"
@@ -53,12 +54,12 @@ const isSelected = (layer: MapContextLayer) => {
           </UButton>
         </UTooltip>
       </div>
-    </div>
+    </template>
 
-    <div v-if="selectedLayer" class="border-t-primary-200 mt-2 h-1/2 border-t-2">
-      <LayerDetailsPanel :layer="selectedLayer" />
-    </div>
-  </div>
+    <template #subdivision>
+      <LayerDetailsPanel :layer="selectedLayer!" />
+    </template>
+  </SubdividedPanel>
 </template>
 
 <style scoped>

@@ -15,13 +15,14 @@ const handleClose = () => {
 </script>
 
 <template>
-  <div class="p-4">
-    <div class="flex items-center justify-between">
-      <h3 class="truncate text-lg font-semibold">
+  <div class="p-2">
+    <div class="mb-2 flex items-center justify-between">
+      <h3 class="text-md line-clamp-2 font-semibold text-clip">
         {{ getLayerLabel(layer) }}
       </h3>
       <UButton icon="i-heroicons-x-mark" variant="ghost" size="sm" @click="handleClose" />
     </div>
+    <!-- TODO: here, add different components based on the layer type -->
     <div>Contenu manquant !</div>
   </div>
 </template>
