@@ -15,7 +15,7 @@
 }
 @layer components {
   .sxt-panel {
-    @apply bg-white dark:bg-gray-800 rounded-lg p-2;
+    @apply rounded-lg bg-white p-2 dark:bg-gray-800;
     box-shadow: var(--shadow-panel);
   }
 }
