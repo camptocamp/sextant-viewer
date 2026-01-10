@@ -32,28 +32,30 @@ const isSelected = (layer: MapContextLayer) => {
         description="Add layers to the map to see them here"
       />
 
-      <div v-else ref="sortableRef" class="layer-list">
-        <div
+      <div v-else ref="sortableRef" class="layer-list flex flex-col gap-2">
+        <UTooltip
           v-for="(layer, index) in dataLayers"
           :key="layer.id || `layer-${index}`"
-          class="flex cursor-pointer items-center gap-2 border-2 border-transparent px-2.5 py-0.5 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
-          :class="[isSelected(layer) && 'bg-primary/10']"
-          @click="handleLayerClick(layer)"
+          :text="getLabel(layer)"
         >
-          <UIcon
-            name="i-tabler-stack-2"
-            class="drag-handle cursor-move text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          />
-          <UTooltip :text="getLabel(layer)">
-            <span class="flex-1 truncate text-sm">
-              {{ getLabel(layer) }}
-            </span>
-          </UTooltip>
-        </div>
+          <UButton
+            class="flex w-full"
+            size="md"
+            :active="isSelected(layer)"
+            color="neutral"
+            active-color="primary"
+            variant="soft"
+            active-variant="solid"
+            @click="handleLayerClick(layer)"
+          >
+            <UIcon name="i-tabler-stack-2" class="drag-handle shrink-0 cursor-move" />
+            <span class="truncate text-sm">{{ getLabel(layer) }}</span>
+          </UButton>
+        </UTooltip>
       </div>
     </div>
 
-    <div v-if="selectedLayer" class="border-t-primary-500 mt-2 h-1/2 border-t">
+    <div v-if="selectedLayer" class="border-t-primary-200 mt-2 h-1/2 border-t-2">
       <LayerDetailsPanel :layer="selectedLayer" />
     </div>
   </div>

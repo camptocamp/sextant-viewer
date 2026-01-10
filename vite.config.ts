@@ -20,6 +20,9 @@ export default defineConfig({
             variant: 'link',
           },
         },
+        colors: {
+          primary: 'blue', // TODO: define a color scale that matches Sextant theme better
+        },
       },
     }),
     tailwindcss(),
