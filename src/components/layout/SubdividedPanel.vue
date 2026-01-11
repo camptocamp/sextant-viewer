@@ -6,29 +6,42 @@ defineProps<{
   showSubdivision?: boolean
 }>()
 
+const emit = defineEmits<{
+  closePanel: []
+}>()
+
 const containerRef = ref<HTMLElement | null>(null)
 const { subdivisionHeightPercent, isDragging, onDividerMouseDown } =
   useResizableDivider(containerRef)
+
+const handleClose = () => {
+  emit('closePanel')
+}
 </script>
 
 <template>
   <div ref="containerRef" class="flex h-full flex-col">
-    <!-- Main content area -->
     <div class="flex-1 overflow-auto">
       <slot name="default" />
     </div>
 
-    <!-- Subdivision with draggable divider -->
     <template v-if="showSubdivision">
-      <!-- Divider bar -->
-      <div
-        class="border-primary-200 mt-1 flex items-center justify-center border-t-2 pt-1 transition-colors select-none"
-        :class="{
-          'cursor-ns-resize': !isDragging,
-          'border-primary-300': isDragging,
-        }"
-        @mousedown="onDividerMouseDown"
-      ></div>
+      <div class="mt-2 flex cursor-ns-resize items-center" @mousedown="onDividerMouseDown">
+        <UBadge variant="solid" color="primary" size="md">Informations de la couche</UBadge>
+        <div
+          class="border-primary-200 grow-1 border-t-2"
+          :class="{
+            'border-primary-300': isDragging,
+          }"
+        ></div>
+        <UButton
+          icon="i-heroicons-x-mark"
+          color="primary"
+          variant="outline"
+          size="xs"
+          @click="handleClose"
+        />
+      </div>
 
       <!-- Subdivision content -->
       <div class="overflow-auto" :style="{ height: `${subdivisionHeightPercent}%` }">

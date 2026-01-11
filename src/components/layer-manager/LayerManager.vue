@@ -20,10 +20,14 @@ const handleLayerClick = (layer: MapContextLayer) => {
 const isSelected = (layer: MapContextLayer) => {
   return selectedLayer.value === layer
 }
+
+const handleDeselectLayer = () => {
+  layerStore.deselectLayer()
+}
 </script>
 
 <template>
-  <SubdividedPanel :show-subdivision="!!selectedLayer">
+  <SubdividedPanel :show-subdivision="!!selectedLayer" @close-panel="handleDeselectLayer">
     <template #default>
       <UEmpty
         v-if="dataLayers.length === 0"
