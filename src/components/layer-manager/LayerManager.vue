@@ -18,7 +18,7 @@ const isSelected = (layer: MapContextLayer) => {
 </script>
 
 <template>
-  <div class="">
+  <div class="py-4">
     <UEmpty
       v-if="dataLayers.length === 0"
       variant="naked"
@@ -32,7 +32,7 @@ const isSelected = (layer: MapContextLayer) => {
         v-for="(layer, index) in dataLayers"
         :key="layer.id || `layer-${index}`"
         class="flex cursor-pointer items-center gap-2 border-2 border-transparent px-2.5 py-0.5 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
-        :class="[isSelected(layer) && 'bg-primary/10']"
+        :class="[isSelected(layer) && 'bg-primary/10 border-l-primary']"
         @click="handleLayerClick(layer)"
       >
         <UIcon

@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import LayerDetailsPanel from '@/components/layout/LayerDetailsPanel.vue'
+import { useLayersStore } from '@/stores/layers.store.ts'
+import { storeToRefs } from 'pinia'
+
+const { selectedLayer } = storeToRefs(useLayersStore())
+
 const tabItems = [
   { slot: 'list', label: 'List' },
   { slot: 'tree', label: 'Tree' },
@@ -8,7 +14,13 @@ const tabItems = [
 <template>
   <UTabs :items="tabItems" :ui="{ content: 'mt-3' }">
     <template #list>
-      <LayerManager />
+      <div class="flex flex-col gap-2">
+        <LayerManager />
+        <div v-if="selectedLayer">
+          <USeparator icon="i-tabler-stack-2-filled" />
+          <LayerDetailsPanel :layer="selectedLayer" />
+        </div>
+      </div>
     </template>
 
     <template #tree>
