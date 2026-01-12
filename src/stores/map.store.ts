@@ -8,6 +8,7 @@ import {
   type MapContextLayer,
   type MapContextView,
   removeLayerFromContext,
+  replaceLayerInContext,
 } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 
@@ -38,6 +39,14 @@ export const useMapStore = defineStore('map', () => {
     context.value = changeLayerPositionInContext(context.value, layer, newPosition)
   }
 
+  function updateLayer(layer: MapContextLayer, updates: Partial<MapContextLayer>) {
+    const updatedLayer = {
+      ...layer,
+      ...updates,
+    } as MapContextLayer
+    context.value = { ...replaceLayerInContext(context.value, layer, updatedLayer) } // TODO: the geospatial-sdk should create a new context when doing this
+  }
+
   return {
     context,
     layers,
@@ -46,5 +55,6 @@ export const useMapStore = defineStore('map', () => {
     addLayer,
     deleteLayer,
     changeLayerPosition,
+    updateLayer,
   }
 })
