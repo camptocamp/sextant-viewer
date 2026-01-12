@@ -1,13 +1,24 @@
 <script setup lang="ts">
+import type { MapContextLayer } from '@geospatial-sdk/core'
 import { useLayerManagement } from '@/composables/useLayerManagement'
+import { useLayersStore } from '@/stores/layers.store.ts'
+import { storeToRefs } from 'pinia'
 
 const { dataLayers, getMenuItems, getLabel, sortableRef } = useLayerManagement()
+const layerStore = useLayersStore()
+const { selectedLayer } = storeToRefs(layerStore)
+
+const handleLayerClick = (layer: MapContextLayer) => {
+  layerStore.selectLayer(layer)
+}
+
+const isSelected = (layer: MapContextLayer) => {
+  return selectedLayer.value === layer
+}
 </script>
 
 <template>
-  <div class="">
-    <h3 class="my-2 px-3 text-lg font-semibold">Layers</h3>
-
+  <div class="py-4">
     <UEmpty
       v-if="dataLayers.length === 0"
       variant="naked"
@@ -20,7 +31,9 @@ const { dataLayers, getMenuItems, getLabel, sortableRef } = useLayerManagement()
       <div
         v-for="(layer, index) in dataLayers"
         :key="layer.id || `layer-${index}`"
-        class="flex items-center gap-2 border-2 border-transparent px-2.5 py-0.5 hover:bg-gray-50 dark:hover:bg-gray-800"
+        class="flex cursor-pointer items-center gap-2 border-2 border-transparent px-2.5 py-0.5 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+        :class="[isSelected(layer) && 'bg-primary/10 border-l-primary']"
+        @click="handleLayerClick(layer)"
       >
         <UIcon
           name="i-tabler-stack-2"
@@ -42,7 +55,14 @@ const { dataLayers, getMenuItems, getLabel, sortableRef } = useLayerManagement()
             separator: 'mx-0 my-3',
           }"
         >
-          <UButton icon="i-heroicons-ellipsis-vertical" variant="" size="sm" />
+          <UButton
+            icon="i-heroicons-ellipsis-vertical"
+            variant=""
+            size="sm"
+            :ui="{
+              base: 'p-0',
+            }"
+          />
         </UDropdownMenu>
       </div>
     </div>

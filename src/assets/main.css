@@ -14,7 +14,11 @@
   }
 }
 @layer components {
+  .bg-blur {
+    @apply bg-white/50 backdrop-blur-md;
+  }
+
   .map-panel {
-    @apply shadow-panel rounded bg-white/50 py-1.5 backdrop-blur-md;
+    @apply shadow-panel rounded bg-white/70 py-1.5 backdrop-blur-md;
   }
 }
