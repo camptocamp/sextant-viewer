@@ -15,5 +15,5 @@ export function isBasemapLayer(layer: MapContextLayer): boolean {
  * @returns Layer label or 'Untitled Layer' if no label exists
  */
 export function getLayerLabel(layer: MapContextLayer): string {
-  return layer.label || 'Untitled Layer'
+  return layer.label || 'Couche sans titre'
 }

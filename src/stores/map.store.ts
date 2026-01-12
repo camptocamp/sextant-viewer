@@ -1,13 +1,15 @@
 import { computed, ref, type Ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
+  addLayerToContext,
   changeLayerPositionInContext,
   getLayerPosition,
   type MapContext,
   type MapContextLayer,
   type MapContextView,
+  removeLayerFromContext,
+  replaceLayerInContext,
 } from '@geospatial-sdk/core'
-import { removeLayerFromContext } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 
 export const useMapStore = defineStore('map', () => {
@@ -24,10 +26,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   function addLayer(layer: MapContextLayer) {
-    context.value = {
-      ...context.value,
-      layers: [...context.value.layers, layer],
-    }
+    context.value = addLayerToContext(context.value, layer)
   }
 
   function deleteLayer(layer: MapContextLayer): void {
@@ -40,6 +39,14 @@ export const useMapStore = defineStore('map', () => {
     context.value = changeLayerPositionInContext(context.value, layer, newPosition)
   }
 
+  function updateLayer(layer: MapContextLayer, updates: Partial<MapContextLayer>) {
+    const updatedLayer = {
+      ...layer,
+      ...updates,
+    } as MapContextLayer
+    context.value = { ...replaceLayerInContext(context.value, layer, updatedLayer) } // TODO: the geospatial-sdk should create a new context when doing this
+  }
+
   return {
     context,
     layers,
@@ -48,5 +55,6 @@ export const useMapStore = defineStore('map', () => {
     addLayer,
     deleteLayer,
     changeLayerPosition,
+    updateLayer,
   }
 })

@@ -11,22 +11,26 @@ export default defineConfig({
   plugins: [
     vue(),
     ui({
+      router: false,
+      colorMode: false,
       ui: {
         tabs: {
           defaultVariants: {
             color: 'neutral',
             variant: 'link',
-          }
-
-        }
-      }
+          },
+        },
+        colors: {
+          primary: 'blue', // TODO: define a color scale that matches Sextant theme better
+        },
+      },
     }),
     tailwindcss(),
     vueDevTools(),
   ],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
 })
