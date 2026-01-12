@@ -1,6 +1,7 @@
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { MapContextLayer } from '@geospatial-sdk/core'
+import { useMapStore } from '@/stores/map.store.ts'
 
 /**
  * Layers store - manages layer selection state
@@ -11,6 +12,19 @@ import type { MapContextLayer } from '@geospatial-sdk/core'
 export const useLayersStore = defineStore('layers', () => {
   const selectedLayer = ref<MapContextLayer | null>(null)
   const hasSelection = computed(() => selectedLayer.value !== null)
+
+  const mapStore = useMapStore()
+
+  mapStore.$onAction(({ name, args }) => {
+    switch (name) {
+      case 'deleteLayer':
+        const layerToDelete = args[0] as MapContextLayer
+        if (selectedLayer.value && selectedLayer.value === layerToDelete) {
+          selectedLayer.value = null
+        }
+        break
+    }
+  })
 
   const selectLayer = (layer: MapContextLayer) => {
     selectedLayer.value = layer

@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import MapViewer from '@/components/map/MapViewer.vue'
 
 const router = createRouter({
   // @ts-expect-error issue with vite and meta type
@@ -8,7 +7,6 @@ const router = createRouter({
     {
       path: '/',
       component: () => import('../components/map/MapViewer.vue'),
-
     },
   ],
 })
