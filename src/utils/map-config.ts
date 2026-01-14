@@ -1,10 +1,10 @@
-import type { MapContext } from '@geospatial-sdk/core'
+import type { ExtendedMapContext } from '@/stores/map.store'
 
 /**
  * Default MapContext configuration for the map application
  * Contains OpenStreetMap as the base layer with a world view
  */
-export const DEFAULT_MAP_CONTEXT: MapContext = {
+export const DEFAULT_MAP_CONTEXT: ExtendedMapContext = {
   layers: [
     {
       type: 'xyz',
@@ -49,6 +49,17 @@ export const DEFAULT_MAP_CONTEXT: MapContext = {
       opacity: 1,
       attributions: '© Ville de Roubaix',
       version: 0,
+    },
+    // {
+    //   type: 'stac',
+    //   url: 'https://stac-pg-api.ifremer.fr',
+    //   collectionId: 'AVHRR_SST_METOP_B_OSISAF_L2P_v1_0',
+    //   id: 'AVHRR_SST_METOP_B_OSISAF_L2P_v1_0',
+    // },
+    {
+      type: 'stac',
+      url: 'https://stac-pg-api.ifremer.fr/collections/AVHRR_SST_METOP_B_OSISAF_L2P_v1_0',
+      id: 'AVHRR_SST_METOP_B_OSISAF_L2P_v1_0-no-collection-id',
     },
   ],
   view: {

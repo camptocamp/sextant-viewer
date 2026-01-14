@@ -20,9 +20,9 @@
 
 **Purpose**: Install dependencies and create foundational types
 
-- [ ] T001 Install @vueuse/core dependency for debouncing (npm install @vueuse/core)
-- [ ] T002 [P] Create src/types/stac-layer.types.ts with MapLayerStac and related interfaces from contracts/stac-layer.ts
-- [ ] T003 [P] Create src/types/stac-api.types.ts with STAC API types and helpers from contracts/stac-api.ts
+- [X] T001 Install @vueuse/core dependency for debouncing (npm install @vueuse/core)
+- [X] T002 [P] Create src/types/stac-layer.types.ts with MapLayerStac and related interfaces from contracts/stac-layer.ts
+- [X] T003 [P] Create src/types/stac-api.types.ts with STAC API types and helpers from contracts/stac-api.ts
 
 ---
 
@@ -32,13 +32,13 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Extend src/utils/layer.utils.ts with MapLayer union type and isStacLayer() type guard
-- [ ] T005 Modify src/stores/map.store.ts to use internal MapLayer array instead of direct MapContextLayer
-- [ ] T006 Add computed context property to src/stores/map.store.ts that maps STAC layers to GeoJSON
-- [ ] T007 Implement mapStacToGeojson() helper function in src/stores/map.store.ts
-- [ ] T008 Create src/composables/useStacOperations.ts with StacEndpoint integration
-- [ ] T009 Add refetchStacLayerItems() action to src/stores/map.store.ts
-- [ ] T010 Add goToNextStacPage() and goToPrevStacPage() actions to src/stores/map.store.ts
+- [X] T004 Extend src/utils/layer.utils.ts with MapLayer union type and isStacLayer() type guard
+- [X] T005 Modify src/stores/map.store.ts to use internal MapLayer array instead of direct MapContextLayer
+- [X] T006 Add computed context property to src/stores/map.store.ts that maps STAC layers to GeoJSON
+- [X] T007 Implement mapStacToGeojson() helper function in src/stores/map.store.ts
+- [X] T008 Create src/composables/useStacOperations.ts with StacEndpoint integration
+- [X] T009 Add refetchStacLayerItems() action to src/stores/map.store.ts
+- [X] T010 Add goToNextStacPage() and goToPrevStacPage() actions to src/stores/map.store.ts
 
 **Checkpoint**: Foundation ready - STAC layers can be added and fetched, user story UI can now be built
 
@@ -52,12 +52,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Create src/components/stac/StacItemsIndicator.vue for loading/empty/error states
-- [ ] T012 [US1] Extend src/components/layer-manager/LayerManager.vue to display STAC layers in the list
-- [ ] T013 [US1] Extend src/components/layer-manager/LayerDetailsPanel.vue to detect and show STAC layer type
-- [ ] T014 [US1] Add conditional rendering in LayerDetailsPanel.vue to show StacItemsIndicator for STAC layers
-- [ ] T015 [US1] Add error handling with NuxtUI toast notifications in map.store.ts refetchStacLayerItems()
-- [ ] T016 [US1] Test adding STAC layer via console and verify items load and display on map
+- [X] T011 [P] [US1] Create src/components/stac/StacItemsIndicator.vue for loading/empty/error states
+- [X] T012 [US1] Extend src/components/layer-manager/LayerManager.vue to display STAC layers in the list
+- [X] T013 [US1] Extend src/components/layer-manager/LayerDetailsPanel.vue to detect and show STAC layer type
+- [X] T014 [US1] Add conditional rendering in LayerDetailsPanel.vue to show StacItemsIndicator for STAC layers
+- [X] T015 [US1] Add error handling with NuxtUI toast notifications in map.store.ts refetchStacLayerItems()
+- [X] T016 [US1] Test adding STAC layer via console and verify items load and display on map
 
 **Checkpoint**: ✅ STAC layers can be added, appear in layer manager, and display geometries on map
 
@@ -71,12 +71,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] Create src/components/stac/StacDateRangeFilter.vue with two UInput date fields
-- [ ] T018 [P] [US2] Add date range watcher in StacDateRangeFilter.vue that triggers refetchStacLayerItems()
-- [ ] T019 [US2] Create src/components/stac/StacFilterPanel.vue wrapper component
-- [ ] T020 [US2] Add StacDateRangeFilter to StacFilterPanel component
-- [ ] T021 [US2] Update LayerDetailsPanel.vue to show StacFilterPanel for STAC layers
-- [ ] T022 [US2] Test date range filtering with various date combinations (start only, end only, both, neither)
+- [X] T017 [P] [US2] Create src/components/stac/StacDateRangeFilter.vue with two UInput date fields
+- [X] T018 [P] [US2] Add date range watcher in StacDateRangeFilter.vue that triggers refetchStacLayerItems()
+- [X] T019 [US2] Create src/components/stac/StacFilterPanel.vue wrapper component
+- [X] T020 [US2] Add StacDateRangeFilter to StacFilterPanel component
+- [X] T021 [US2] Update LayerDetailsPanel.vue to show StacFilterPanel for STAC layers
+- [X] T022 [US2] Test date range filtering with various date combinations (start only, end only, both, neither)
 
 **Checkpoint**: ✅ Date range filtering works independently and updates map display
 
@@ -90,12 +90,12 @@
 
 ### Implementation for User Story 3
 
-- [ ] T023 [P] [US3] Create src/components/stac/StacSpatialFilter.vue with UCheckbox for extent toggle
-- [ ] T024 [US3] Add spatial filter enabled watcher in StacSpatialFilter.vue that captures map bounds and triggers refetch
-- [ ] T025 [US3] Add map view.extent watcher in StacSpatialFilter.vue with useDebounceFn() (500ms debounce)
-- [ ] T026 [US3] Implement getMapBounds() helper to extract bbox from map view extent
-- [ ] T027 [US3] Add StacSpatialFilter to StacFilterPanel component
-- [ ] T028 [US3] Test spatial filtering with checkbox toggle and map pan/zoom interactions
+- [X] T023 [P] [US3] Create src/components/stac/StacSpatialFilter.vue with UCheckbox for extent toggle
+- [X] T024 [US3] Add spatial filter enabled watcher in StacSpatialFilter.vue that captures map bounds and triggers refetch
+- [X] T025 [US3] Add map view.extent watcher in StacSpatialFilter.vue with useDebounceFn() (500ms debounce)
+- [X] T026 [US3] Implement getMapBounds() helper to extract bbox from map view extent
+- [X] T027 [US3] Add StacSpatialFilter to StacFilterPanel component
+- [X] T028 [US3] Test spatial filtering with checkbox toggle and map pan/zoom interactions
 
 **Checkpoint**: ✅ Spatial extent filtering works independently and updates after map movements
 
@@ -109,12 +109,12 @@
 
 ### Implementation for User Story 4
 
-- [ ] T029 [P] [US4] Create src/components/stac/StacPaginationControls.vue with prev/next UButton components
-- [ ] T030 [US4] Add computed properties in StacPaginationControls.vue for hasNextPage, hasPrevPage, countText
-- [ ] T031 [US4] Wire prev/next buttons to mapStore.goToPrevStacPage() and goToNextStacPage() actions
-- [ ] T032 [US4] Add pagination controls to LayerDetailsPanel.vue below filter panel for STAC layers
-- [ ] T033 [US4] Implement disabled state logic for buttons (first/last page, loading state)
-- [ ] T034 [US4] Test pagination navigation with various page positions (first, middle, last)
+- [X] T029 [P] [US4] Create src/components/stac/StacPaginationControls.vue with prev/next UButton components
+- [X] T030 [US4] Add computed properties in StacPaginationControls.vue for hasNextPage, hasPrevPage, countText
+- [X] T031 [US4] Wire prev/next buttons to mapStore.goToPrevStacPage() and goToNextStacPage() actions
+- [X] T032 [US4] Add pagination controls to LayerDetailsPanel.vue below filter panel for STAC layers
+- [X] T033 [US4] Implement disabled state logic for buttons (first/last page, loading state)
+- [X] T034 [US4] Test pagination navigation with various page positions (first, middle, last)
 
 **Checkpoint**: ✅ Pagination works independently and displays accurate page/count information
 
@@ -128,10 +128,10 @@
 
 ### Implementation for User Story 5
 
-- [ ] T035 [US5] Test combined filter scenario: date range + spatial extent both active
-- [ ] T036 [US5] Verify buildStacRequestParams() in stac-api.types.ts correctly combines both filter types
-- [ ] T037 [US5] Test pagination with combined filters active
-- [ ] T038 [US5] Verify filter changes reset pagination to page 1
+- [X] T035 [US5] Test combined filter scenario: date range + spatial extent both active
+- [X] T036 [US5] Verify buildStacRequestParams() in stac-api.types.ts correctly combines both filter types
+- [X] T037 [US5] Test pagination with combined filters active
+- [X] T038 [US5] Verify filter changes reset pagination to page 1
 
 **Checkpoint**: ✅ Combined filtering works correctly and integrates with pagination
 
@@ -141,14 +141,14 @@
 
 **Purpose**: Error handling, loading states, and user experience improvements
 
-- [ ] T039 [P] Add USkeleton loading state to StacFilterPanel while items are loading
-- [ ] T040 [P] Add UAlert error display to StacFilterPanel when fetch fails
-- [ ] T041 [P] Implement request cancellation using AbortController for rapid filter changes
-- [ ] T042 [P] Add clear/reset filters button to StacFilterPanel
-- [ ] T043 Verify layer visibility toggle works correctly for STAC layers
-- [ ] T044 Test multiple STAC layers coexisting without interference
-- [ ] T045 Verify STAC layers don't affect existing layer types (WMS, XYZ, etc.)
-- [ ] T046 Add comprehensive error messages for common failure scenarios (CORS, network, invalid response)
+- [X] T039 [P] Add USkeleton loading state to StacFilterPanel while items are loading
+- [X] T040 [P] Add UAlert error display to StacFilterPanel when fetch fails
+- [X] T041 [P] Implement request cancellation using AbortController for rapid filter changes
+- [X] T042 [P] Add clear/reset filters button to StacFilterPanel
+- [X] T043 Verify layer visibility toggle works correctly for STAC layers
+- [X] T044 Test multiple STAC layers coexisting without interference
+- [X] T045 Verify STAC layers don't affect existing layer types (WMS, XYZ, etc.)
+- [X] T046 Add comprehensive error messages for common failure scenarios (CORS, network, invalid response)
 
 **Checkpoint**: ✅ Production-ready STAC layer support with polished UX
 

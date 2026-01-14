@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import type { MapContextLayer } from '@geospatial-sdk/core'
 import { useLayerReordering } from '@/composables/useLayerReordering'
 import { useLayersStore } from '@/stores/layers.store'
 import { storeToRefs } from 'pinia'
 import SubdividedPanel from '@/components/layout/SubdividedPanel.vue'
 import LayerListItem from '@/components/layer-manager/LayerListItem.vue'
+import type { MapLayer } from '@/utils/layer.utils'
 
 const { dataLayers, sortableRef } = useLayerReordering()
 const layerStore = useLayersStore()
 const { selectedLayer } = storeToRefs(layerStore)
 
-const handleLayerClick = (layer: MapContextLayer) => {
+const handleLayerClick = (layer: MapLayer) => {
   if (layer !== selectedLayer.value) {
     layerStore.selectLayer(layer)
   } else {
@@ -18,7 +18,7 @@ const handleLayerClick = (layer: MapContextLayer) => {
   }
 }
 
-const isSelected = (layer: MapContextLayer) => {
+const isSelected = (layer: MapLayer) => {
   return selectedLayer.value === layer
 }
 

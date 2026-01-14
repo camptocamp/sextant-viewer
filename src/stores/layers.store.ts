@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { MapContextLayer } from '@geospatial-sdk/core'
+import type { MapLayer } from '@/utils/layer.utils'
 import { useMapStore } from './map.store'
 
 /**
@@ -13,14 +13,14 @@ export const useLayersStore = defineStore('layers', () => {
   const selectedLayerId = ref<string | null>(null)
   const mapStore = useMapStore()
 
-  const selectedLayer = computed<MapContextLayer | null>(() => {
+  const selectedLayer = computed<MapLayer | null>(() => {
     if (!selectedLayerId.value) return null
     return mapStore.layers.find((layer) => String(layer.id) === selectedLayerId.value) ?? null
   })
 
   const hasSelection = computed(() => selectedLayerId.value !== null)
 
-  const selectLayer = (layer: MapContextLayer) => {
+  const selectLayer = (layer: MapLayer) => {
     selectedLayerId.value = layer.id ? String(layer.id) : null
   }
 
