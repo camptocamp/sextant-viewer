@@ -43,6 +43,7 @@ export const useMapStore = defineStore('map', () => {
     const updatedLayer = {
       ...layer,
       ...updates,
+      version: (layer.version || 0) + 1
     } as MapContextLayer
     context.value = { ...replaceLayerInContext(context.value, layer, updatedLayer) } // TODO: the geospatial-sdk should create a new context when doing this
   }
