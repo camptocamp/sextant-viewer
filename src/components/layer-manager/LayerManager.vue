@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { MapContextLayer } from '@geospatial-sdk/core'
-import { useLayerManagement } from '@/composables/useLayerManagement'
-import { useLayersStore } from '@/stores/layers.store.ts'
+import { useLayerReordering } from '@/composables/useLayerReordering'
+import { getLayerLabel } from '@/utils/layer.utils'
+import { useLayersStore } from '@/stores/layers.store'
 import { storeToRefs } from 'pinia'
 import SubdividedPanel from '@/components/layout/SubdividedPanel.vue'
 
-const { dataLayers, getLabel, sortableRef } = useLayerManagement()
+const { dataLayers, sortableRef } = useLayerReordering()
 const layerStore = useLayersStore()
 const { selectedLayer } = storeToRefs(layerStore)
 
@@ -41,7 +42,7 @@ const handleDeselectLayer = () => {
         <UTooltip
           v-for="(layer, index) in dataLayers"
           :key="layer.id || `layer-${index}`"
-          :text="getLabel(layer)"
+          :text="getLayerLabel(layer)"
         >
           <UButton
             class="flex w-full"
@@ -54,7 +55,7 @@ const handleDeselectLayer = () => {
             @click="handleLayerClick(layer)"
           >
             <UIcon name="i-tabler-stack-2" class="drag-handle shrink-0 cursor-move" />
-            <span class="truncate text-sm">{{ getLabel(layer) }}</span>
+            <span class="truncate text-sm">{{ getLayerLabel(layer) }}</span>
           </UButton>
         </UTooltip>
       </div>

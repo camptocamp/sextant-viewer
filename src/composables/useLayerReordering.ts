@@ -1,10 +1,16 @@
-import { ref, type ComputedRef } from 'vue'
+import { ref, computed } from 'vue'
 import { useSortable } from '@vueuse/integrations/useSortable'
-import type { MapContextLayer } from '@geospatial-sdk/core'
 import { useMapStore } from '@/stores/map.store'
+import { isBasemapLayer } from '@/utils/layer.utils'
 
-export function useLayerReordering(dataLayers: ComputedRef<MapContextLayer[]>) {
+export function useLayerReordering() {
   const mapStore = useMapStore()
+
+  const dataLayers = computed(() => {
+    const filtered = mapStore.layers.filter((layer) => !isBasemapLayer(layer))
+    return [...filtered].reverse()
+  })
+
   const sortableRef = ref<HTMLElement | null>(null)
   const isDragging = ref(false)
 
@@ -35,6 +41,7 @@ export function useLayerReordering(dataLayers: ComputedRef<MapContextLayer[]>) {
   })
 
   return {
+    dataLayers,
     sortableRef,
     isDragging,
   }
