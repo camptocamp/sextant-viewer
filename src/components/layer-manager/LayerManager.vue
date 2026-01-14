@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { MapContextLayer } from '@geospatial-sdk/core'
 import { useLayerReordering } from '@/composables/useLayerReordering'
-import { getLayerLabel } from '@/utils/layer.utils'
 import { useLayersStore } from '@/stores/layers.store'
 import { storeToRefs } from 'pinia'
 import SubdividedPanel from '@/components/layout/SubdividedPanel.vue'
+import LayerListItem from '@/components/layer-manager/LayerListItem.vue'
 
 const { dataLayers, sortableRef } = useLayerReordering()
 const layerStore = useLayersStore()
@@ -39,25 +39,13 @@ const handleDeselectLayer = () => {
       />
 
       <div v-else ref="sortableRef" class="layer-list flex flex-col gap-2">
-        <UTooltip
+        <LayerListItem
           v-for="(layer, index) in dataLayers"
           :key="layer.id || `layer-${index}`"
-          :text="getLayerLabel(layer)"
-        >
-          <UButton
-            class="flex w-full"
-            size="md"
-            :active="isSelected(layer)"
-            color="neutral"
-            active-color="primary"
-            variant="soft"
-            active-variant="solid"
-            @click="handleLayerClick(layer)"
-          >
-            <UIcon name="i-tabler-stack-2" class="drag-handle shrink-0 cursor-move" />
-            <span class="truncate text-sm">{{ getLayerLabel(layer) }}</span>
-          </UButton>
-        </UTooltip>
+          :layer="layer"
+          :active="isSelected(layer)"
+          @click="handleLayerClick(layer)"
+        />
       </div>
     </template>
 
@@ -68,10 +56,6 @@ const handleDeselectLayer = () => {
 </template>
 
 <style scoped>
-.drag-handle {
-  touch-action: none;
-}
-
 :deep(.sortable-ghost) {
   opacity: 0.4;
   background-color: rgb(59 130 246 / 0.1);
