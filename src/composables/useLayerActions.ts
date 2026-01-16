@@ -13,6 +13,17 @@ export function useLayerActions(layer: MaybeRefOrGetter<MapContextLayer>) {
     },
   })
 
+  const isVisible = computed({
+    get: () => toValue(layer).visibility !== false,
+    set: (value: boolean) => {
+      mapStore.updateLayer(toValue(layer), { visibility: value })
+    },
+  })
+
+  function toggleVisibility() {
+    isVisible.value = !isVisible.value
+  }
+
   const canZoomToExtent = computed(() => {
     const l = toValue(layer)
     if (l.type === 'geojson') return !!l.data
@@ -36,6 +47,8 @@ export function useLayerActions(layer: MaybeRefOrGetter<MapContextLayer>) {
 
   return {
     opacity,
+    isVisible,
+    toggleVisibility,
     canZoomToExtent,
     zoomToExtent,
     deleteLayer,
