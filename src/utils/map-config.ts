@@ -27,6 +27,7 @@ export const DEFAULT_MAP_CONTEXT: MapContext = {
       visibility: true,
       opacity: 0.7,
       attributions: '© IGN - INSEE',
+      version: 0,
     },
     {
       type: 'wfs',
@@ -37,6 +38,7 @@ export const DEFAULT_MAP_CONTEXT: MapContext = {
       visibility: true,
       opacity: 0.8,
       attributions: '© MEL - Ilevia',
+      version: 0,
     },
     {
       type: 'geojson',
@@ -46,6 +48,7 @@ export const DEFAULT_MAP_CONTEXT: MapContext = {
       visibility: false,
       opacity: 1,
       attributions: '© Ville de Roubaix',
+      version: 0,
     },
   ],
   view: {
