@@ -1,5 +1,5 @@
 import type { MapContextLayer } from '@geospatial-sdk/core'
-import type { MapLayerStac } from '@/types/stac-layer.types'
+import type { MapLayerStac } from '@/types/stac.types'
 
 /**
  * Union type combining standard MapContext layers with STAC layers.
@@ -21,7 +21,7 @@ export function isStacLayer(layer: any): layer is MapLayerStac {
  * @param layer - The layer to check
  * @returns true if layer is a basemap, false otherwise
  */
-export function isBasemapLayer(layer: MapContextLayer): boolean {
+export function isBasemapLayer(layer: MapLayer): boolean {
   return layer.extras?.basemap === true
 }
 

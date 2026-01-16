@@ -5,12 +5,7 @@
       <USkeleton class="h-4 w-32" />
     </template>
     <template v-else-if="error">
-      <UAlert
-        color="error"
-        variant="soft"
-        icon="i-heroicons-exclamation-triangle"
-        :title="error"
-      />
+      <UAlert color="error" variant="soft" icon="i-heroicons-exclamation-triangle" :title="error" />
     </template>
     <template v-else-if="itemCount === 0">
       <UIcon name="i-heroicons-information-circle" />

@@ -18,7 +18,7 @@
       variant="soft"
       color="neutral"
       icon="i-heroicons-x-mark"
-      @click="clearFilters"
+      @click="resetFilters"
     >
       Réinitialiser les filtres
     </UButton>
@@ -29,7 +29,7 @@
 import { computed } from 'vue'
 import StacDateRangeFilter from './StacDateRangeFilter.vue'
 import StacSpatialFilter from './StacSpatialFilter.vue'
-import type { StacFilters, DateRangeFilter, SpatialExtentFilter } from '@/types/stac-layer.types'
+import type { StacFilters, DateRangeFilter, SpatialExtentFilter } from '@/types/stac.types'
 
 const props = defineProps<{
   filters: StacFilters
@@ -37,6 +37,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:filters': [filters: StacFilters]
+  'reset:filters': []
 }>()
 
 const dateRange = computed(() => props.filters.dateRange)
@@ -64,16 +65,7 @@ function updateSpatialExtent(newSpatialExtent: SpatialExtentFilter) {
   })
 }
 
-function clearFilters() {
-  emit('update:filters', {
-    dateRange: {
-      start: null,
-      end: null,
-    },
-    spatialExtent: {
-      enabled: false,
-      bbox: null,
-    },
-  })
+function resetFilters() {
+  emit('reset:filters')
 }
 </script>

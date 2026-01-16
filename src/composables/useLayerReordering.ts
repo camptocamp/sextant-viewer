@@ -1,12 +1,12 @@
 import { ref, computed } from 'vue'
 import { useSortable } from '@vueuse/integrations/useSortable'
 import { useMapStore } from '@/stores/map.store'
-import { isBasemapLayer } from '@/utils/layer.utils'
+import { isBasemapLayer, type MapLayer } from '@/utils/layer.utils'
 
 export function useLayerReordering() {
   const mapStore = useMapStore()
 
-  const dataLayers = computed(() => {
+  const dataLayers = computed<MapLayer[]>(() => {
     const filtered = mapStore.layers.filter((layer) => !isBasemapLayer(layer))
     return [...filtered].reverse()
   })

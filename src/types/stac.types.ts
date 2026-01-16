@@ -9,48 +9,48 @@
  */
 
 import type { MapContextBaseLayer } from '@geospatial-sdk/core'
+import type { StacCollection } from '@camptocamp/ogc-client'
+import type { FeatureCollection } from 'geojson'
 
 /**
- * STAC Layer representation with embedded filter and pagination state.
+ * STAC collection metadata (using ogc-client types).
+ * This is a subset of StacCollection with display-relevant properties.
+ */
+export type StacCollectionMetadata = Pick<
+  StacCollection,
+  'title' | 'description' | 'license' | 'extent' | 'keywords'
+>
+
+/**
+ * STAC Layer representation with filter and pagination configuration.
  *
  * This type is used internally by the map store and gets mapped to
  * MapContextLayerGeojson for rendering via the computed context property.
+ * Runtime state (metadata, cached data, loading flags) is managed separately
+ * in the store to keep this interface clean and configuration-focused.
  */
 export interface MapLayerStac extends MapContextBaseLayer {
   type: 'stac'
   url: string
   collectionId?: string
   filters?: StacFilters
+  initialFilters?: StacFilters
   pagination?: StacPagination
-  error?: string | null
-  collectionMetadata?: StacCollectionMetadata
+  data?: FeatureCollection
+  error?: boolean
 }
 
 /**
- * STAC collection metadata (for display purposes).
+ * StacLayerInfo data returned by STAC composable functions.
+ * Contains metadata and updates to be applied to layer properties.
  */
-export interface StacCollectionMetadata {
-  /** Collection title */
-  title?: string
-
-  /** Collection description */
-  description?: string
-
-  /** Data license */
-  license?: string
-
-  /** Collection spatial and temporal extent */
-  extent?: {
-    spatial?: {
-      bbox: number[][]
-    }
-    temporal?: {
-      interval: (string | null)[][]
-    }
-  }
-
-  /** Collection keywords */
-  keywords?: string[]
+export interface StacLayerInfo {
+  label?: string
+  filters?: StacFilters
+  initialFilters?: StacFilters
+  pagination?: StacPagination
+  data?: FeatureCollection
+  error?: boolean
 }
 
 /**
@@ -106,7 +106,7 @@ export interface StacPagination {
   currentPage: number
 
   /** Total number of items matching filters (null if unknown) */
-  totalItems: number | null
+  returnedItems: number | null
 
   /** Number of items per page */
   itemsPerPage: number
@@ -115,7 +115,7 @@ export interface StacPagination {
   nextLink: string | null
 
   /** STAC API link to previous page (null if on first page) */
-  prevLink: string | null
+  previousLink: string | null
 }
 
 /**

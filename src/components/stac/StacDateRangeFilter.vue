@@ -1,26 +1,19 @@
 <template>
   <div class="flex gap-2">
     <UFieldGroup label="Date de début">
-      <UInput
-        type="date"
-        :model-value="startDateString"
-        @update:model-value="updateStartDate"
-      />
+      <UInput type="date" :model-value="startDateString" @update:model-value="updateStartDate" />
     </UFieldGroup>
-    
+
     <UFieldGroup label="Date de fin">
-      <UInput
-        type="date"
-        :model-value="endDateString"
-        @update:model-value="updateEndDate"
-      />
+      <UInput type="date" :model-value="endDateString" @update:model-value="updateEndDate" />
     </UFieldGroup>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { DateRangeFilter } from '@/types/stac-layer.types'
+import { useDebounceFn } from '@vueuse/core'
+import type { DateRangeFilter } from '@/types/stac.types'
 
 const props = defineProps<{
   filter: DateRangeFilter
@@ -45,17 +38,34 @@ function formatDateToInput(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+const debouncedEmit = useDebounceFn((filter: DateRangeFilter) => {
+  emit('update:filter', filter)
+}, 400)
+
 function updateStartDate(value: string) {
-  emit('update:filter', {
-    ...props.filter,
-    start: value ? new Date(value) : null,
-  })
+  if (isValidDateString(value)) {
+    debouncedEmit({
+      ...props.filter,
+      start: value ? new Date(value) : null,
+    })
+  }
 }
 
 function updateEndDate(value: string) {
-  emit('update:filter', {
-    ...props.filter,
-    end: value ? new Date(value) : null,
-  })
+  if (isValidDateString(value)) {
+    debouncedEmit({
+      ...props.filter,
+      end: value ? new Date(value) : null,
+    })
+  }
+}
+
+function isValidDateString(value: string): boolean {
+  return (
+    !!value &&
+    !value.startsWith('0') &&
+    !(value.split('-')[1] === '00') &&
+    !(value.split('-')[2] === '00')
+  )
 }
 </script>

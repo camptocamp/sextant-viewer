@@ -5,8 +5,8 @@
         icon="i-heroicons-chevron-left"
         size="xs"
         variant="soft"
-        :disabled="!hasPrevPage || loading"
-        @click="goToPrevPage"
+        :disabled="!hasPreviousPage || loading"
+        @click="goToPreviousPage"
       >
         Précédent
       </UButton>
@@ -21,7 +21,7 @@
         Suivant
       </UButton>
     </div>
-    
+
     <div class="text-xs text-gray-600 dark:text-gray-400">
       {{ countText }}
     </div>
@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { StacPagination } from '@/types/stac-layer.types'
+import type { StacPagination } from '@/types/stac.types'
 
 const props = defineProps<{
   pagination: StacPagination
@@ -43,17 +43,10 @@ const emit = defineEmits<{
 }>()
 
 const hasNextPage = computed(() => props.pagination.nextLink !== null)
-const hasPrevPage = computed(() => props.pagination.prevLink !== null)
+const hasPreviousPage = computed(() => props.pagination.previousLink !== null)
 
 const countText = computed(() => {
-  const { currentPage, totalItems, itemsPerPage } = props.pagination
-  
-  if (totalItems !== null) {
-    const start = (currentPage - 1) * itemsPerPage + 1
-    const end = Math.min(currentPage * itemsPerPage, totalItems)
-    return `${start}-${end} sur ${totalItems}`
-  }
-  
+  const { currentPage } = props.pagination
   return `Page ${currentPage}`
 })
 
@@ -61,7 +54,7 @@ function goToNextPage() {
   emit('next-page')
 }
 
-function goToPrevPage() {
+function goToPreviousPage() {
   emit('prev-page')
 }
 </script>

@@ -1,4 +1,4 @@
-import { computed, reactive, ref, type Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
   addLayerToContext,
@@ -13,19 +13,14 @@ import {
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
 import { isStacLayer } from '@/utils/layer.utils'
-import type { MapLayerStac } from '@/types/stac-layer.types'
-import { StacEndpoint } from '@camptocamp/ogc-client'
-import { buildStacRequestParams } from '@/types/stac-api.types'
-import { computedAsync } from '@vueuse/core'
+import type { MapLayerStac } from '@/types/stac.types'
 
-// Extended context type that allows our custom MapLayer union (includes STAC)
 export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
   view: MapContextView
   layers: MapLayer[]
 }
 
 export const useMapStore = defineStore('map', () => {
-  // Simple context that allows STAC layers
   const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>({
     view: DEFAULT_MAP_CONTEXT.view || {
       center: [0, 0] as [number, number],
@@ -34,86 +29,25 @@ export const useMapStore = defineStore('map', () => {
     layers: DEFAULT_MAP_CONTEXT.layers || [],
   })
 
+  const currentExtent = ref<[number, number, number, number] | undefined>(undefined)
+
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
 
-  function setContext(newContext: MapContext) {
-    context.value = newContext
-  }
-
-  /**
-   * SDK-compatible context that maps STAC layers to GeoJSON with URLs.
-   * The geospatial-sdk will handle fetching the data.
-   */
-  const sdkContext = computedAsync<MapContext>(async () => ({
+  const sdkContext = computed<MapContext>(() => ({
     view: context.value.view,
-    layers: await Promise.all(
-      context.value.layers.map(async (layer) => {
+    layers: context.value.layers
+      .filter((layer) => !isStacLayer(layer) || layer.data)
+      .map((layer) => {
         if (isStacLayer(layer)) {
-          initStacLayer(layer)
-          return await mapStacToGeojsonUrl(layer)
+          return fromStacToGeojsonLayer(layer)
         }
         return layer as MapContextLayer
       }),
-    ),
   }))
 
-  function initStacLayer(layer: MapLayerStac) {
-    if (!layer.filters) {
-      layer.filters = {
-        dateRange: { start: null, end: null },
-        spatialExtent: { enabled: false, bbox: null },
-      }
-    }
-    if (!layer.pagination) {
-      layer.pagination = {
-        currentPage: 1,
-        totalItems: 0,
-        itemsPerPage: 10,
-        nextLink: null,
-        prevLink: null,
-      }
-    }
-  }
-  /**
-   * Map STAC layer to GeoJSON layer with URL for geospatial-sdk to fetch.
-   */
-  async function mapStacToGeojsonUrl(layer: MapLayerStac): Promise<MapContextLayer> {
-    try {
-      const endpoint = new StacEndpoint(layer.url)
-      const params = buildStacRequestParams(layer.filters, layer.pagination?.itemsPerPage)
-
-      let itemsUrl
-      if (layer.collectionId) {
-        itemsUrl = await endpoint.getCollectionItemsUrl(layer.collectionId, params)
-      } else
-        itemsUrl = await (
-          await StacEndpoint.fromUrl(layer.url, params)
-        ).data.links.find((link) => link.rel === 'items')?.href
-
-      return reactive({
-        type: 'geojson',
-        id: layer.id,
-        label: layer.label,
-        opacity: 1,
-        version: layer.version,
-        url: itemsUrl,
-      }) as MapContextLayer
-    } catch (error) {
-      console.error('Error generating STAC items URL:', error)
-      // Return empty geojson layer on error
-      return reactive({
-        type: 'geojson',
-        id: layer.id,
-        label: layer.label,
-        opacity: 1,
-        version: layer.version,
-        data: {
-          type: 'FeatureCollection',
-          features: [],
-        },
-      }) as MapContextLayer
-    }
+  function setContext(newContext: MapContext) {
+    context.value = newContext
   }
 
   function setView(newView: MapContextView) {
@@ -123,30 +57,53 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  function addLayer(layer: MapContextLayer) {
+  function setViewExtent(extent: [number, number, number, number]) {
+    currentExtent.value = extent
+  }
+
+  function addLayer(layer: MapLayer) {
     const versionedLayer = { ...layer, version: 0 } // we're tracking changes on layers by version
     context.value = addLayerToContext(
       context.value as MapContext,
-      versionedLayer,
+      versionedLayer as MapContextLayer,
     ) as ExtendedMapContext
   }
 
-  function deleteLayer(layer: MapContextLayer): void {
-    context.value = removeLayerFromContext(context.value as MapContext, layer) as ExtendedMapContext
+  function deleteLayer(layer: MapLayer): void {
+    context.value = removeLayerFromContext(
+      context.value as MapContext,
+      layer as MapContextLayer,
+    ) as ExtendedMapContext
   }
 
-  function changeLayerPosition(layer: MapContextLayer, delta: number) {
-    const oldPosition = getLayerPosition(context.value as MapContext, layer)
+  function changeLayerPosition(layer: MapLayer, delta: number) {
+    const oldPosition = getLayerPosition(context.value as MapContext, layer as MapContextLayer)
     const newPosition = oldPosition + delta
     context.value = changeLayerPositionInContext(
       context.value as MapContext,
-      layer,
+      layer as MapContextLayer,
       newPosition,
     ) as ExtendedMapContext
   }
 
-  function updateLayer(layer: MapContextLayer, updates: Partial<MapContextLayer>) {
-    context.value = updateLayerInContext(context.value, layer, updates)
+  function updateLayer(layer: MapLayer, updates: Partial<MapLayer>) {
+    context.value = updateLayerInContext(
+      context.value as MapContext,
+      layer as MapContextLayer,
+      updates as Partial<MapContextLayer>,
+    ) as ExtendedMapContext
+  }
+
+  function fromStacToGeojsonLayer(layer: MapLayerStac): MapContextLayer {
+    return {
+      type: 'geojson',
+      id: layer.id,
+      label: layer.label,
+      opacity: layer.opacity ?? 1,
+      visibility: layer.visibility ?? true,
+      version: layer.version,
+      data: layer.data,
+    } as MapContextLayer
   }
 
   return {
@@ -154,11 +111,14 @@ export const useMapStore = defineStore('map', () => {
     sdkContext,
     layers,
     view,
+    currentExtent,
     setContext,
     setView,
+    setViewExtent,
     addLayer,
     deleteLayer,
     changeLayerPosition,
     updateLayer,
+    fromStacToGeojsonLayer,
   }
 })

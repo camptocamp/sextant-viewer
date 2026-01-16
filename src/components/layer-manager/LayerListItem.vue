@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { MapContextLayer } from '@geospatial-sdk/core'
 import { useLayerActions } from '@/composables/useLayerActions'
-import { getLayerLabel } from '@/utils/layer.utils'
+import { getLayerLabel, type MapLayer } from '@/utils/layer.utils'
+import type { MapContextLayer } from '@geospatial-sdk/core'
 
 const props = defineProps<{
-  layer: MapContextLayer
+  layer: MapLayer
   active: boolean
 }>()
 
@@ -12,7 +12,8 @@ const emit = defineEmits<{
   click: []
 }>()
 
-const { isVisible, toggleVisibility } = useLayerActions(() => props.layer)
+//TODO: support stac layers that would need geojson layer from sdkContext here
+const { isVisible, toggleVisibility } = useLayerActions(() => props.layer as MapContextLayer)
 </script>
 
 <template>

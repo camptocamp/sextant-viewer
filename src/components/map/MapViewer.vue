@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import { storeToRefs } from 'pinia'
-import { applyContextDiffToMap, createMapFromContext } from '@geospatial-sdk/openlayers'
-import { computeMapContextDiff, type MapContext } from '@geospatial-sdk/core'
+import { applyContextDiffToMap, createMapFromContext, listen } from '@geospatial-sdk/openlayers'
+import {
+  computeMapContextDiff,
+  type MapContext,
+  type MapExtentChangeEvent,
+} from '@geospatial-sdk/core'
 import type Map from 'ol/Map'
-import { until } from '@vueuse/core'
+import { useStacLayer } from '@/composables/useStacLayer'
+import { isStacLayer } from '@/utils/layer.utils'
 
+const { enrichStacLayer } = useStacLayer()
 const mapStore = useMapStore()
 const { sdkContext } = storeToRefs(mapStore)
 
@@ -20,29 +26,32 @@ const emit = defineEmits<{
 onMounted(async () => {
   if (!mapContainer.value) return
   map = await createMapFromContext(sdkContext.value, mapContainer.value)
+
   if (map) {
     emit('map-ready', map)
+    listen(map, 'map-extent-change', (event: MapExtentChangeEvent) => {
+      mapStore.setViewExtent(event.extent as [number, number, number, number])
+    })
   }
 })
 
 watch(
-  () => sdkContext.value,
-  async (newContext: MapContext | undefined, oldContext: MapContext | undefined) => {
-    console.log('Map context changed:', { newContext, oldContext })
-
-    // Wait for new context to be defined
-    if (!newContext) {
-      await until(sdkContext).toBeTruthy()
-      return
-    }
-
-    if (!map || !oldContext) return
+  sdkContext,
+  (newContext: MapContext, oldContext: MapContext) => {
+    if (!map) return
 
     const diff = computeMapContextDiff(newContext, oldContext)
-    console.log('Applying context diff to map:', diff)
     applyContextDiffToMap(map, diff)
   },
   { deep: false },
+)
+
+watch(
+  () => mapStore.context.layers.filter(isStacLayer),
+  (stacLayers) => {
+    stacLayers.forEach((layer) => enrichStacLayer(layer))
+  },
+  { immediate: true },
 )
 
 onBeforeUnmount(() => {

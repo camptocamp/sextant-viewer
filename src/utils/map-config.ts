@@ -50,6 +50,12 @@ export const DEFAULT_MAP_CONTEXT: ExtendedMapContext = {
       attributions: '© Ville de Roubaix',
       version: 0,
     },
+    {
+      type: 'stac',
+      url: 'https://stac-pg-api.ifremer.fr/collections/AVHRR_SST_METOP_B_OSISAF_L2P_v1_0',
+      id: 'AVHRR_SST_METOP_B_OSISAF_L2P_v1_0-no-collection-id',
+    },
+    // Alternative STAC layer configuration
     // {
     //   type: 'stac',
     //   url: 'https://stac-pg-api.ifremer.fr',
@@ -58,9 +64,15 @@ export const DEFAULT_MAP_CONTEXT: ExtendedMapContext = {
     // },
     {
       type: 'stac',
-      url: 'https://stac-pg-api.ifremer.fr/collections/AVHRR_SST_METOP_B_OSISAF_L2P_v1_0',
-      id: 'AVHRR_SST_METOP_B_OSISAF_L2P_v1_0-no-collection-id',
+      url: 'https://stacapi-cdos.apps.okd.crocc.meso.umontpellier.fr/collections/sentinel-2-radiometric-indices',
+      id: 'sentinel-2-radiometric-indices',
     },
+    // {
+    //   type: 'stac',
+    //   url: 'https://stacapi-cdos.apps.okd.crocc.meso.umontpellier.fr',
+    //   collectionId: 'sentinel-2-radiometric-indices',
+    //   id: 'sentinel-2-radiometric-indices',
+    // },
   ],
   view: {
     center: [3.0586, 50.6292],
