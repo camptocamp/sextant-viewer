@@ -40,6 +40,7 @@ const handleClose = () => {
           variant="outline"
           size="xs"
           @click="handleClose"
+          @mousedown.stop
         />
       </div>
 
