@@ -5,9 +5,30 @@
     <link rel="icon" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sextant Viewer</title>
+    <!-- <link rel="stylesheet" href="/src/assets/host.css" /> -->
+    <style>
+      .h-screen {
+        height: 100vh;
+      }
+      .w-screen {
+        width: 100vw;
+      }
+      .h-full {
+        height: 100%;
+      }
+      .w-full {
+        width: 100%;
+      }
+      .block {
+        display: block;
+      }
+      .m-0 {
+        margin: 0;
+      }
+    </style>
   </head>
   <body class="m-0 h-screen w-screen">
-    <div id="app" class="isolate h-full w-full"></div>
     <script type="module" src="/src/main.ts"></script>
+    <sxt-viewer class="isolate block h-full w-full"></sxt-viewer>
   </body>
 </html>

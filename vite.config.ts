@@ -33,4 +33,21 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    lib: {
+      entry: 'index.html',
+      name: 'SxtViewer',
+      formats: ['es'],
+      fileName: 'sxt-viewer',
+    },
+    rollupOptions: {
+      external: [],
+      // output: {
+      //   inlineDynamicImports: true,
+      // },
+    },
+  },
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+  },
 })

@@ -52,4 +52,3 @@ npm run test:unit
 ```sh
 npm run lint
 ```
->>>>>>> 6193f57 (generate vuejs application)
