@@ -6,29 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sextant Viewer</title>
     <!-- <link rel="stylesheet" href="/src/assets/host.css" /> -->
-    <style>
-      .h-screen {
-        height: 100vh;
-      }
-      .w-screen {
-        width: 100vw;
-      }
-      .h-full {
-        height: 100%;
-      }
-      .w-full {
-        width: 100%;
-      }
-      .block {
-        display: block;
-      }
-      .m-0 {
-        margin: 0;
-      }
-    </style>
   </head>
-  <body class="m-0 h-screen w-screen">
+  <body>
     <script type="module" src="/src/main.ts"></script>
-    <sxt-viewer class="isolate block h-full w-full"></sxt-viewer>
+    <sxt-viewer class="block" style="width: 1000px; height: 600px"></sxt-viewer>
+
+    <div class="border border-orange-400 m-4 p-4"> hello world!</div>
   </body>
 </html>
