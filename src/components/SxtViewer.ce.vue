@@ -16,7 +16,7 @@ onMounted(() => {
 
 <template>
   <div class="relative isolate" ref="containerRef">
-    <UApp>
+    <UApp :portal="false">
       <MapViewer />
       <LayoutGrid />
     </UApp>
