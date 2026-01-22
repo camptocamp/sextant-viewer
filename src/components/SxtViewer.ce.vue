@@ -3,11 +3,11 @@ import LayoutGrid from '@/components/layout/LayoutGrid.vue'
 import { type ExtendedMapContext, useMapStore } from '@/stores/map.store.ts'
 import { usePersistentContextStore } from '@/stores/persistentContext.store.ts'
 import type { MapContextLayer, MapContextView } from '@geospatial-sdk/core'
-import { listen } from '@geospatial-sdk/openlayers'
+// import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
 import type { Extent } from 'ol/extent'
-import type Map from 'ol/Map'
+import type { Map } from 'maplibre-gl'
 import { useLayerActions } from '@/composables/useLayerActions.ts'
 
 const emit = defineEmits<{
@@ -30,9 +30,9 @@ onMounted(() => {
 })
 
 const onMapReady = (map: Map) => {
-  listen(map, 'map-extent-change', (event) => {
-    emit('map-extent-change', event.extent)
-  })
+  // listen(map, 'map-extent-change', (event) => {
+  //   emit('map-extent-change', event.extent)
+  // })
 }
 
 const addLayer = async (layer: MapContextLayer, zoomToExtent: boolean) => {

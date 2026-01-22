@@ -1,24 +1,13 @@
 <script setup lang="ts">
-import { MAP_VIEW_PADDING } from '@/constants/layout'
 import { useFeatureSelectionStore } from '@/stores/featureSelection.store'
 import { useMapStore } from '@/stores/map.store'
-import { FEATURE_SELECTED_STYLE } from '@/utils/feature-styles'
-import {
-  computeMapContextDiff,
-  type FeaturesClickEvent,
-  type MapClickEvent,
-  type MapContext,
-  type MapExtentChangeEvent,
-  type Extent,
-} from '@geospatial-sdk/core'
-import { applyContextDiffToMap, createMapFromContext, listen } from '@geospatial-sdk/openlayers'
-import type Map from 'ol/Map'
 import { storeToRefs } from 'pinia'
+import { applyContextDiffToMap, createMapFromContext } from '@geospatial-sdk/maplibre'
+import { computeMapContextDiff, type MapContext } from '@geospatial-sdk/core'
+import { Map } from 'maplibre-gl'
+import { FEATURE_SELECTED_STYLE } from '@/utils/feature-styles'
 import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
-import FeaturePopup from './FeaturePopup.vue'
-import MapLoadingIndicator from './MapLoadingIndicator.vue'
 import ResetExtentButton from './ResetExtentButton.vue'
-import { useDebounceFn } from '@vueuse/core'
 
 const mapStore = useMapStore()
 const featureSelectionStore = useFeatureSelectionStore()
@@ -35,32 +24,32 @@ const emit = defineEmits<{
   'map-ready': [map: Map]
 }>()
 
-function handleMapClick(event: MapClickEvent) {
-  lastClickCoordinate.value = event.coordinate
-}
-
-function handleFeaturesClick(event: FeaturesClickEvent) {
-  const { featuresByLayer } = event
-
-  if (featuresByLayer.size === 0) {
-    featureSelectionStore.clearSelection()
-    return
-  }
-
-  const firstEntry = featuresByLayer.entries().next().value
-  if (!firstEntry) {
-    featureSelectionStore.clearSelection()
-    return
-  }
-
-  const [layerIndex, features] = firstEntry
-  const firstFeature = features[0]
-  const layerId = mapStore.sdkContext.layers[layerIndex]?.id?.toString()
-
-  if (firstFeature && lastClickCoordinate.value && layerId) {
-    featureSelectionStore.selectFeature(firstFeature, layerId, lastClickCoordinate.value)
-  }
-}
+// function handleMapClick(event: MapClickEvent) {
+//   lastClickCoordinate.value = event.coordinate
+// }
+//
+// function handleFeaturesClick(event: FeaturesClickEvent) {
+//   const { featuresByLayer } = event
+//
+//   if (featuresByLayer.size === 0) {
+//     featureSelectionStore.clearSelection()
+//     return
+//   }
+//
+//   const firstEntry = featuresByLayer.entries().next().value
+//   if (!firstEntry) {
+//     featureSelectionStore.clearSelection()
+//     return
+//   }
+//
+//   const [layerIndex, features] = firstEntry
+//   const firstFeature = features[0]
+//   const layerId = mapStore.sdkContext.layers[layerIndex]?.id?.toString()
+//
+//   if (firstFeature && lastClickCoordinate.value && layerId) {
+//     featureSelectionStore.selectFeature(firstFeature, layerId, lastClickCoordinate.value)
+//   }
+// }
 
 const fullMapContext = computed<MapContext>(() => {
   const context = sdkContext.value
@@ -81,24 +70,30 @@ const fullMapContext = computed<MapContext>(() => {
   }
 })
 
-const debouncedSetExtent = useDebounceFn((extent: Extent) => {
-  mapStore.setCurrentViewExtent(extent)
-}, 300)
+// const debouncedSetExtent = useDebounceFn((extent: Extent) => {
+//   mapStore.setCurrentViewExtent(extent)
+// }, 300)
 
 onMounted(async () => {
   if (!mapContainer.value) return
-  mapRef.value = await createMapFromContext(sdkContext.value, mapContainer.value)
+  mapRef.value = await createMapFromContext(sdkContext.value, {
+    container: mapContainer.value,
+  })
+
+  mapRef.value.setProjection({
+    type: 'globe', // Set projection to globe
+  })
 
   // Set view padding to account for overlay panels (LayerPanel on left)
-  mapRef.value.getView().padding = MAP_VIEW_PADDING
+  // mapRef.value.getView().padding = MAP_VIEW_PADDING
 
   emit('map-ready', mapRef.value)
 
-  listen(mapRef.value, 'map-extent-change', (event: MapExtentChangeEvent) => {
-    debouncedSetExtent(event.extent as Extent)
-  })
-  listen(mapRef.value, 'map-click', handleMapClick)
-  listen(mapRef.value, 'features-click', handleFeaturesClick)
+  // listen(mapRef.value, 'map-extent-change', (event: MapExtentChangeEvent) => {
+  //   debouncedSetExtent(event.extent as Extent)
+  // })
+  // listen(mapRef.value, 'map-click', handleMapClick)
+  // listen(mapRef.value, 'features-click', handleFeaturesClick)
 })
 
 watch(fullMapContext, (newContext, oldContext) => {
@@ -108,11 +103,8 @@ watch(fullMapContext, (newContext, oldContext) => {
 })
 
 onBeforeUnmount(() => {
-  featureSelectionStore.clearSelection()
-
   if (mapRef.value) {
-    mapRef.value.setTarget(undefined)
-    mapRef.value.dispose()
+    mapRef.value.remove()
     mapRef.value = null
   }
 })
@@ -121,8 +113,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="relative h-full w-full">
     <div ref="mapContainer" class="absolute inset-0"></div>
-    <MapLoadingIndicator />
-    <FeaturePopup />
+    <!--    <MapLoadingIndicator />-->
+    <!--    <FeaturePopup />-->
     <ResetExtentButton class="absolute top-15 right-[.5em]" />
   </div>
 </template>
