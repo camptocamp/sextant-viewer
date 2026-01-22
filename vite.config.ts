@@ -40,11 +40,12 @@ export default defineConfig({
   },
   build: {
     lib: {
-      entry: 'src/main.ts',
+      entry: 'src/register.ts',
       formats: ['es'],
       fileName: 'sxt-viewer',
     },
     rollupOptions: {
+      input: ['demo/index.html'],
       external: [],
       output: {
         // this is useful for dynamic imports coming from dependencies
