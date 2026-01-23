@@ -9,7 +9,12 @@ import ui from '@nuxt/ui/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    vue(),
+    vue({
+      features: {
+        // this is to make sure that all component styles are embedded in the final JS; otherwise we end up with a separate CSS file
+        customElement: true,
+      },
+    }),
     ui({
       router: false,
       colorMode: false,
@@ -32,5 +37,23 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  build: {
+    lib: {
+      entry: 'src/register.ts',
+      formats: ['es'],
+      fileName: 'sxt-viewer',
+    },
+    rollupOptions: {
+      input: ['demo/index.html'],
+      external: [],
+      output: {
+        // this is useful for dynamic imports coming from dependencies
+        inlineDynamicImports: true,
+      },
+    },
+  },
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
   },
 })

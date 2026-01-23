@@ -35,11 +35,21 @@ npm install
 npm run dev
 ```
 
+Main `index.html` page is a standard app, useful for development with hot-reload.
+
+Web Component demo page is available at: http://localhost:5173/demo/index.html
+
+Note: once demo page has been opened, hot-reload does not work anymore in the standard app.
+
 ### Type-Check, Compile and Minify for Production
 
 ```sh
 npm run build
 ```
+
+Note that standard app is not built and therefore not available in preview.
+
+Only the Web Component demo page is available in preview: http://localhost:4173/demo/index.html
 
 ### Run Unit Tests with [Vitest](https://vitest.dev/)
 
@@ -52,4 +62,3 @@ npm run test:unit
 ```sh
 npm run lint
 ```
->>>>>>> 6193f57 (generate vuejs application)
