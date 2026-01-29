@@ -18,6 +18,10 @@ export const useMapStore = defineStore('map', () => {
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
 
+  function setContext(newContext: MapContext) {
+    context.value = newContext
+  }
+
   function setView(view: MapContextView) {
     context.value = {
       ...context.value,
@@ -48,6 +52,7 @@ export const useMapStore = defineStore('map', () => {
     context,
     layers,
     view,
+    setContext,
     setView,
     addLayer,
     deleteLayer,

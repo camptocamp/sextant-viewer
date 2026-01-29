@@ -12,9 +12,16 @@ const { context } = storeToRefs(mapStore)
 const mapContainer = ref<HTMLElement | undefined>()
 let map: Map | null = null
 
+const emit = defineEmits<{
+  'map-ready': [map: Map]
+}>()
+
 onMounted(async () => {
   if (!mapContainer.value) return
   map = await createMapFromContext(context.value, mapContainer.value)
+  if (map) {
+    emit('map-ready', map)
+  }
 })
 
 watch(
