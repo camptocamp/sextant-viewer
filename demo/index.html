@@ -9,8 +9,33 @@
   </head>
   <body>
     <script type="module" src="/src/register.ts"></script>
-    <sxt-viewer class="block" style="width: 1000px; height: 600px"></sxt-viewer>
+    <script type="module" src="./index.js"></script>
 
-    <div>hello world!</div>
+    <div style="width: 100%; height: 100%; display: flex; gap: 20px">
+      <sxt-viewer id="viewer" class="block" style="flex-grow: 1; height: 600px"></sxt-viewer>
+
+      <div style="width: 30%; display: flex; flex-direction: column; gap: 10px">
+        <div>
+          <span>Select example:</span>
+          <select id="example-selector"></select>
+        </div>
+        <textarea
+          id="code-input"
+          spellcheck="false"
+          style="
+            flex-grow: 1;
+            font-family:
+              'Consolas',
+              'Monaco',
+              Courier New,
+              monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            padding: 10px;
+          "
+        ></textarea>
+        <button type="button" id="run-btn">Run!</button>
+      </div>
+    </div>
   </body>
 </html>

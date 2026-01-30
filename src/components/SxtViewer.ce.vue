@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import LayoutGrid from '@/components/layout/LayoutGrid.vue'
+import { useMapStore } from '@/stores/map.store'
+import type { MapContext, MapContextLayer, MapContextView } from '@geospatial-sdk/core'
+import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
+import type MapViewer from './map/MapViewer.vue'
+import type { Extent } from 'ol/extent'
+import type Map from 'ol/Map'
+
+const emit = defineEmits<{
+  'map-extent-change': [extent: Extent]
+}>()
+
+const mapStore = useMapStore()
 
 const containerRef = ref<HTMLElement | null>(null)
 
@@ -12,12 +24,36 @@ onMounted(() => {
   shadowDomStyle.innerText = nuxtUiColors.innerText
   shadowDom.insertBefore(shadowDomStyle, containerRef.value)
 })
+
+const onMapReady = (map: Map) => {
+  listen(map, 'map-extent-change', (event) => {
+    emit('map-extent-change', event.extent)
+  })
+}
+
+const addLayer = (layer: MapContextLayer) => {
+  mapStore.addLayer(layer)
+}
+
+const setContext = (context: MapContext) => {
+  mapStore.setContext(context)
+}
+
+const setView = (view: MapContextView) => {
+  mapStore.setView(view)
+}
+
+defineExpose({
+  addLayer,
+  setContext,
+  setView,
+})
 </script>
 
 <template>
   <div class="relative isolate" ref="containerRef">
     <UApp :portal="false">
-      <MapViewer />
+      <MapViewer ref="mapViewerRef" @map-ready="onMapReady" />
       <LayoutGrid />
     </UApp>
   </div>
