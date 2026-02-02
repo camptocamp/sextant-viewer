@@ -11,7 +11,11 @@ shadowSheet.replaceSync(mainCss)
 const properties = []
 for (const rule of shadowSheet.cssRules) {
   if (rule instanceof CSSPropertyRule && rule.initialValue) {
-    properties.push(`${rule.name}: ${rule.initialValue}`)
+    let initialValue = rule.initialValue.toString()
+    if (rule.syntax === '<length>' && initialValue === '0') {
+      initialValue = '0px' // fixes an issue where '0' would mess up box-shadow styles, see https://gitlab.ifremer.fr/sextant/viewer/-/work_items/25
+    }
+    properties.push(`${rule.name}: ${initialValue}`)
   }
 }
 
