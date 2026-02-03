@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useLayerActions } from '@/composables/useLayerActions'
-import { getLayerLabel } from '@/utils/layer.utils'
-import type { MapContextLayer } from '@geospatial-sdk/core'
+import { getLayerLabel, isStacLayer } from '@/utils/layer.utils'
+import type { MapLayer } from '@/utils/layer.utils'
+import type { MapLayerStac } from '@/types/stac.types'
+import StacLayerDetails from '@/components/stac/StacLayerDetails.vue'
 
 const props = defineProps<{
-  layer: MapContextLayer
+  layer: MapLayer
 }>()
 
 const { opacity, canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(() => props.layer)
@@ -17,7 +19,7 @@ const { opacity, canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(
         {{ getLayerLabel(layer) }}
       </h3>
     </div>
-    <!-- TODO: here, add different components based on the layer type -->
+    <StacLayerDetails v-if="isStacLayer(layer)" :layer="layer as MapLayerStac" />
 
     <div class="mb-3 flex items-baseline gap-2">
       <span class="shrink-0">Transparence :</span

@@ -1,27 +1,30 @@
 <!--
-SYNC IMPACT REPORT - Constitution v1.2.0
+SYNC IMPACT REPORT - Constitution v1.3.0
 
-VERSION CHANGE: 1.1.0 → 1.2.0
+VERSION CHANGE: 1.2.0 → 1.3.0
 
-RATIONALE: MINOR version bump - adding new principle (Minimal Comments Standard)
-that establishes documentation guidelines for code clarity without breaking existing governance.
+RATIONALE: MINOR version bump - adding new principle (OGC-Client Integration Standard)
+that establishes guidelines for integrating OGC web services (particularly STAC, WMS, WMTS, WFS)
+using @camptocamp/ogc-client. This principle ensures consistent service discovery patterns and
+proper layer metadata handling when adding external geospatial data sources.
 
 MODIFIED PRINCIPLES: None (existing principles unchanged)
 
 ADDED SECTIONS:
-- Core Principles > IX. Minimal Comments Standard
-- Updated Code Quality Standards to reflect comment policy
+- Core Principles > X. OGC-Client Integration Standard
+- Technology Stack Constraints > Optional Technologies - clarified ogc-client usage
 
 REMOVED SECTIONS: None
 
 TEMPLATES REQUIRING UPDATES:
-✅ .specify/templates/plan-template.md - Constitution Check section will validate comment discipline
-✅ .specify/templates/spec-template.md - No changes required (spec comments unaffected)
-✅ .specify/templates/tasks-template.md - No changes required (task descriptions independent)
+✅ .specify/templates/plan-template.md - Constitution Check validates ogc-client patterns
+✅ .specify/templates/spec-template.md - No changes required
+✅ .specify/templates/tasks-template.md - No changes required
+✅ .claude/skills/ogc-client/SKILL.md - Reinforces constitution principles
 
 FOLLOW-UP TODOS: None
 
-AMENDMENT DATE: 2026-01-08
+AMENDMENT DATE: 2026-01-14
 -->
 
 # Sextant Viewer Constitution
@@ -33,6 +36,7 @@ AMENDMENT DATE: 2026-01-08
 **MUST** use geospatial-sdk MapContext as the single source of truth for all map state. All map operations **MUST** flow through the MapContext stored in Pinia. Direct manipulation of the OpenLayers map instance **MUST** be avoided unless technically impossible through the geospatial-sdk API.
 
 **Implementation Requirements**:
+
 - MapContext stored in Pinia store with immutable update patterns
 - Map changes propagate through `computeMapContextDiff()` and `applyContextDiffToMap()`
 - Bidirectional synchronization with circular update prevention
@@ -45,6 +49,7 @@ AMENDMENT DATE: 2026-01-08
 **MUST** follow official Vue 3 Composition API patterns and best practices. Components **MUST** use `<script setup>` syntax. State management **MUST** use Pinia with the Composition API style (`defineStore` with setup function). Reactivity **MUST** use `ref()` and `computed()` appropriately.
 
 **Implementation Requirements**:
+
 - Use `<script setup>` for all components
 - Use Pinia stores with Composition API (`defineStore` returning setup function)
 - Proper reactive dependencies in `watch()` and `computed()`
@@ -58,6 +63,7 @@ AMENDMENT DATE: 2026-01-08
 **MUST** adhere to clean code principles and SOLID design patterns. Code **MUST** be self-documenting with clear naming. Functions **MUST** have single responsibilities. Components **MUST** follow single responsibility principle. Abstractions **MUST** be justified by actual need, not speculation.
 
 **Implementation Requirements**:
+
 - Functions ≤ 20 lines (exceptions must be justified)
 - Clear, descriptive naming (no abbreviations except well-known acronyms)
 - Single Responsibility: each function/component does one thing
@@ -71,6 +77,7 @@ AMENDMENT DATE: 2026-01-08
 **MUST** maintain atomic component structure with clear separation of concerns. Components **MUST** be organized by feature/domain. Presentation components **MUST** be separated from container components. Component size **MUST** be limited to ≤ 200 lines including template (exceptions require justification).
 
 **Implementation Requirements**:
+
 - Atomic design structure: atoms → molecules → organisms
 - Feature-based directory organization (`components/map/`, `components/layer/`)
 - Presentational components receive data via props, emit events upward
@@ -85,6 +92,7 @@ AMENDMENT DATE: 2026-01-08
 **MUST** use TypeScript for all code with strict type checking enabled. Type safety **MUST** not be bypassed with `any` without explicit justification. Types **MUST** be imported from authoritative sources (geospatial-sdk types, OpenLayers types). Type assertions **MUST** use `as unknown as T` pattern for intentional type conversions.
 
 **Implementation Requirements**:
+
 - `strict: true` in TypeScript configuration
 - Explicit type annotations for function parameters and return types
 - Import types from `@geospatial-sdk/core`, `ol`, and framework packages
@@ -99,6 +107,7 @@ AMENDMENT DATE: 2026-01-08
 **MUST** leverage geospatial-sdk utilities and patterns before implementing custom solutions. Layer management **MUST** use geospatial-sdk layer types (`MapContextLayer`). Map initialization **MUST** use `createMapFromContext()`. Change detection **MUST** use `computeMapContextDiff()`.
 
 **Implementation Requirements**:
+
 - Use `createMapFromContext()` for map initialization
 - Use `applyContextDiffToMap()` for applying state changes
 - Use `computeMapContextDiff()` for change detection
@@ -113,6 +122,7 @@ AMENDMENT DATE: 2026-01-08
 **MUST** demonstrate software craftsmanship through code quality, testing discipline, and continuous improvement. Code reviews **MUST** verify adherence to constitution principles. Technical debt **MUST** be documented and tracked. Complexity **MUST** be justified against simpler alternatives.
 
 **Implementation Requirements**:
+
 - ESLint + Prettier configured and enforced
 - Code review checklist includes constitution compliance
 - Technical debt tracked with TODO comments including context
@@ -127,6 +137,7 @@ AMENDMENT DATE: 2026-01-08
 **MUST** use NuxtUI components from `@nuxt/ui` for all user interface elements. Custom UI components **MUST NOT** be created when equivalent NuxtUI components exist. UI consistency **MUST** be maintained through exclusive use of NuxtUI's design system.
 
 **Implementation Requirements**:
+
 - All buttons **MUST** use `<UButton>` component
 - All forms **MUST** use NuxtUI form components (`<UInput>`, `<USelect>`, `<UCheckbox>`, etc.)
 - All overlays **MUST** use NuxtUI overlay components (`<UModal>`, `<UTooltip>`, `<UDrawer>`, etc.)
@@ -137,6 +148,7 @@ AMENDMENT DATE: 2026-01-08
 - Consult NuxtUI documentation (https://ui.nuxt.com/docs/components) before creating any UI component
 
 **Available NuxtUI Component Categories** (125+ components):
+
 - **Layout** (6): App, Container, Error, Footer, Header, Main
 - **Element** (18): Alert, Avatar, AvatarGroup, Badge, Banner, Button, Calendar, Card, Chip, Collapsible, FieldGroup, Icon, Kbd, Progress, Separator, Skeleton
 - **Form** (23): Checkbox, CheckboxGroup, ColorPicker, FileUpload, Form, FormField, Input, InputDate, InputMenu, InputNumber, InputTags, InputTime, PinInput, RadioGroup, Select, SelectMenu, Slider, Switch, Textarea
@@ -158,6 +170,7 @@ AMENDMENT DATE: 2026-01-08
 **MUST** write self-documenting code that requires minimal comments. Comments **MUST** explain "why" not "what". Comments **MUST NOT** duplicate information already expressed in code. Comments **MUST NOT** reference user stories, task IDs, or implementation metadata in production code.
 
 **Implementation Requirements**:
+
 - Code clarity through naming: `getUserPreferences()` not `getUP()` with comment
 - Comments only when intent is not obvious from code structure
 - Permitted comments: complex algorithms, non-obvious business rules, workarounds with context
@@ -195,11 +208,115 @@ const displayLayers = [...dataLayers].reverse()
 
 **Rationale**: Minimal comments reduce maintenance burden (code and comments can drift), encourage better naming and structure, improve readability by reducing noise, and ensure documentation stays accurate through type systems and clear code.
 
+### X. OGC-Client Integration Standard
+
+**MUST** use @camptocamp/ogc-client for discovering and loading layers from OGC-compliant web services (WMS, WMTS, WFS, OGC API Features, STAC). Service capabilities **MUST** be queried using ogc-client endpoint classes before adding layers to MapContext. Layer metadata **MUST** be retrieved in full using `getLayerByName()` or equivalent methods before MapContext integration.
+
+**Implementation Requirements**:
+
+- Use ogc-client endpoint classes: `WmsEndpoint`, `WmtsEndpoint`, `WfsEndpoint`, `OgcApiEndpoint`, `StacEndpoint`
+- Always call `.isReady()` after creating an endpoint to fetch and parse capabilities (except STAC)
+- Query layer summaries using `getLayers()`, `getFeatureTypes()`, `getCollections()`, or `allCollections`
+- Retrieve full layer metadata using `getLayerByName()` or equivalent before creating MapContext layers
+- Store non-MapContext metadata in the `extras` property of MapContext layers for future reference
+- Handle service errors gracefully with user-facing error messages (use NuxtUI Toast/Alert)
+- Consider calling `enableFallbackWithoutWorker()` if `Referer` header preservation is needed
+- STAC catalogs: Browse collections via `getCollection()`, search items via `getCollectionItemsResponse()`
+- STAC visualization: Add items as GeoJSON layers or link COG assets via tile servers
+
+**Service Discovery Pattern**:
+
+```typescript
+// 1. Create endpoint and query capabilities
+const endpoint = await new WmsEndpoint(serviceUrl).isReady()
+
+// 2. Get layer summaries for discovery UI
+const layers = endpoint.getLayers()
+
+// 3. Retrieve full layer definition when user selects a layer
+const layerFull = endpoint.getLayerByName(selectedLayerName)
+
+// 4. Create MapContext layer with metadata
+const mapContextLayer: MapContextLayerWms = {
+  type: 'wms',
+  id: `wms-${layerFull.name}-${Date.now()}`,
+  url: serviceUrl,
+  name: layerFull.name,
+  label: layerFull.title || layerFull.name,
+  visibility: true,
+  opacity: 1,
+  version: 0,
+  extras: {
+    abstract: layerFull.abstract,
+    extent: createViewFromLayer(mapContextLayer).extent,
+  },
+}
+
+// 5. Add to MapContext store
+mapStore.addLayer(mapContextLayer)
+```
+
+**STAC-Specific Requirements**:
+
+```typescript
+// 1. Create STAC endpoint (no .isReady() needed)
+const endpoint = new StacEndpoint(catalogUrl)
+
+// 2. Discover collections
+const collectionIds = await endpoint.allCollections
+const collections = await Promise.all(collectionIds.map((id) => endpoint.getCollection(id)))
+
+// 3. Search items with spatial/temporal filters
+const results = await endpoint.getCollectionItemsResponse(collectionId, {
+  bbox: [west, south, east, north],
+  datetime: { start: new Date('2023-01-01'), end: new Date('2023-12-31') },
+  limit: 50,
+})
+
+// 4. Visualize items as GeoJSON footprints
+mapStore.addLayer({
+  type: 'geojson',
+  id: `stac-items-${collectionId}`,
+  data: { type: 'FeatureCollection', features: results.features },
+  label: `STAC: ${collectionId}`,
+  visibility: true,
+  version: 0,
+  style: { 'fill-color': 'rgba(255,0,0,0.2)', 'stroke-color': '#ff0000' },
+})
+```
+
+**Error Handling**:
+
+```typescript
+// ✅ CORRECT - Graceful error handling with user feedback
+try {
+  const endpoint = await new WmsEndpoint(serviceUrl).isReady()
+  const layers = endpoint.getLayers()
+} catch (error: any) {
+  if (error.message.includes('CORS')) {
+    toast.add({
+      title: 'CORS Error',
+      description: 'Service does not allow browser access',
+      color: 'red',
+    })
+  } else {
+    toast.add({
+      title: 'Service Error',
+      description: error.message || 'Failed to query service',
+      color: 'red',
+    })
+  }
+}
+```
+
+**Rationale**: Standardizing on ogc-client ensures consistent service integration patterns, reduces custom parsing code, handles version differences transparently, provides built-in caching for performance, detects CORS issues proactively, and enables seamless integration of diverse geospatial data sources (satellite imagery, vector features, tile services) into the MapContext architecture. STAC support is particularly important for discovering and visualizing spatio-temporal assets like satellite imagery collections.
+
 ## Technology Stack Constraints
 
 ### Required Technologies
 
 **MUST** use the following core technologies:
+
 - **Frontend Framework**: Vue.js 3.5+ with Composition API
 - **UI Component Library**: NuxtUI 4.3+ (125+ components)
 - **State Management**: Pinia 3.0+
@@ -212,13 +329,15 @@ const displayLayers = [...dataLayers].reverse()
 ### Optional Technologies
 
 **MAY** introduce the following when justified:
+
 - **Testing**: Vitest for unit/integration tests (when testing strategy defined)
-- **OGC Integration**: @camptocamp/ogc-client for WMS/WMTS/WFS layer loading
+- **OGC Services Integration**: @camptocamp/ogc-client for WMS/WMTS/WFS/OGC API/STAC layer discovery and loading (see Principle X)
 - **Additional Libraries**: Must be justified, documented, and approved in plan phase
 
 ### Technology Introduction Process
 
 Before introducing new dependencies:
+
 1. Document the specific problem being solved
 2. Evaluate existing solutions in current stack (especially NuxtUI for UI components)
 3. Justify why current stack is insufficient
@@ -272,9 +391,9 @@ All state mutations **MUST** follow immutable update patterns:
 // ✅ CORRECT - creates new objects
 context.value = {
   ...context.value,
-  layers: context.value.layers.map(layer =>
-    layer.id === targetId ? { ...layer, visible: false } : layer
-  )
+  layers: context.value.layers.map((layer) =>
+    layer.id === targetId ? { ...layer, visible: false } : layer,
+  ),
 }
 
 // ❌ WRONG - mutates in place
@@ -314,9 +433,10 @@ context.value.layers[0].visible = false
 ### Enforcement
 
 This constitution supersedes all other development practices. When conflicts arise:
+
 1. Constitution principles take precedence
 2. Team discusses if constitution needs amendment
 3. Exception requires documented justification in code/plan
 4. Repeated exceptions trigger constitution review
 
-**Version**: 1.2.0 | **Ratified**: 2026-01-05 | **Last Amended**: 2026-01-08
+**Version**: 1.3.0 | **Ratified**: 2026-01-05 | **Last Amended**: 2026-01-14

@@ -11,52 +11,114 @@ import {
   updateLayerInContext,
 } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
+import type { MapLayer } from '@/utils/layer.utils'
+import { isStacLayer } from '@/utils/layer.utils'
+import type { MapLayerStac } from '@/types/stac.types'
+
+export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
+  view: MapContextView
+  layers: MapLayer[]
+}
 
 export const useMapStore = defineStore('map', () => {
-  const context: Ref<MapContext> = ref<MapContext>(DEFAULT_MAP_CONTEXT)
+  const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>({
+    view: DEFAULT_MAP_CONTEXT.view || {
+      center: [0, 0] as [number, number],
+      zoom: 2,
+    },
+    layers: DEFAULT_MAP_CONTEXT.layers || [],
+  })
+
+  const currentExtent = ref<[number, number, number, number] | undefined>(undefined)
 
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
 
-  function setContext(newContext: MapContext) {
+  const sdkContext = computed<MapContext>(() => ({
+    view: context.value.view,
+    layers: context.value.layers
+      .filter((layer) => !isStacLayer(layer) || layer.data)
+      .map((layer) => {
+        if (isStacLayer(layer)) {
+          return fromStacToGeojsonLayer(layer)
+        }
+        return layer as MapContextLayer
+      }),
+  }))
+
+  function setContext(newContext: ExtendedMapContext) {
     context.value = newContext
   }
 
-  function setView(view: MapContextView) {
+  function setView(newView: MapContextView) {
     context.value = {
       ...context.value,
-      view,
+      view: newView,
     }
   }
 
-  function addLayer(layer: MapContextLayer) {
+  function setViewExtent(extent: [number, number, number, number]) {
+    currentExtent.value = extent
+  }
+
+  function addLayer(layer: MapLayer) {
     const versionedLayer = { ...layer, version: 0 } // we're tracking changes on layers by version
-    context.value = addLayerToContext(context.value, versionedLayer)
+    context.value = addLayerToContext(
+      context.value as MapContext,
+      versionedLayer as MapContextLayer,
+    ) as ExtendedMapContext
   }
 
-  function deleteLayer(layer: MapContextLayer): void {
-    context.value = removeLayerFromContext(context.value, layer)
+  function deleteLayer(layer: MapLayer): void {
+    context.value = removeLayerFromContext(
+      context.value as MapContext,
+      layer as MapContextLayer,
+    ) as ExtendedMapContext
   }
 
-  function changeLayerPosition(layer: MapContextLayer, delta: number) {
-    const oldPosition = getLayerPosition(context.value, layer)
+  function changeLayerPosition(layer: MapLayer, delta: number) {
+    const oldPosition = getLayerPosition(context.value as MapContext, layer as MapContextLayer)
     const newPosition = oldPosition + delta
-    context.value = changeLayerPositionInContext(context.value, layer, newPosition)
+    context.value = changeLayerPositionInContext(
+      context.value as MapContext,
+      layer as MapContextLayer,
+      newPosition,
+    ) as ExtendedMapContext
   }
 
-  function updateLayer(layer: MapContextLayer, updates: Partial<MapContextLayer>) {
-    context.value = updateLayerInContext(context.value, layer, updates)
+  function updateLayer(layer: MapLayer, updates: Partial<MapLayer>) {
+    context.value = updateLayerInContext(
+      context.value as MapContext,
+      layer as MapContextLayer,
+      updates as Partial<MapContextLayer>,
+    ) as ExtendedMapContext
+  }
+
+  function fromStacToGeojsonLayer(layer: MapLayerStac): MapContextLayer {
+    return {
+      type: 'geojson',
+      id: layer.id,
+      label: layer.label,
+      opacity: layer.opacity ?? 1,
+      visibility: layer.visibility ?? true,
+      version: layer.version,
+      data: layer.data,
+    } as MapContextLayer
   }
 
   return {
     context,
+    sdkContext,
     layers,
     view,
+    currentExtent,
     setContext,
     setView,
+    setViewExtent,
     addLayer,
     deleteLayer,
     changeLayerPosition,
     updateLayer,
+    fromStacToGeojsonLayer,
   }
 })

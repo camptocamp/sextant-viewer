@@ -2,8 +2,10 @@ import type { MapContextLayer } from '@geospatial-sdk/core'
 import { createViewFromLayer } from '@geospatial-sdk/core'
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMapStore } from '@/stores/map.store'
+import type { MapLayer } from '@/utils/layer.utils'
+import { isStacLayer } from '@/utils/layer.utils'
 
-export function useLayerActions(layer: MaybeRefOrGetter<MapContextLayer>) {
+export function useLayerActions(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
 
   const opacity = computed({
@@ -27,12 +29,16 @@ export function useLayerActions(layer: MaybeRefOrGetter<MapContextLayer>) {
   const canZoomToExtent = computed(() => {
     const l = toValue(layer)
     if (l.type === 'geojson') return !!l.data
+    if (l.type === 'stac') return !!l.data
     return ['wms', 'wmts', 'wfs'].includes(l.type)
   })
 
   async function zoomToExtent() {
+    const l = toValue(layer)
+    const mapContextLayer = isStacLayer(l) ? mapStore.fromStacToGeojsonLayer(l) : l
+
     try {
-      const view = await createViewFromLayer(toValue(layer))
+      const view = await createViewFromLayer(mapContextLayer as MapContextLayer)
       if (view) {
         mapStore.setView(view)
       }

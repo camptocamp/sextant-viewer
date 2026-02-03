@@ -2,12 +2,19 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import { storeToRefs } from 'pinia'
-import { applyContextDiffToMap, createMapFromContext } from '@geospatial-sdk/openlayers'
-import { computeMapContextDiff, type MapContext } from '@geospatial-sdk/core'
+import { applyContextDiffToMap, createMapFromContext, listen } from '@geospatial-sdk/openlayers'
+import {
+  computeMapContextDiff,
+  type MapContext,
+  type MapExtentChangeEvent,
+} from '@geospatial-sdk/core'
 import type Map from 'ol/Map'
+import { useStacLayer } from '@/composables/useStacLayer'
+import { isStacLayer } from '@/utils/layer.utils'
 
+const { enrichStacLayer } = useStacLayer()
 const mapStore = useMapStore()
-const { context } = storeToRefs(mapStore)
+const { sdkContext } = storeToRefs(mapStore)
 
 const mapContainer = ref<HTMLElement | undefined>()
 let map: Map | null = null
@@ -18,14 +25,18 @@ const emit = defineEmits<{
 
 onMounted(async () => {
   if (!mapContainer.value) return
-  map = await createMapFromContext(context.value, mapContainer.value)
+  map = await createMapFromContext(sdkContext.value, mapContainer.value)
+
   if (map) {
     emit('map-ready', map)
+    listen(map, 'map-extent-change', (event: MapExtentChangeEvent) => {
+      mapStore.setViewExtent(event.extent as [number, number, number, number])
+    })
   }
 })
 
 watch(
-  context,
+  sdkContext,
   (newContext: MapContext, oldContext: MapContext) => {
     if (!map) return
 
@@ -33,6 +44,14 @@ watch(
     applyContextDiffToMap(map, diff)
   },
   { deep: false },
+)
+
+watch(
+  () => mapStore.context.layers.filter(isStacLayer),
+  (stacLayers) => {
+    stacLayers.forEach((layer) => enrichStacLayer(layer))
+  },
+  { immediate: true },
 )
 
 onBeforeUnmount(() => {
