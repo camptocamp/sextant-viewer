@@ -46,7 +46,7 @@ export const useMapStore = defineStore('map', () => {
       }),
   }))
 
-  function setContext(newContext: MapContext) {
+  function setContext(newContext: ExtendedMapContext) {
     context.value = newContext
   }
 

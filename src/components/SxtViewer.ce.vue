@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import LayoutGrid from '@/components/layout/LayoutGrid.vue'
-import { useMapStore } from '@/stores/map.store'
-import type { MapContext, MapContextLayer, MapContextView } from '@geospatial-sdk/core'
+import { useMapStore, type ExtendedMapContext } from '@/stores/map.store'
+import type { MapContextLayer, MapContextView } from '@geospatial-sdk/core'
 import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
@@ -35,7 +35,7 @@ const addLayer = (layer: MapContextLayer) => {
   mapStore.addLayer(layer)
 }
 
-const setContext = (context: MapContext) => {
+const setContext = (context: ExtendedMapContext) => {
   mapStore.setContext(context)
 }
 
