@@ -35,7 +35,7 @@ const { opacity, canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(
         :disabled="!canZoomToExtent"
         @click="zoomToExtent"
       >
-        Zoomer sur l'extent
+        Zoomer sur l'étendue
       </UButton>
       <UButton icon="i-heroicons-trash" color="error" variant="soft" size="sm" @click="deleteLayer">
         Supprimer

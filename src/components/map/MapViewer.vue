@@ -11,6 +11,7 @@ import {
 import type Map from 'ol/Map'
 import { useStacLayer } from '@/composables/useStacLayer'
 import { isStacLayer } from '@/utils/layer.utils'
+import ResetExtentButton from './ResetExtentButton.vue'
 
 const { enrichStacLayer } = useStacLayer()
 const mapStore = useMapStore()
@@ -65,6 +66,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="mapContainer" class="relative h-full w-full"></div>
+  <ResetExtentButton class="absolute top-15 right-[.5em]" />
 </template>
 
 <style scoped></style>

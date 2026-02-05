@@ -19,3 +19,10 @@
     box-shadow: var(--shadow-panel);
   }
 }
+
+/* position zoom controls on the right */
+.ol-zoom {
+  top: 0.5em;
+  right: 0.5em;
+  left: unset;
+}

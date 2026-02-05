@@ -33,6 +33,7 @@ export const useMapStore = defineStore('map', () => {
 
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
+  const initialMapView = computed(() => DEFAULT_MAP_CONTEXT.view)
 
   const sdkContext = computed<MapContext>(() => ({
     view: context.value.view,
@@ -53,7 +54,14 @@ export const useMapStore = defineStore('map', () => {
   function setView(newView: MapContextView) {
     context.value = {
       ...context.value,
-      view: newView,
+      view: { ...newView },
+    }
+  }
+
+  function resetView() {
+    context.value = {
+      ...context.value,
+      view: { ...initialMapView.value } as MapContextView,
     }
   }
 
@@ -111,9 +119,11 @@ export const useMapStore = defineStore('map', () => {
     sdkContext,
     layers,
     view,
+    initialMapView,
     currentExtent,
     setContext,
     setView,
+    resetView,
     setViewExtent,
     addLayer,
     deleteLayer,
