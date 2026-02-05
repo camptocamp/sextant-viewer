@@ -16,6 +16,10 @@ import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import type { Extent } from 'ol/extent'
 
+const FALLBACK_VIEW: MapContextView = {
+  center: [0, 0] as [number, number],
+  zoom: 2,
+}
 export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
   view: MapContextView
   layers: MapLayer[]
@@ -23,10 +27,7 @@ export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
 
 export const useMapStore = defineStore('map', () => {
   const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>({
-    view: DEFAULT_MAP_CONTEXT.view || {
-      center: [0, 0] as [number, number],
-      zoom: 2,
-    },
+    view: DEFAULT_MAP_CONTEXT.view || FALLBACK_VIEW,
     layers: DEFAULT_MAP_CONTEXT.layers || [],
   })
 
@@ -34,7 +35,6 @@ export const useMapStore = defineStore('map', () => {
 
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
-  const initialMapView = computed(() => DEFAULT_MAP_CONTEXT.view)
 
   const sdkContext = computed<MapContext>(() => ({
     view: context.value.view,
@@ -62,7 +62,7 @@ export const useMapStore = defineStore('map', () => {
   function resetView() {
     context.value = {
       ...context.value,
-      view: { ...initialMapView.value } as MapContextView,
+      view: { ...(DEFAULT_MAP_CONTEXT.view || FALLBACK_VIEW) } as MapContextView,
     }
   }
 
@@ -120,7 +120,6 @@ export const useMapStore = defineStore('map', () => {
     sdkContext,
     layers,
     view,
-    initialMapView,
     currentExtent,
     setContext,
     setView,
