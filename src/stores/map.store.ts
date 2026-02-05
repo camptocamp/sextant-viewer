@@ -14,6 +14,7 @@ import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
 import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
+import type { Extent } from 'ol/extent'
 
 export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
   view: MapContextView
@@ -29,7 +30,7 @@ export const useMapStore = defineStore('map', () => {
     layers: DEFAULT_MAP_CONTEXT.layers || [],
   })
 
-  const currentExtent = ref<[number, number, number, number] | undefined>(undefined)
+  const currentExtent = ref<Extent | undefined>(undefined)
 
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
@@ -65,7 +66,7 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  function setViewExtent(extent: [number, number, number, number]) {
+  function setCurrentViewExtent(extent: Extent) {
     currentExtent.value = extent
   }
 
@@ -124,7 +125,7 @@ export const useMapStore = defineStore('map', () => {
     setContext,
     setView,
     resetView,
-    setViewExtent,
+    setCurrentViewExtent,
     addLayer,
     deleteLayer,
     changeLayerPosition,

@@ -12,6 +12,7 @@ import type Map from 'ol/Map'
 import { useStacLayer } from '@/composables/useStacLayer'
 import { isStacLayer } from '@/utils/layer.utils'
 import ResetExtentButton from './ResetExtentButton.vue'
+import type { Extent } from 'ol/extent'
 
 const { enrichStacLayer } = useStacLayer()
 const mapStore = useMapStore()
@@ -31,7 +32,7 @@ onMounted(async () => {
   if (map) {
     emit('map-ready', map)
     listen(map, 'map-extent-change', (event: MapExtentChangeEvent) => {
-      mapStore.setViewExtent(event.extent as [number, number, number, number])
+      mapStore.setCurrentViewExtent(event.extent as Extent)
     })
   }
 })
