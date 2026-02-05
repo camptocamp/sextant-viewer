@@ -1,4 +1,5 @@
 import type { ExtendedMapContext } from '@/stores/map.store'
+import { FEATURE_HOVER_STYLE } from './feature-styles'
 
 /**
  * Default MapContext configuration for the map application
@@ -25,6 +26,7 @@ export const DEFAULT_MAP_CONTEXT: ExtendedMapContext = {
       name: 'INSEE.FILOSOFI.POPULATION',
       label: 'Population INSEE',
       visibility: true,
+      clickable: false,
       opacity: 0.7,
       attributions: '© IGN - INSEE',
       version: 0,
@@ -38,6 +40,8 @@ export const DEFAULT_MAP_CONTEXT: ExtendedMapContext = {
       visibility: true,
       opacity: 0.8,
       attributions: '© MEL - Ilevia',
+      hoverable: true,
+      hoverStyle: FEATURE_HOVER_STYLE,
       version: 0,
     },
     {
@@ -48,12 +52,21 @@ export const DEFAULT_MAP_CONTEXT: ExtendedMapContext = {
       visibility: false,
       opacity: 1,
       attributions: '© Ville de Roubaix',
+      hoverable: true,
+      hoverStyle: FEATURE_HOVER_STYLE,
       version: 0,
     },
     {
       type: 'stac',
       url: 'https://stac-pg-api.ifremer.fr/collections/AVHRR_SST_METOP_B_OSISAF_L2P_v1_0',
       id: 'AVHRR_SST_METOP_B_OSISAF_L2P_v1_0-no-collection-id',
+      visibility: false,
+    },
+    {
+      type: 'stac',
+      url: 'https://stacapi-cdos.apps.okd.crocc.meso.umontpellier.fr/collections/sentinel-2-radiometric-indices',
+      id: 'sentinel-2-radiometric-indices',
+      visibility: false,
     },
     // Alternative STAC layer configuration
     // {
@@ -63,16 +76,88 @@ export const DEFAULT_MAP_CONTEXT: ExtendedMapContext = {
     //   id: 'AVHRR_SST_METOP_B_OSISAF_L2P_v1_0',
     // },
     {
-      type: 'stac',
-      url: 'https://stacapi-cdos.apps.okd.crocc.meso.umontpellier.fr/collections/sentinel-2-radiometric-indices',
-      id: 'sentinel-2-radiometric-indices',
+      type: 'geojson',
+      id: 'geojson-mock-urls',
+      data: {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            id: 'poi-1',
+            geometry: { type: 'Point', coordinates: [3.06, 50.63] },
+            properties: {
+              name: 'Point avec URL HTTPS',
+              description: 'Voir documentation: https://example.com/docs',
+              website: 'https://www.openstreetmap.org',
+              contact: 'email@example.com',
+            },
+          },
+          {
+            type: 'Feature',
+            id: 'poi-2',
+            geometry: { type: 'Point', coordinates: [3.07, 50.625] },
+            properties: {
+              name: 'Point avec URL HTTP',
+              info: 'Source: http://data.example.org/api',
+              note: 'Protocole non sécurisé',
+            },
+          },
+          {
+            type: 'Feature',
+            id: 'poi-3',
+            geometry: { type: 'Point', coordinates: [3.05, 50.635] },
+            properties: {
+              name: 'Point avec URLs multiples',
+              links: 'Voir https://example.com et aussi https://another-site.org/page',
+              documentation: 'https://docs.example.com/guide',
+            },
+          },
+          {
+            type: 'Feature',
+            id: 'poi-4',
+            geometry: { type: 'Point', coordinates: [3.055, 50.62] },
+            properties: {
+              name: 'Point avec protocoles non-HTTP',
+              file_path: 'file:///home/user/data.txt',
+              ftp_server: 'ftp://files.example.com/data',
+              note: 'Ces URLs ne doivent PAS être cliquables',
+            },
+          },
+        ],
+      },
+      label: 'Points de test (URLs)',
+      visibility: true,
+      opacity: 1,
+      attributions: 'Mock data',
+      hoverable: true,
+      hoverStyle: FEATURE_HOVER_STYLE,
+      version: 0,
     },
-    // {
-    //   type: 'stac',
-    //   url: 'https://stacapi-cdos.apps.okd.crocc.meso.umontpellier.fr',
-    //   collectionId: 'sentinel-2-radiometric-indices',
-    //   id: 'sentinel-2-radiometric-indices',
-    // },
+    // ILICO layers
+    {
+      type: 'geojson',
+      id: 'ilico-points',
+      url: 'https://sextant.odatis-ocean.fr/services/wfs/ilico?service=WFS&request=GetFeature&typename=ILICO_points&outputFormat=GeoJSON',
+      label: 'ILICO Points',
+      visibility: true,
+      opacity: 1,
+      attributions: '© ODATIS / ILICO',
+      hoverable: true,
+      hoverStyle: FEATURE_HOVER_STYLE,
+      version: 0,
+    },
+    {
+      type: 'geojson',
+      id: 'ilico-surface',
+      url: 'https://sextant.odatis-ocean.fr/services/wfs/ilico?service=WFS&request=GetFeature&typename=ILICO_surface&outputFormat=GeoJSON',
+      label: 'ILICO Surface',
+      visibility: false,
+      opacity: 0.7,
+      attributions: '© ODATIS / ILICO',
+      hoverable: true,
+      hoverStyle: FEATURE_HOVER_STYLE,
+      version: 0,
+    },
   ],
   view: {
     center: [3.0586, 50.6292],
