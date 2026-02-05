@@ -52,6 +52,12 @@ export const useMapStore = defineStore('map', () => {
     context.value = newContext
   }
 
+  function resetContext() {
+    context.value = {
+      ...DEFAULT_MAP_CONTEXT,
+    }
+  }
+
   function setView(newView: MapContextView) {
     context.value = {
       ...context.value,
@@ -122,6 +128,7 @@ export const useMapStore = defineStore('map', () => {
     view,
     currentExtent,
     setContext,
+    resetContext,
     setView,
     resetView,
     setCurrentViewExtent,

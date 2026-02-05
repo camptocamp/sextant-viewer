@@ -1,7 +1,8 @@
 <script setup lang="ts">
 const tabItems = [
-  { slot: 'list', label: 'List' },
-  { slot: 'tree', label: 'Tree' },
+  { slot: 'list', label: 'Liste' },
+  { slot: 'tree', label: 'Arbre' },
+  { slot: 'tools', label: 'Outils' },
 ]
 </script>
 
@@ -16,6 +17,9 @@ const tabItems = [
         <UIcon name="i-heroicons-rectangle-group" class="mx-auto mb-2 h-12 w-12 opacity-50" />
         <p class="text-sm">Tree view coming soon</p>
       </div>
+    </template>
+    <template #tools>
+      <ToolsPanel />
     </template>
   </UTabs>
 </template>
