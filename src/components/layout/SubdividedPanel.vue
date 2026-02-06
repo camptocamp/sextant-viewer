@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useResizableDivider } from '@/composables/useResizableDivider'
+import { ref } from 'vue'
 
 defineProps<{
   showSubdivision?: boolean

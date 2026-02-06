@@ -1,5 +1,5 @@
-import type { MapContextLayer } from '@geospatial-sdk/core'
 import type { MapLayerStac } from '@/types/stac.types'
+import type { MapContextLayer } from '@geospatial-sdk/core'
 
 /**
  * Union type combining standard MapContext layers with STAC layers.
