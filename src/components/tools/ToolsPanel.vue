@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useMapStore } from '@/stores/map.store'
-import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
-import { computed, toRaw } from 'vue'
+import { computed } from 'vue'
 
 const mapStore = useMapStore()
 
@@ -10,10 +9,7 @@ const handleResetContext = () => {
 }
 
 const isDisabled = computed(() => {
-  if (!mapStore.sessionContext) {
-    return true
-  }
-  return toRaw(mapStore.sessionContext) === DEFAULT_MAP_CONTEXT
+  return mapStore.sessionContext === null
 })
 </script>
 

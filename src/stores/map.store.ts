@@ -27,14 +27,16 @@ export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
 }
 
 export const useMapStore = defineStore('map', () => {
+  const initialContext = ref<ExtendedMapContext>(DEFAULT_MAP_CONTEXT)
+
   const sessionContext = ref<ExtendedMapContext | null>(
     JSON.parse(sessionStorage.getItem('mapContext') || 'null'),
   )
 
   const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>(
     sessionContext.value || {
-      view: DEFAULT_MAP_CONTEXT.view || FALLBACK_VIEW,
-      layers: DEFAULT_MAP_CONTEXT.layers || [],
+      view: initialContext.value.view || FALLBACK_VIEW,
+      layers: initialContext.value.layers || [],
     },
   )
 
@@ -57,7 +59,7 @@ export const useMapStore = defineStore('map', () => {
 
   const saveContextToStorage = useDebounceFn(
     (ctx: ExtendedMapContext, extent: Extent | undefined) => {
-      if (ctx === DEFAULT_MAP_CONTEXT) return
+      if (ctx === initialContext.value) return
       if (extent) {
         ctx.view = {
           extent: extent as [number, number, number, number], // cast currently needed to satisfy geospatial-sdk's type
@@ -80,7 +82,7 @@ export const useMapStore = defineStore('map', () => {
   function resetContext() {
     sessionContext.value = null
     sessionStorage.removeItem('mapContext')
-    context.value = DEFAULT_MAP_CONTEXT
+    context.value = initialContext.value
   }
 
   function setView(newView: MapContextView) {
@@ -93,7 +95,7 @@ export const useMapStore = defineStore('map', () => {
   function resetView() {
     context.value = {
       ...context.value,
-      view: { ...(DEFAULT_MAP_CONTEXT.view || FALLBACK_VIEW) } as MapContextView,
+      view: { ...(initialContext.value.view || FALLBACK_VIEW) } as MapContextView,
     }
   }
 
@@ -149,6 +151,7 @@ export const useMapStore = defineStore('map', () => {
   return {
     context,
     sdkContext,
+    initialContext,
     sessionContext,
     layers,
     view,
