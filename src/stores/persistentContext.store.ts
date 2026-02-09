@@ -1,4 +1,4 @@
-import { watchEffect, ref } from 'vue'
+import { watchEffect, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useMapStore, type ExtendedMapContext } from '@/stores/map.store'
 import { defineStore, storeToRefs } from 'pinia'
@@ -10,7 +10,7 @@ const SESSION_STORAGE_CONTEXT_KEY = 'sxt-viewer-current-map-context'
  * Store for managing persistent map context in sessionStorage
  */
 export const usePersistentContextStore = defineStore('persistentContext', () => {
-  const { initialContext, context, currentExtent } = storeToRefs(useMapStore())
+  const { initialEnrichedContext, context, currentExtent } = storeToRefs(useMapStore())
   const { setContext } = useMapStore()
 
   // the first context change should be ignored as it is the initial context
@@ -47,13 +47,26 @@ export const usePersistentContextStore = defineStore('persistentContext', () => 
     ignoreNextContextChange = true // the next context change tick should be ignored as well
     currentExtent.value = null
     context.value = {
-      ...initialContext.value,
-      view: { ...initialContext.value.view },
+      ...initialEnrichedContext.value,
+      view: { ...initialEnrichedContext.value.view },
     }
     canRestoreContext.value = false
     sessionStorage.removeItem(SESSION_STORAGE_CONTEXT_KEY)
   }
 
+  // Set context once initialEnrichedContext is ready
+  watch(
+    initialEnrichedContext,
+    (enriched) => {
+      if (enriched && !sessionContext) {
+        ignoreNextContextChange = true
+        setContext(enriched)
+      }
+    },
+    { immediate: true },
+  )
+
+  // Persist context changes to sessionStorage
   watchEffect(() => {
     saveContextToStorage(context.value, currentExtent.value)
   })

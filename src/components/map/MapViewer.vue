@@ -107,14 +107,6 @@ watch(fullMapContext, (newContext, oldContext) => {
   applyContextDiffToMap(mapRef.value, diff)
 })
 
-// watch(
-//   () => mapStore.context.layers.filter(isStacLayer),
-//   (stacLayers) => {
-//     stacLayers.forEach((layer) => enrichStacLayer(layer))
-//   },
-//   { immediate: true },
-// )
-
 onBeforeUnmount(() => {
   featureSelectionStore.clearSelection()
 
