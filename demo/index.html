@@ -7,18 +7,19 @@
     <title>Sextant Viewer</title>
     <!-- <link rel="stylesheet" href="/src/assets/host.css" /> -->
   </head>
-  <body>
+  <body style="height: 100vh; padding: 10px; box-sizing: border-box; margin: 0">
     <script type="module" src="/src/register.ts"></script>
     <script type="module" src="./index.js"></script>
 
-    <div style="width: 100%; height: 100%; display: flex; gap: 20px">
-      <sxt-viewer id="viewer" class="block" style="flex-grow: 1; height: 600px"></sxt-viewer>
+    <div style="width: 100%; height: 95%; display: flex; gap: 20px">
+      <sxt-viewer id="viewer" class="block" style="flex-grow: 1; height: 100%"></sxt-viewer>
 
       <div style="width: 30%; display: flex; flex-direction: column; gap: 10px">
         <div>
           <span>Select example:</span>
           <select id="example-selector"></select>
         </div>
+        <div id="example-doc"></div>
         <textarea
           id="code-input"
           spellcheck="false"
