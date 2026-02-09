@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import LayoutGrid from '@/components/layout/LayoutGrid.vue'
 import { useMapStore, type ExtendedMapContext } from '@/stores/map.store'
+import { usePersistentContextStore } from '@/stores/persistentContext.store'
 import type { MapContextLayer, MapContextView } from '@geospatial-sdk/core'
 import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
@@ -13,6 +14,7 @@ const emit = defineEmits<{
 }>()
 
 const mapStore = useMapStore()
+usePersistentContextStore()
 
 const containerRef = ref<HTMLElement | null>(null)
 

@@ -1,4 +1,4 @@
-import { computed, ref, watchEffect, type Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
   addLayerToContext,
@@ -9,13 +9,12 @@ import {
   type MapContextView,
   removeLayerFromContext,
   updateLayerInContext,
+  type Extent,
 } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
 import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
-import type { Extent } from 'ol/extent'
-import { useDebounceFn } from '@vueuse/core'
 
 const FALLBACK_VIEW: MapContextView = {
   center: [0, 0] as [number, number],
@@ -29,18 +28,9 @@ export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
 export const useMapStore = defineStore('map', () => {
   const initialContext = ref<ExtendedMapContext>(DEFAULT_MAP_CONTEXT)
 
-  const sessionContext = ref<ExtendedMapContext | null>(
-    JSON.parse(sessionStorage.getItem('mapContext') || 'null'),
-  )
+  const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>(initialContext.value)
 
-  const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>(
-    sessionContext.value || {
-      view: initialContext.value.view || FALLBACK_VIEW,
-      layers: initialContext.value.layers || [],
-    },
-  )
-
-  const currentExtent = ref<Extent | undefined>(undefined)
+  const currentExtent = ref<Extent | null>(null)
 
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
@@ -57,32 +47,8 @@ export const useMapStore = defineStore('map', () => {
       }),
   }))
 
-  const saveContextToStorage = useDebounceFn(
-    (ctx: ExtendedMapContext, extent: Extent | undefined) => {
-      if (ctx === initialContext.value) return
-      if (extent) {
-        ctx.view = {
-          extent: extent as [number, number, number, number], // cast currently needed to satisfy geospatial-sdk's type
-        }
-      }
-      sessionContext.value = ctx
-      sessionStorage.setItem('mapContext', JSON.stringify(ctx))
-    },
-    500,
-  )
-
-  watchEffect(() => {
-    saveContextToStorage(context.value, currentExtent.value)
-  })
-
   function setContext(newContext: ExtendedMapContext) {
     context.value = newContext
-  }
-
-  function resetContext() {
-    sessionContext.value = null
-    sessionStorage.removeItem('mapContext')
-    context.value = initialContext.value
   }
 
   function setView(newView: MapContextView) {
@@ -152,12 +118,10 @@ export const useMapStore = defineStore('map', () => {
     context,
     sdkContext,
     initialContext,
-    sessionContext,
     layers,
     view,
     currentExtent,
     setContext,
-    resetContext,
     setView,
     resetView,
     setCurrentViewExtent,

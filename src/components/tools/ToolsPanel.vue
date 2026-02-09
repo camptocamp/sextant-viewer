@@ -1,24 +1,17 @@
 <script setup lang="ts">
-import { useMapStore } from '@/stores/map.store'
-import { computed } from 'vue'
+import { usePersistentContextStore } from '@/stores/persistentContext.store'
+import { storeToRefs } from 'pinia'
 
-const mapStore = useMapStore()
-
-const handleResetContext = () => {
-  mapStore.resetContext()
-}
-
-const isDisabled = computed(() => {
-  return mapStore.sessionContext === null
-})
+const { restoreContext } = usePersistentContextStore()
+const { canRestoreContext } = storeToRefs(usePersistentContextStore())
 </script>
 
 <template>
   <div class="text-center">
     <UButton
       label="Restaurer le contexte d'origine"
-      @click="handleResetContext"
-      :disabled="isDisabled"
+      @click="restoreContext"
+      :disabled="!canRestoreContext"
     />
   </div>
 </template>
