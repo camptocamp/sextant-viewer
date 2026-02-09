@@ -1,5 +1,7 @@
-const SDK_INTERFACES_URL = 'https://camptocamp.github.io/geospatial-sdk/docs/api/%F0%9F%93%A6-core/interfaces'
-const SDK_GUIDE_LAYERS_URL = 'https://camptocamp.github.io/geospatial-sdk/docs/guides/map-context.html#layers'
+const SDK_INTERFACES_URL =
+  'https://camptocamp.github.io/geospatial-sdk/docs/api/%F0%9F%93%A6-core/interfaces'
+const SDK_GUIDE_LAYERS_URL =
+  'https://camptocamp.github.io/geospatial-sdk/docs/guides/map-context.html#layers'
 const SDK_GUIDE_LAYERS_LINK = `<a href="${SDK_GUIDE_LAYERS_URL}">Geospatial SDK layers documentation</a>`
 const SDK_GUIDE_LAYERS_DOC = `
 <p>
@@ -305,7 +307,7 @@ EXAMPLES.forEach((example, index) => {
 })
 
 const showExample = (index) => {
-  const example = EXAMPLES[index];
+  const example = EXAMPLES[index]
   if (example) {
     codeInputEl.value = example.code
     exampleDoc.innerHTML = example.description

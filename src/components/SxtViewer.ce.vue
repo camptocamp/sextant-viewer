@@ -42,7 +42,7 @@ const onMapReady = (map: Map) => {
 const addLayer = async (layer: MapContextLayer, zoomToExtent: boolean) => {
   const id = mapStore.addLayer(layer)
   if (isStacLayer(layer)) {
-    await enrichStacLayer(layer)  // Enrich the mapStore
+    await enrichStacLayer(layer) // Enrich the mapStore
   }
 
   const newLayer = mapStore.getLayerById(id)!
@@ -62,12 +62,12 @@ const setContext = (context: ExtendedMapContext) => {
 }
 
 const getContext = (): ExtendedMapContext => {
-  const cleanedLayers = mapStore.layers.map(({id, version, ...rest}) => rest)
+  const cleanedLayers = mapStore.layers.map(({ id: _id, version: _version, ...rest }) => rest)
 
   return {
     layers: cleanedLayers,
     view: {
-      extent: mapViewerRef.value!.getExtent()
+      extent: mapViewerRef.value!.getExtent(),
     },
   }
 }

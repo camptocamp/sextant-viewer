@@ -17,7 +17,7 @@ import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { computedAsync } from '@vueuse/core'
 import { enrichStacLayer } from '@/utils/stac.utils'
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid'
 
 const FALLBACK_VIEW: MapContextView = {
   center: [0, 0] as [number, number],
@@ -73,7 +73,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   function setContext(newContext: ExtendedMapContext) {
-    const layersWithVersionAndId = newContext.layers.map(layer => ({
+    const layersWithVersionAndId = newContext.layers.map((layer) => ({
       ...layer,
       id: layer.id ? layer.id : uuidv4(),
       version: layer.version !== undefined ? layer.version : 0,
@@ -144,7 +144,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   function getLayerById(id: string | number): MapLayer | undefined {
-    return context.value.layers.find(layer => layer.id === id)
+    return context.value.layers.find((layer) => layer.id === id)
   }
 
   function fromStacToGeojsonLayer(layer: MapLayerStac): MapContextLayer {

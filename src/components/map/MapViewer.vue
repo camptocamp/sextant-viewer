@@ -117,10 +117,10 @@ onBeforeUnmount(() => {
   }
 })
 
-const getExtent = (): Extent => {
-  const view = mapRef.value?.getView()!
+const getExtent = (): Extent | undefined => {
+  const view = mapRef.value?.getView()
   const size = mapRef.value?.getSize()
-  return view.calculateExtent(size)
+  return view!.calculateExtent(size)
 }
 
 defineExpose({
