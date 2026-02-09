@@ -8,6 +8,9 @@ import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
 import type { Extent } from 'ol/extent'
 import type Map from 'ol/Map'
+import { useLayerActions } from '@/composables/useLayerActions'
+import { isStacLayer } from '@/types/stac.types'
+import { useStacLayer } from '@/composables/useStacLayer'
 
 const emit = defineEmits<{
   'map-extent-change': [extent: Extent]
@@ -15,6 +18,8 @@ const emit = defineEmits<{
 
 const mapStore = useMapStore()
 usePersistentContextStore()
+
+const { enrichStacLayer } = useStacLayer()
 
 const containerRef = ref<HTMLElement | null>(null)
 
@@ -33,8 +38,17 @@ const onMapReady = (map: Map) => {
   })
 }
 
-const addLayer = (layer: MapContextLayer) => {
-  mapStore.addLayer(layer)
+const addLayer = async (layer: MapContextLayer, zoomToExtent: boolean) => {
+  const id = mapStore.addLayer(layer)
+  if (isStacLayer(layer)) {
+    await enrichStacLayer(layer)  // Enrich the mapStore
+  }
+
+  const newLayer = mapStore.getLayerById(id)!
+  const { canZoomToExtent, zoomToExtent: zoomToLayerExtent } = useLayerActions(() => newLayer)
+  if (zoomToExtent && canZoomToExtent.value) {
+    zoomToLayerExtent()
+  }
 }
 
 const setInitialContext = (context: ExtendedMapContext) => {

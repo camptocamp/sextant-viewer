@@ -44,7 +44,8 @@ viewer.addLayer(
     visibility: true,
     opacity: 0.7,
     attributions: '© IGN - INSEE',
-  }
+  },
+  true,  // zoomToExtent
 );`,
   },
   {
@@ -84,7 +85,8 @@ viewer.addLayer(
     visibility: true,
     opacity: 0.8,
     attributions: '© MEL - Ilevia',
-  }
+  },
+  true,  // zoomToExtent
 );`,
   },
   {
@@ -153,9 +155,10 @@ viewer.addLayer(
   {
     type: 'stac',
     url: 'https://stacapi-cdos.apps.okd.crocc.meso.umontpellier.fr/collections/sentinel-2-radiometric-indices',
-    id: 'sentinel-2-radiometric-indices',
+    label: 'Example STAC layer',
     visibility: true,
   },
+  true,  // zoomToExtent
 )
     `,
   },

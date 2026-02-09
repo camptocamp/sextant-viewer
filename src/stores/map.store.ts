@@ -17,6 +17,7 @@ import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { computedAsync } from '@vueuse/core'
 import { enrichStacLayer } from '@/utils/stac.utils'
+import { v4 as uuidv4 } from 'uuid';
 
 const FALLBACK_VIEW: MapContextView = {
   center: [0, 0] as [number, number],
@@ -93,12 +94,19 @@ export const useMapStore = defineStore('map', () => {
     currentExtent.value = extent
   }
 
-  function addLayer(layer: MapLayer) {
-    const versionedLayer = { ...layer, version: 0 } // we're tracking changes on layers by version
+  function addLayer(layer: MapLayer): number | string {
+    const versionedLayer = {
+      ...layer,
+      id: layer.id ? layer.id : uuidv4(),
+      version: 0, // we're tracking changes on layers by version
+    }
+
     context.value = addLayerToContext(
       context.value as MapContext,
       versionedLayer as MapContextLayer,
     ) as ExtendedMapContext
+
+    return versionedLayer.id
   }
 
   function deleteLayer(layer: MapLayer): void {
@@ -124,6 +132,10 @@ export const useMapStore = defineStore('map', () => {
       layer as MapContextLayer,
       updates as Partial<MapContextLayer>,
     ) as ExtendedMapContext
+  }
+
+  function getLayerById(id: string | number): MapLayer | undefined {
+    return context.value.layers.find(layer => layer.id === id)
   }
 
   function fromStacToGeojsonLayer(layer: MapLayerStac): MapContextLayer {
@@ -155,6 +167,7 @@ export const useMapStore = defineStore('map', () => {
     deleteLayer,
     changeLayerPosition,
     updateLayer,
+    getLayerById,
     fromStacToGeojsonLayer,
   }
 })
