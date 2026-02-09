@@ -22,6 +22,7 @@ usePersistentContextStore()
 const { enrichStacLayer } = useStacLayer()
 
 const containerRef = ref<HTMLElement | null>(null)
+const mapViewerRef = ref<typeof MapViewer | null>(null)
 
 // This will copy the nuxt-ui-colors style tag into the shadow DOM of the custom element
 onMounted(() => {
@@ -60,14 +61,26 @@ const setContext = (context: ExtendedMapContext) => {
   mapStore.setContext(context)
 }
 
+const getContext = (): ExtendedMapContext => {
+  const cleanedLayers = mapStore.layers.map(({id, version, ...rest}) => rest)
+
+  return {
+    layers: cleanedLayers,
+    view: {
+      extent: mapViewerRef.value!.getExtent()
+    },
+  }
+}
+
 const setView = (view: MapContextView) => {
   mapStore.setView(view)
 }
 
 defineExpose({
   addLayer,
-  setInitialContext,
+  getContext,
   setContext,
+  setInitialContext,
   setView,
 })
 </script>

@@ -205,6 +205,23 @@ viewer.setContext(
 );`,
   },
   {
+    name: 'Get map context',
+    description: `
+<h4>Get the current map context.</h4>
+<p>
+  See interface
+  <a href="${SDK_INTERFACES_URL}/MapContext.html">
+    MapContext
+  </a>
+  for available properties.
+</p>
+`,
+    code: `const viewer = document.getElementById('viewer');
+
+console.log(viewer.getContext());
+    `,
+  },
+  {
     name: 'Set inital map context',
     code: `const viewer = document.getElementById('viewer');
 
@@ -235,7 +252,8 @@ viewer.setInitialContext(
       zoom: 15,
     },
   }
-);`,
+);
+    `,
   },
   {
     name: 'Set view by center and zoom',
