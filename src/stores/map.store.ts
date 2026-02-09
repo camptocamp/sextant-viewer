@@ -73,7 +73,16 @@ export const useMapStore = defineStore('map', () => {
   }
 
   function setContext(newContext: ExtendedMapContext) {
-    context.value = newContext
+    const layersWithVersionAndId = newContext.layers.map(layer => ({
+      ...layer,
+      id: layer.id ? layer.id : uuidv4(),
+      version: layer.version !== undefined ? layer.version : 0,
+    }))
+
+    context.value = {
+      ...newContext,
+      layers: layersWithVersionAndId,
+    }
   }
 
   function setView(newView: MapContextView) {

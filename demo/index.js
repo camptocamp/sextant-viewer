@@ -190,6 +190,12 @@ viewer.setContext(
           basemap: true,
         },
       },
+      {
+        type: 'stac',
+        url: 'https://stacapi-cdos.apps.okd.crocc.meso.umontpellier.fr/collections/sentinel-2-radiometric-indices',
+        label: 'Example STAC layer',
+        visibility: true,
+      },
     ],
     view: {
       center: [-4.56243, 48.36143],
