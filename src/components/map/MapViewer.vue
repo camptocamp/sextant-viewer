@@ -13,6 +13,7 @@ import { applyContextDiffToMap, createMapFromContext, listen } from '@geospatial
 import type Map from 'ol/Map'
 import { useStacLayer } from '@/composables/useStacLayer'
 import { isStacLayer } from '@/utils/layer.utils'
+import MapLoadingIndicator from './MapLoadingIndicator.vue'
 import ResetExtentButton from './ResetExtentButton.vue'
 import type { Extent } from 'ol/extent'
 import { storeToRefs } from 'pinia'
@@ -127,6 +128,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="mapContainer" class="relative h-full w-full"></div>
+  <MapLoadingIndicator />
   <FeaturePopup />
   <ResetExtentButton class="absolute top-15 right-[.5em]" />
 </template>
