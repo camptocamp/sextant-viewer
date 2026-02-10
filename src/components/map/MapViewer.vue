@@ -57,9 +57,10 @@ function handleFeaturesClick(event: FeaturesClickEvent) {
 
   const [layerIndex, features] = firstEntry
   const firstFeature = features[0]
+  const layerId = mapStore.sdkContext.layers[layerIndex]?.id?.toString()
 
-  if (firstFeature && lastClickCoordinate.value) {
-    featureSelectionStore.selectFeature(firstFeature, layerIndex, lastClickCoordinate.value)
+  if (firstFeature && lastClickCoordinate.value && layerId) {
+    featureSelectionStore.selectFeature(firstFeature, layerId, lastClickCoordinate.value)
   }
 }
 

@@ -4,26 +4,26 @@ import type { Feature } from 'geojson'
 
 export const useFeatureSelectionStore = defineStore('featureSelection', () => {
   const selectedFeature = shallowRef<Feature | null>(null)
-  const selectedLayerIndex = ref<number | null>(null)
+  const selectedLayerId = ref<string | null>(null)
   const popupCoordinate = ref<[number, number] | null>(null)
 
   const isPopupOpen = computed(() => selectedFeature.value !== null)
 
-  function selectFeature(feature: Feature, layerIndex: number, coordinate: [number, number]) {
+  function selectFeature(feature: Feature, layerId: string, coordinate: [number, number]) {
     selectedFeature.value = feature
-    selectedLayerIndex.value = layerIndex
+    selectedLayerId.value = layerId
     popupCoordinate.value = coordinate
   }
 
   function clearSelection() {
     selectedFeature.value = null
-    selectedLayerIndex.value = null
+    selectedLayerId.value = null
     popupCoordinate.value = null
   }
 
   return {
     selectedFeature,
-    selectedLayerIndex,
+    selectedLayerId,
     popupCoordinate,
     isPopupOpen,
     selectFeature,

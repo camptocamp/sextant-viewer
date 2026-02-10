@@ -20,9 +20,9 @@ const popupContainer = ref<HTMLElement>()
 const overlay = shallowRef<Overlay>()
 
 const layerName = computed(() => {
-  const layerIndex = featureSelectionStore.selectedLayerIndex
-  if (layerIndex === null || layerIndex < 0) return 'Couche inconnue'
-  const layer = mapStore.layers[layerIndex]
+  const layerId = featureSelectionStore.selectedLayerId
+  if (!layerId) return 'Couche inconnue'
+  const layer = mapStore.layers.find((l) => l.id === layerId)
   return layer ? getLayerLabel(layer) : 'Couche inconnue'
 })
 
