@@ -4,7 +4,7 @@ import type { MapContextLayer } from '@geospatial-sdk/core'
 /**
  * Union type combining standard MapContext layers with STAC layers.
  */
-export type MapLayer = MapContextLayer | MapLayerStac
+export type MapLayer = (MapContextLayer | MapLayerStac) & { error?: boolean }
 
 /**
  * Type guard to check if a layer is a STAC layer.
@@ -32,4 +32,14 @@ export function isBasemapLayer(layer: MapLayer): boolean {
  */
 export function getLayerLabel(layer: MapLayer): string {
   return layer.label || 'Couche sans titre'
+}
+
+export function getLayerError(layer: MapLayer): string {
+  if (layer.error) {
+    if (isStacLayer(layer)) {
+      return 'Erreur lors du chargement des données STAC. Vérifiez les filtres appliqués ou la connexion au serveur.'
+    }
+    return 'Erreur lors du chargement de la couche.'
+  }
+  return ''
 }
