@@ -74,11 +74,11 @@ export interface StacFilters {
  * - Both set: Filter items within range [start, end]
  */
 export interface DateRangeFilter {
-  /** Start date (inclusive), null means no start constraint */
-  start: Date | null
+  /** Start date (inclusive), null means no start constraint, allow string for date from sessionStorgage */
+  start: Date | string | null
 
-  /** End date (inclusive), null means no end constraint */
-  end: Date | null
+  /** End date (inclusive), null means no end constraint, allow string for date from sessionStorgage */
+  end: Date | string | null
 }
 
 /**
