@@ -67,6 +67,10 @@ export const useMapStore = defineStore('map', () => {
       }),
   }))
 
+  function setInitialContext(newContext: ExtendedMapContext) {
+    initialContext.value = newContext
+  }
+
   function setContext(newContext: ExtendedMapContext) {
     context.value = newContext
   }
@@ -142,6 +146,7 @@ export const useMapStore = defineStore('map', () => {
     layers,
     view,
     currentExtent,
+    setInitialContext,
     setContext,
     setView,
     resetView,
