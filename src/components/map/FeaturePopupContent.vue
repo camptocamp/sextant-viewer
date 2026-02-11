@@ -44,8 +44,12 @@ function renderValueWithLinks(
       class="flex items-start justify-between gap-2 border-b border-gray-200 pb-2 dark:border-gray-700"
     >
       <div>
-        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ layerName }}</h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400">{{ featureId }}</p>
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+          {{ layerName }}
+        </h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          {{ featureId }}
+        </p>
       </div>
       <UButton
         icon="i-heroicons-x-mark"
@@ -59,7 +63,7 @@ function renderValueWithLinks(
 
     <div class="mt-2 max-h-64 space-y-1 overflow-y-auto">
       <div v-for="attr in attributes" :key="attr.name" class="flex flex-wrap gap-1 text-sm">
-        <span class="font-semibold text-gray-700 dark:text-gray-300">{{ attr.name }}:</span>
+        <span class="font-semibold text-gray-700 dark:text-gray-300"> {{ attr.name }}: </span>
         <span class="text-gray-600 dark:text-gray-400">
           <template v-for="(part, index) in renderValueWithLinks(attr)" :key="index">
             <a
@@ -68,8 +72,9 @@ function renderValueWithLinks(
               target="_blank"
               rel="noopener noreferrer"
               class="text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-              >{{ part.content }}</a
             >
+              {{ part.content }}
+            </a>
             <template v-else>{{ part.content }}</template>
           </template>
         </span>

@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { useStacLayer } from '@/composables/useStacLayer'
 import { MAP_VIEW_PADDING } from '@/constants/layout'
 import { useFeatureSelectionStore } from '@/stores/featureSelection.store'
 import { useMapStore } from '@/stores/map.store'
+import { FEATURE_SELECTED_STYLE } from '@/utils/feature-styles'
+import { isStacLayer } from '@/utils/layer.utils'
 import {
   computeMapContextDiff,
   type FeaturesClickEvent,
@@ -10,15 +13,13 @@ import {
   type MapExtentChangeEvent,
 } from '@geospatial-sdk/core'
 import { applyContextDiffToMap, createMapFromContext, listen } from '@geospatial-sdk/openlayers'
-import type Map from 'ol/Map'
-import { useStacLayer } from '@/composables/useStacLayer'
-import { isStacLayer } from '@/utils/layer.utils'
-import ResetExtentButton from './ResetExtentButton.vue'
 import type { Extent } from 'ol/extent'
+import type Map from 'ol/Map'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
 import FeaturePopup from './FeaturePopup.vue'
-import { FEATURE_SELECTED_STYLE } from '@/utils/feature-styles'
+import MapLoadingIndicator from './MapLoadingIndicator.vue'
+import ResetExtentButton from './ResetExtentButton.vue'
 
 const { enrichStacLayer } = useStacLayer()
 const mapStore = useMapStore()
@@ -56,9 +57,10 @@ function handleFeaturesClick(event: FeaturesClickEvent) {
 
   const [layerIndex, features] = firstEntry
   const firstFeature = features[0]
+  const layerId = mapStore.sdkContext.layers[layerIndex]?.id?.toString()
 
-  if (firstFeature && lastClickCoordinate.value) {
-    featureSelectionStore.selectFeature(firstFeature, layerIndex, lastClickCoordinate.value)
+  if (firstFeature && lastClickCoordinate.value && layerId) {
+    featureSelectionStore.selectFeature(firstFeature, layerId, lastClickCoordinate.value)
   }
 }
 
@@ -84,9 +86,6 @@ const fullMapContext = computed<MapContext>(() => {
 onMounted(async () => {
   if (!mapContainer.value) return
   mapRef.value = await createMapFromContext(sdkContext.value, mapContainer.value)
-
-  // Set view padding to account for overlay panels (LayerPanel on left)
-  mapRef.value.getView().padding = MAP_VIEW_PADDING
 
   // Set view padding to account for overlay panels (LayerPanel on left)
   mapRef.value.getView().padding = MAP_VIEW_PADDING
@@ -126,9 +125,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="mapContainer" class="relative h-full w-full"></div>
-  <FeaturePopup />
-  <ResetExtentButton class="absolute top-15 right-[.5em]" />
+  <div class="relative h-full w-full">
+    <div ref="mapContainer" class="absolute inset-0"></div>
+    <MapLoadingIndicator />
+    <FeaturePopup />
+    <ResetExtentButton class="absolute top-15 right-[.5em]" />
+  </div>
 </template>
 
 <style scoped></style>

@@ -133,6 +133,27 @@ export const DEFAULT_MAP_CONTEXT: ExtendedMapContext = {
       hoverStyle: FEATURE_HOVER_STYLE,
       version: 0,
     },
+    // COG (geoTiff) sample layers
+    {
+      type: 'geotiff',
+      id: 'cog-oam-brest',
+      url: 'https://oin-hotosm-temp.s3.us-east-1.amazonaws.com/66e43a1ecd0baa0001b62135/0/66e43a1ecd0baa0001b62136.tif',
+      label: 'COG Brest (OpenAerialMap)',
+      visibility: true,
+      opacity: 1,
+      attributions: '© OpenAerialMap contributors, CC-BY 4.0',
+      version: 0,
+    },
+    {
+      type: 'geotiff',
+      id: 'cog-sentinel2-tci',
+      url: 'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/36/Q/WD/2020/7/S2A_36QWD_20200701_0_L2A/TCI.tif',
+      label: 'Sentinel-2 COG (TCI)',
+      visibility: false,
+      opacity: 1,
+      attributions: '© Copernicus Sentinel-2',
+      version: 0,
+    },
     // ILICO layers
     {
       type: 'geojson',

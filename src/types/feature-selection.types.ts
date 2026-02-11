@@ -15,6 +15,6 @@ export interface FeatureInfo {
 
 export interface SelectedFeatureState {
   selectedFeature: Feature | null
-  selectedLayerIndex: number | null
+  selectedLayerId: string | null
   popupCoordinate: [number, number] | null
 }
