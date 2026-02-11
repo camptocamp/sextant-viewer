@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { useStacLayer } from '@/composables/useStacLayer'
 import { MAP_VIEW_PADDING } from '@/constants/layout'
 import { useFeatureSelectionStore } from '@/stores/featureSelection.store'
 import { useMapStore } from '@/stores/map.store'
+import { FEATURE_SELECTED_STYLE } from '@/utils/feature-styles'
+import { isStacLayer } from '@/utils/layer.utils'
 import {
   computeMapContextDiff,
   type FeaturesClickEvent,
@@ -10,16 +13,13 @@ import {
   type MapExtentChangeEvent,
 } from '@geospatial-sdk/core'
 import { applyContextDiffToMap, createMapFromContext, listen } from '@geospatial-sdk/openlayers'
-import type Map from 'ol/Map'
-import { useStacLayer } from '@/composables/useStacLayer'
-import { isStacLayer } from '@/utils/layer.utils'
-import MapLoadingIndicator from './MapLoadingIndicator.vue'
-import ResetExtentButton from './ResetExtentButton.vue'
 import type { Extent } from 'ol/extent'
+import type Map from 'ol/Map'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
 import FeaturePopup from './FeaturePopup.vue'
-import { FEATURE_SELECTED_STYLE } from '@/utils/feature-styles'
+import MapLoadingIndicator from './MapLoadingIndicator.vue'
+import ResetExtentButton from './ResetExtentButton.vue'
 
 const { enrichStacLayer } = useStacLayer()
 const mapStore = useMapStore()
@@ -90,9 +90,6 @@ onMounted(async () => {
   // Set view padding to account for overlay panels (LayerPanel on left)
   mapRef.value.getView().padding = MAP_VIEW_PADDING
 
-  // Set view padding to account for overlay panels (LayerPanel on left)
-  mapRef.value.getView().padding = MAP_VIEW_PADDING
-
   emit('map-ready', mapRef.value)
 
   listen(mapRef.value, 'map-extent-change', (event: MapExtentChangeEvent) => {
@@ -128,10 +125,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="mapContainer" class="relative h-full w-full"></div>
-  <MapLoadingIndicator />
-  <FeaturePopup />
-  <ResetExtentButton class="absolute top-15 right-[.5em]" />
+  <div class="relative h-full w-full">
+    <div ref="mapContainer" class="absolute inset-0"></div>
+    <MapLoadingIndicator />
+    <FeaturePopup />
+    <ResetExtentButton class="absolute top-15 right-[.5em]" />
+  </div>
 </template>
 
 <style scoped></style>

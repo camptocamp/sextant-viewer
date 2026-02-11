@@ -1,6 +1,9 @@
-import { ref, computed, watch, onBeforeUnmount, type ShallowRef } from 'vue'
-import type Map from 'ol/Map'
+import type { CollectionEvent } from 'ol/Collection'
 import type BaseLayer from 'ol/layer/Base'
+import type Layer from 'ol/layer/Layer'
+import type Map from 'ol/Map'
+import type TileSource from 'ol/source/Tile'
+import { computed, onBeforeUnmount, ref, watch, type ShallowRef } from 'vue'
 
 /**
  * Tracks whether any tile-based layer on the map is currently loading tiles.
@@ -27,9 +30,9 @@ export function useLayerLoadingState(mapRef: ShallowRef<Map | null>) {
    */
   function attachSourceListeners(layer: BaseLayer) {
     // BaseLayer doesn't expose getSource(); cast needed for tile/image layers
-    if (typeof (layer as any).getSource !== 'function') return
+    if (typeof (layer as Layer).getSource !== 'function') return
 
-    const source = (layer as any).getSource()
+    const source = (layer as Layer).getSource() as TileSource | null
     if (!source || typeof source.on !== 'function') return
 
     const handleTileLoadStart = () => {
@@ -60,7 +63,8 @@ export function useLayerLoadingState(mapRef: ShallowRef<Map | null>) {
     map.getLayers().forEach((layer) => attachSourceListeners(layer))
 
     const layersCollection = map.getLayers()
-    const handleLayerAdd = (event: any) => attachSourceListeners(event.element)
+    const handleLayerAdd = (event: CollectionEvent<BaseLayer>) =>
+      attachSourceListeners(event.element)
     layersCollection.on('add', handleLayerAdd)
     cleanupFunctions.push(() => layersCollection.un('add', handleLayerAdd))
   }
