@@ -9,12 +9,14 @@ import {
   type MapContextView,
   removeLayerFromContext,
   updateLayerInContext,
+  type Extent,
 } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
 import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
-import type { Extent } from 'ol/extent'
+import { computedAsync } from '@vueuse/core'
+import { enrichStacLayer } from '@/utils/stac.utils'
 
 const FALLBACK_VIEW: MapContextView = {
   center: [0, 0] as [number, number],
@@ -26,12 +28,29 @@ export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
 }
 
 export const useMapStore = defineStore('map', () => {
-  const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>({
-    view: DEFAULT_MAP_CONTEXT.view || FALLBACK_VIEW,
-    layers: DEFAULT_MAP_CONTEXT.layers || [],
-  })
+  const initialContext = ref<ExtendedMapContext>(DEFAULT_MAP_CONTEXT)
 
-  const currentExtent = ref<Extent | undefined>(undefined)
+  const initialEnrichedContext: Ref<ExtendedMapContext> = computedAsync<ExtendedMapContext>(
+    async () => {
+      const enrichedLayers = await Promise.all(
+        initialContext.value.layers.map(async (layer) => {
+          if (isStacLayer(layer)) {
+            return (await enrichStacLayer(layer)) as MapLayerStac
+          }
+          return layer
+        }),
+      )
+      return {
+        ...initialContext.value,
+        view: initialContext.value.view,
+        layers: enrichedLayers,
+      }
+    },
+  ) as Ref<ExtendedMapContext>
+
+  const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>(initialContext.value)
+
+  const currentExtent = ref<Extent | null>(null)
 
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
@@ -48,6 +67,10 @@ export const useMapStore = defineStore('map', () => {
       }),
   }))
 
+  function setInitialContext(newContext: ExtendedMapContext) {
+    initialContext.value = newContext
+  }
+
   function setContext(newContext: ExtendedMapContext) {
     context.value = newContext
   }
@@ -62,7 +85,7 @@ export const useMapStore = defineStore('map', () => {
   function resetView() {
     context.value = {
       ...context.value,
-      view: { ...(DEFAULT_MAP_CONTEXT.view || FALLBACK_VIEW) } as MapContextView,
+      view: { ...(initialContext.value.view || FALLBACK_VIEW) } as MapContextView,
     }
   }
 
@@ -118,9 +141,12 @@ export const useMapStore = defineStore('map', () => {
   return {
     context,
     sdkContext,
+    initialContext,
+    initialEnrichedContext,
     layers,
     view,
     currentExtent,
+    setInitialContext,
     setContext,
     setView,
     resetView,

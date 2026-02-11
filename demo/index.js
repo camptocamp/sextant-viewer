@@ -82,6 +82,39 @@ viewer.setContext(
 );`,
   },
   {
+    name: 'Set inital map context',
+    code: `const viewer = document.getElementById('viewer');
+
+viewer.setInitialContext(
+  {
+    layers: [
+      {
+        type: 'xyz',
+        id: 'basemap-osm',
+        url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        visibility: true,
+        opacity: 1,
+        label: 'OpenStreetMap',
+        attributions: '© OpenStreetMap contributors',
+        extras: {
+          basemap: true,
+        },
+      },
+      {
+        type: 'stac',
+        url: 'https://stac-pg-api.ifremer.fr/collections/AVHRR_SST_METOP_B_OSISAF_L2P_v1_0',
+        id: 'AVHRR_SST_METOP_B_OSISAF_L2P_v1_0-no-collection-id',
+        visibility: false,
+      }
+    ],
+    view: {
+      center: [-4.56243, 48.36143],
+      zoom: 15,
+    },
+  }
+);`,
+  },
+  {
     name: 'Set view',
     code: `const viewer = document.getElementById('viewer');
 

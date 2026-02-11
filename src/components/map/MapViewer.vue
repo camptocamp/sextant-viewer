@@ -1,27 +1,25 @@
 <script setup lang="ts">
-import { useStacLayer } from '@/composables/useStacLayer'
 import { MAP_VIEW_PADDING } from '@/constants/layout'
 import { useFeatureSelectionStore } from '@/stores/featureSelection.store'
 import { useMapStore } from '@/stores/map.store'
 import { FEATURE_SELECTED_STYLE } from '@/utils/feature-styles'
-import { isStacLayer } from '@/utils/layer.utils'
 import {
   computeMapContextDiff,
   type FeaturesClickEvent,
   type MapClickEvent,
   type MapContext,
   type MapExtentChangeEvent,
+  type Extent,
 } from '@geospatial-sdk/core'
 import { applyContextDiffToMap, createMapFromContext, listen } from '@geospatial-sdk/openlayers'
-import type { Extent } from 'ol/extent'
 import type Map from 'ol/Map'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
 import FeaturePopup from './FeaturePopup.vue'
 import MapLoadingIndicator from './MapLoadingIndicator.vue'
 import ResetExtentButton from './ResetExtentButton.vue'
+import { useDebounceFn } from '@vueuse/core'
 
-const { enrichStacLayer } = useStacLayer()
 const mapStore = useMapStore()
 const featureSelectionStore = useFeatureSelectionStore()
 const { sdkContext } = storeToRefs(mapStore)
@@ -83,6 +81,10 @@ const fullMapContext = computed<MapContext>(() => {
   }
 })
 
+const debouncedSetExtent = useDebounceFn((extent: Extent) => {
+  mapStore.setCurrentViewExtent(extent)
+}, 300)
+
 onMounted(async () => {
   if (!mapContainer.value) return
   mapRef.value = await createMapFromContext(sdkContext.value, mapContainer.value)
@@ -93,7 +95,7 @@ onMounted(async () => {
   emit('map-ready', mapRef.value)
 
   listen(mapRef.value, 'map-extent-change', (event: MapExtentChangeEvent) => {
-    mapStore.setCurrentViewExtent(event.extent as Extent)
+    debouncedSetExtent(event.extent as Extent)
   })
   listen(mapRef.value, 'map-click', handleMapClick)
   listen(mapRef.value, 'features-click', handleFeaturesClick)
@@ -104,14 +106,6 @@ watch(fullMapContext, (newContext, oldContext) => {
   const diff = computeMapContextDiff(newContext, oldContext)
   applyContextDiffToMap(mapRef.value, diff)
 })
-
-watch(
-  () => mapStore.context.layers.filter(isStacLayer),
-  (stacLayers) => {
-    stacLayers.forEach((layer) => enrichStacLayer(layer))
-  },
-  { immediate: true },
-)
 
 onBeforeUnmount(() => {
   featureSelectionStore.clearSelection()

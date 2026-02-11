@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useLayerActions } from '@/composables/useLayerActions'
-import { getLayerLabel, type MapLayer } from '@/utils/layer.utils'
+import { getLayerError, getLayerLabel, type MapLayer } from '@/utils/layer.utils'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 
 const props = defineProps<{
@@ -17,27 +17,28 @@ const { isVisible, toggleVisibility } = useLayerActions(() => props.layer as Map
 </script>
 
 <template>
-  <UTooltip :text="getLayerLabel(layer)">
-    <UButton
-      class="flex w-full"
-      size="md"
-      :active="active"
-      color="neutral"
-      active-color="primary"
-      variant="soft"
-      active-variant="solid"
-      @click="emit('click')"
-    >
-      <UIcon name="i-tabler-stack-2" class="drag-handle shrink-0 cursor-move" />
-      <UCheckbox
-        :model-value="isVisible"
-        @update:model-value="toggleVisibility"
-        @click.stop
-        class="mx-1"
-      />
-      <span class="truncate text-sm">{{ getLayerLabel(layer) }}</span>
-    </UButton>
-  </UTooltip>
+  <UButton
+    class="flex w-full"
+    size="md"
+    :active="active"
+    color="neutral"
+    active-color="primary"
+    variant="soft"
+    active-variant="solid"
+    @click="emit('click')"
+  >
+    <UIcon name="i-tabler-stack-2" class="drag-handle shrink-0 cursor-move" />
+    <UCheckbox
+      :model-value="isVisible"
+      @update:model-value="toggleVisibility"
+      @click.stop
+      class="mx-1"
+    />
+    <span class="truncate text-sm">{{ getLayerLabel(layer) }}</span>
+    <UTooltip v-if="layer.error" :text="getLayerError(layer)">
+      <UIcon name="i-tabler-alert-circle" class="shrink-0" />
+    </UTooltip>
+  </UButton>
 </template>
 
 <style scoped>

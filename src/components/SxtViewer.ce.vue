@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import LayoutGrid from '@/components/layout/LayoutGrid.vue'
 import { useMapStore, type ExtendedMapContext } from '@/stores/map.store'
+import { usePersistentContextStore } from '@/stores/persistentContext.store'
 import type { MapContextLayer, MapContextView } from '@geospatial-sdk/core'
 import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
@@ -13,6 +14,7 @@ const emit = defineEmits<{
 }>()
 
 const mapStore = useMapStore()
+usePersistentContextStore()
 
 const containerRef = ref<HTMLElement | null>(null)
 
@@ -35,6 +37,11 @@ const addLayer = (layer: MapContextLayer) => {
   mapStore.addLayer(layer)
 }
 
+const setInitialContext = (context: ExtendedMapContext) => {
+  mapStore.setInitialContext(context)
+}
+
+// does not support layers that need enrichement
 const setContext = (context: ExtendedMapContext) => {
   mapStore.setContext(context)
 }
@@ -45,6 +52,7 @@ const setView = (view: MapContextView) => {
 
 defineExpose({
   addLayer,
+  setInitialContext,
   setContext,
   setView,
 })

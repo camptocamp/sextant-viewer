@@ -1,9 +1,32 @@
 import type { GetCollectionItemsOptions, StacItemsDocument } from '@camptocamp/ogc-client'
 import { StacEndpoint } from '@camptocamp/ogc-client'
-import type { MapLayerStac, StacLayerInfo, StacFilters } from '@/types/stac.types'
+import type {
+  MapLayerStac,
+  StacLayerInfo,
+  StacFilters,
+  DateRangeFilter,
+  SpatialExtentFilter,
+} from '@/types/stac.types'
 import type { FeatureCollection } from 'geojson'
+import type { MapLayer } from './layer.utils'
 
 const DEFAULT_ITEMS_PER_PAGE = 100
+
+export async function enrichStacLayer(layer: MapLayerStac) {
+  if (layer.data || layer.error) return
+
+  const stacLayerInfo = await getStacLayerInfo(layer)
+  const updates: Partial<MapLayer> = {
+    label: stacLayerInfo.label,
+    filters: stacLayerInfo.filters,
+    initialFilters: stacLayerInfo.initialFilters,
+    data: stacLayerInfo.data,
+    pagination: stacLayerInfo.pagination,
+    version: (layer.version || 0) + 1,
+    error: stacLayerInfo.error,
+  }
+  return { ...layer, ...updates } as MapLayerStac
+}
 
 export async function getStacLayerInfo(
   layer: MapLayerStac,
@@ -158,9 +181,15 @@ async function fetchItemsFromUrl(itemsUrl: string) {
  * @returns STAC API datetime parameter or undefined
  */
 function formatDatetimeForStac(
-  start: Date | null,
-  end: Date | null,
+  start: Date | string | null,
+  end: Date | string | null,
 ): GetCollectionItemsOptions['datetime'] {
+  if (typeof start === 'string') {
+    start = new Date(start)
+  }
+  if (typeof end === 'string') {
+    end = new Date(end)
+  }
   if (!start && !end) {
     return undefined
   }
@@ -252,8 +281,8 @@ function extractPaginationLinks(response: StacItemsDocument): {
  */
 function buildStacRequestParams(
   filters?: {
-    dateRange: { start: Date | null; end: Date | null }
-    spatialExtent: { enabled: boolean; bbox: number[] | null }
+    dateRange: DateRangeFilter
+    spatialExtent: SpatialExtentFilter
   },
   itemsPerPage: number = DEFAULT_ITEMS_PER_PAGE,
 ): GetCollectionItemsOptions {

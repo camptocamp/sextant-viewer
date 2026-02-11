@@ -6,22 +6,6 @@ import { fetchPage, getStacLayerInfo } from '@/utils/stac.utils'
 export function useStacLayer() {
   const mapStore = useMapStore()
 
-  async function enrichStacLayer(layer: MapLayerStac) {
-    if (layer.data || layer.error) return
-
-    const stacLayerInfo = await getStacLayerInfo(layer)
-    const updates: Partial<MapLayer> = {
-      label: stacLayerInfo.label,
-      filters: stacLayerInfo.filters,
-      initialFilters: stacLayerInfo.initialFilters,
-      data: stacLayerInfo.data,
-      pagination: stacLayerInfo.pagination,
-      version: (layer.version || 0) + 1,
-      error: stacLayerInfo.error,
-    }
-    mapStore.updateLayer(layer, updates)
-  }
-
   async function updateStacFilters(layer: MapLayerStac, filters: StacFilters) {
     const stacLayerInfo = await getStacLayerInfo(layer, filters)
 
@@ -61,7 +45,6 @@ export function useStacLayer() {
   }
 
   return {
-    enrichStacLayer,
     updateStacFilters,
     loadNextPage,
     loadPreviousPage,
