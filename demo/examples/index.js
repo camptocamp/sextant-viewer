@@ -1,6 +1,8 @@
 import initialContextCode from './initialContext.js?raw'
 import layerCog from './layerCog.js?raw'
 import layerGeojson from './layerGeojson.js?raw'
+import layerMaplibreStyle from './layerMaplibreStyle.js?raw'
+import layerOgcApi from './layerOgcApi.js?raw'
 import layerStac from './layerStac.js?raw'
 import layerWfs from './layerWfs.js?raw'
 import layerWms from './layerWms.js?raw'
@@ -83,14 +85,14 @@ export const EXAMPLES = [
     `,
     code: layerWfs,
   },
-  // {
-  //   name: 'Add OGC API layer',
-  //   description: `
-  //     <h4>Add new OGC API layer.</h4>
-  //     ${layerDoc('MapContextLayerOgcApi')}
-  //   `,
-  //   code: layerOgcApi,
-  // },
+  {
+    name: 'Add OGC API layer',
+    description: `
+      <h4>Add new OGC API layer.</h4>
+      ${layerDoc('MapContextLayerOgcApi')}
+    `,
+    code: layerOgcApi,
+  },
   {
     name: 'Add COG layer',
     description: `
@@ -106,6 +108,13 @@ export const EXAMPLES = [
       ${layerDoc('MapContextLayerGeojson')}
     `,
     code: layerGeojson,
+  },
+  {
+    name: 'Add Maplibre style layer',
+    description: `
+      <h4>Add new Maplibre style layer.</h4>
+    `,
+    code: layerMaplibreStyle,
   },
   {
     name: 'Add STAC layer',

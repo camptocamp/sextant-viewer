@@ -3,9 +3,9 @@ const viewer = document.getElementById('viewer')
 viewer.addLayer(
   {
     type: 'ogcapi',
-    url: 'https://data.lillemetropole.fr/data/ogcapi/collections/plu:gpu_prescription_lin/items?f=geojson',
-    collection: 'plu:gpu_prescription_lin',
-    options: { f: 'geojson' },
+    url: 'https://data.lillemetropole.fr/data/ogcapi/',
+    collection: 'mobilite_et_transport:pm2035_action_sdvelo_pointsdurs',
+    options: { outputFormat: 'application/geo+json' },
     label: 'Prescriptions linéaires',
     visibility: true,
     opacity: 0.8,
