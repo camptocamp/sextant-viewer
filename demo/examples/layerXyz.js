@@ -1,0 +1,10 @@
+const viewer = document.getElementById('viewer')
+
+viewer.addLayer({
+  type: 'xyz',
+  url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  visibility: true,
+  opacity: 1,
+  label: 'OpenStreetMap',
+  attributions: '© OpenStreetMap contributors',
+})

@@ -10,7 +10,7 @@ import type { Extent } from 'ol/extent'
 import type Map from 'ol/Map'
 import { useLayerActions } from '@/composables/useLayerActions'
 import { isStacLayer } from '@/types/stac.types'
-import { useStacLayer } from '@/composables/useStacLayer'
+import { enrichStacLayer } from '@/utils/stac.utils'
 
 const emit = defineEmits<{
   'map-extent-change': [extent: Extent]
@@ -18,8 +18,6 @@ const emit = defineEmits<{
 
 const mapStore = useMapStore()
 usePersistentContextStore()
-
-const { enrichStacLayer } = useStacLayer()
 
 const containerRef = ref<HTMLElement | null>(null)
 const mapViewerRef = ref<typeof MapViewer | null>(null)
@@ -40,10 +38,9 @@ const onMapReady = (map: Map) => {
 }
 
 const addLayer = async (layer: MapContextLayer, zoomToExtent: boolean) => {
-  const id = mapStore.addLayer(layer)
-  if (isStacLayer(layer)) {
-    await enrichStacLayer(layer) // Enrich the mapStore
-  }
+  const finalLayer = isStacLayer(layer) ? await enrichStacLayer(layer) : layer
+
+  const id = mapStore.addLayer(finalLayer!)
 
   const newLayer = mapStore.getLayerById(id)!
   const { canZoomToExtent, zoomToExtent: zoomToLayerExtent } = useLayerActions(() => newLayer)
