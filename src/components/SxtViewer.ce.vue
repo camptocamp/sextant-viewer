@@ -64,7 +64,7 @@ const getContext = (): ExtendedMapContext => {
   return {
     layers: cleanedLayers,
     view: {
-      extent: mapViewerRef.value!.getExtent(),
+      extent: mapStore.currentExtent!,
     },
   }
 }

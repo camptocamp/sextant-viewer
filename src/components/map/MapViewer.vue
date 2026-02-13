@@ -116,16 +116,6 @@ onBeforeUnmount(() => {
     mapRef.value = null
   }
 })
-
-const getExtent = (): Extent | undefined => {
-  const view = mapRef.value?.getView()
-  const size = mapRef.value?.getSize()
-  return view!.calculateExtent(size)
-}
-
-defineExpose({
-  getExtent,
-})
 </script>
 
 <template>
