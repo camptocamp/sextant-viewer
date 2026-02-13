@@ -46,5 +46,5 @@ viewer.addLayer({
         'fill-color': 'rgba(255, 204, 0, 0.3)',
       },
     },
-  ]
+  ],
 })

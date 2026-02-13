@@ -22,8 +22,7 @@ const link = (title, path) => `<a target="_blank" href="${SDK_DOCS_URL}${path}">
 
 const guideLink = (title, page) => link(title, `${SDK_GUIDES_PATH}/${page}.html`)
 
-const symbolLink = (type, symbol) =>
-  link(symbol, `${SDK_CORE_PATH}/${type}/${symbol}.html`)
+const symbolLink = (type, symbol) => link(symbol, `${SDK_CORE_PATH}/${type}/${symbol}.html`)
 
 const contextDoc = `
 <p>
