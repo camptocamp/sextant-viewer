@@ -9,8 +9,6 @@ import type MapViewer from './map/MapViewer.vue'
 import type { Extent } from 'ol/extent'
 import type Map from 'ol/Map'
 import { useLayerActions } from '@/composables/useLayerActions'
-import { isStacLayer } from '@/types/stac.types'
-import { enrichStacLayer } from '@/utils/stac.utils'
 
 const emit = defineEmits<{
   'map-extent-change': [extent: Extent]
@@ -38,19 +36,16 @@ const onMapReady = (map: Map) => {
 }
 
 const addLayer = async (layer: MapContextLayer, zoomToExtent: boolean) => {
-  const finalLayer = isStacLayer(layer) ? await enrichStacLayer(layer) : layer
+  const enrichedLayer = await mapStore.addLayer(layer)
 
-  const id = mapStore.addLayer(finalLayer!)
-
-  const newLayer = mapStore.getLayerById(id)!
-  const { canZoomToExtent, zoomToExtent: zoomToLayerExtent } = useLayerActions(() => newLayer)
+  const { canZoomToExtent, zoomToExtent: zoomToLayerExtent } = useLayerActions(() => enrichedLayer)
   if (zoomToExtent && canZoomToExtent.value) {
     zoomToLayerExtent()
   }
 }
 
 const setInitialContext = (context: ExtendedMapContext) => {
-  mapStore.setInitialContext(context)
+  mapStore.setInitialContext(context, true)
 }
 
 // does not support layers that need enrichement
