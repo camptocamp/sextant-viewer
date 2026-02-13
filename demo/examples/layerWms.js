@@ -4,7 +4,7 @@ viewer.addLayer({
   type: 'wms',
   url: 'https://data.geopf.fr/wms-r/wms',
   name: 'INSEE.FILOSOFI.POPULATION',
-  label: 'Population INSEE (Add WMS layer)',
+  label: 'Population INSEE (WMS)',
   visibility: true,
   opacity: 0.7,
   attributions: '© IGN - INSEE',

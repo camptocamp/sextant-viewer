@@ -5,6 +5,6 @@ viewer.addLayer({
   url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   visibility: true,
   opacity: 1,
-  label: 'OpenStreetMap',
+  label: 'OpenStreetMap (XYZ)',
   attributions: '© OpenStreetMap contributors',
 })

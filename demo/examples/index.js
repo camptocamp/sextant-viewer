@@ -1,6 +1,7 @@
 import initialContextCode from './initialContext.js?raw'
 import layerCog from './layerCog.js?raw'
-import layerGeojson from './layerGeojson.js?raw'
+import layerGeojsonUrl from './layerGeojsonUrl.js?raw'
+import layerGeojsonData from './layerGeojsonData.js?raw'
 import layerMaplibreStyle from './layerMaplibreStyle.js?raw'
 import layerOgcApi from './layerOgcApi.js?raw'
 import layerStac from './layerStac.js?raw'
@@ -14,23 +15,15 @@ import setView from './setView.js?raw'
 import event from './event.js?raw'
 
 const SDK_DOCS_URL = 'https://camptocamp.github.io/geospatial-sdk/docs'
-const SDK_CORE_INTERFACES_PATH = `/api/%F0%9F%93%A6-core/interfaces`
+const SDK_CORE_PATH = `/api/%F0%9F%93%A6-core`
 const SDK_GUIDES_PATH = '/guides'
 
-// const SDK_GUIDE_LAYERS_URL = `${SDK_DOCS_URL}/guides/map-context.html#layers`
-
-// const SDK_GUIDE_LAYERS_LINK = `<a target="_blank" href="${SDK_GUIDE_LAYERS_URL}">Geospatial SDK layers documentation</a>`
-// const SDK_GUIDE_LAYERS_DOC = `
-// <p>
-//   See ${SDK_GUIDE_LAYERS_LINK} for details about available properties.
-// </p>
-// `
-
-const link = (title, path) => `<a target="_blank" href="${SDK_DOCS_URL / path}">${title}</a>`
+const link = (title, path) => `<a target="_blank" href="${SDK_DOCS_URL}${path}">${title}</a>`
 
 const guideLink = (title, page) => link(title, `${SDK_GUIDES_PATH}/${page}.html`)
-const interfaceLink = (interfaceName) =>
-  link(interfaceName, `${SDK_CORE_INTERFACES_PATH}/${interfaceName}.html`)
+
+const symbolLink = (type, symbol) =>
+  link(symbol, `${SDK_CORE_PATH}/${type}/${symbol}.html`)
 
 const contextDoc = `
 <p>
@@ -38,15 +31,15 @@ const contextDoc = `
 <p>
 `
 
-const layerDoc = (interfaceName) => `
+const symbolDoc = (type, symbol) => `
 <p>
-  See ${interfaceLink(interfaceName)} for details about available properties.
+  See ${symbolLink(type, symbol)} for details.
 </p>
 `
 
 export const EXAMPLES = [
   {
-    name: 'Set inital map context',
+    name: 'Set initial map context',
     description: `
       <h4>Set initial map context.</h4>
       ${contextDoc}
@@ -57,7 +50,7 @@ export const EXAMPLES = [
     name: 'Add XYZ layer',
     description: `
       <h4>Add new XYZ layer.</h4>
-      ${layerDoc('MapContextLayerXyz')}
+      ${symbolDoc('interfaces', 'MapContextLayerXyz')}
     `,
     code: layerXyz,
   },
@@ -65,7 +58,7 @@ export const EXAMPLES = [
     name: 'Add WMS layer',
     description: `
       <h4>Add new WMS layer.</h4>
-      ${layerDoc('MapContextLayerWms')}
+      ${symbolDoc('interfaces', 'MapContextLayerWms')}
     `,
     code: layerWms,
   },
@@ -73,7 +66,7 @@ export const EXAMPLES = [
     name: 'Add WMTS layer',
     description: `
       <h4>Add new WMTS layer.</h4>
-      ${layerDoc('MapContextLayerWmts')}
+      ${symbolDoc('interfaces', 'MapContextLayerWmts')}
     `,
     code: layerWmts,
   },
@@ -81,7 +74,7 @@ export const EXAMPLES = [
     name: 'Add WFS layer',
     description: `
       <h4>Add new WFS layer.</h4>
-      ${layerDoc('MapContextLayerWfs')}
+      ${symbolDoc('type-aliases', 'MapContextLayerWfs')}
     `,
     code: layerWfs,
   },
@@ -89,7 +82,7 @@ export const EXAMPLES = [
     name: 'Add OGC API layer',
     description: `
       <h4>Add new OGC API layer.</h4>
-      ${layerDoc('MapContextLayerOgcApi')}
+      ${symbolDoc('type-aliases', 'MapContextLayerOgcApi')}
     `,
     code: layerOgcApi,
   },
@@ -97,22 +90,31 @@ export const EXAMPLES = [
     name: 'Add COG layer',
     description: `
       <h4>Add new COG layer.</h4>
-      ${layerDoc('MapContextLayerGeotiff')}
+      ${symbolDoc('interfaces', 'MapContextLayerGeotiff')}
     `,
     code: layerCog,
   },
   {
-    name: 'Add GeoJSON layer with style',
+    name: 'Add GeoJSON layer with URL and style',
     description: `
-      <h4>Add new GeoJSON layer.</h4>
-      ${layerDoc('MapContextLayerGeojson')}
+      <h4>Add new GeoJSON layer with URL and style.</h4>
+      ${symbolDoc('interfaces', 'LayerGeojsonWithUrl')}
     `,
-    code: layerGeojson,
+    code: layerGeojsonUrl,
+  },
+  {
+    name: 'Add GeoJSON layer with data',
+    description: `
+      <h4>Add new GeoJSON layer with data.</h4>
+      ${symbolDoc('interfaces', 'LayerGeojsonWithData')}
+    `,
+    code: layerGeojsonData,
   },
   {
     name: 'Add Maplibre style layer',
     description: `
       <h4>Add new Maplibre style layer.</h4>
+      ${symbolDoc('interfaces', 'MapContextLayerMapLibreStyle')}
     `,
     code: layerMaplibreStyle,
   },
@@ -142,18 +144,17 @@ export const EXAMPLES = [
   {
     name: 'Set view by center and zoom',
     description: `
-<h4>Change current view by center and zoom.</4>
-<p>
-  See ${interfaceLink('ViewByZoomAndCenter')} for details about available properties.
-</p>
+      <h4>Change current view by center and zoom.</4>
+      ${symbolDoc('interfaces', 'ViewByZoomAndCenter')}
     `,
     code: setView,
   },
   {
     name: 'Listen event',
     description: `
-<h4>Be notified when map extent change.</h4>
-`,
+      <h4>Be notified when map extent change.</h4><p>
+      ${symbolDoc('interfaces', 'MapExtentChangeEvent')}
+    `,
     code: event,
   },
 ]

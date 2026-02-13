@@ -154,6 +154,7 @@ export const useMapStore = defineStore('map', () => {
       label: layer.label,
       opacity: layer.opacity ?? 1,
       visibility: layer.visibility ?? true,
+      hoverable: layer.hoverable,
       version: layer.version,
       data: layer.data,
     } as MapContextLayer
