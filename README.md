@@ -1,6 +1,8 @@
-# viewer
+# Sextant Viewer
 
-This template should help get you started developing with Vue 3 in Vite.
+Web Component demo: https://sextant.gitlab-pages.ifremer.fr/viewer/
+
+App demo: https://sextant.gitlab-pages.ifremer.fr/viewer/app/
 
 ## Recommended IDE Setup
 
