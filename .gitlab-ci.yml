@@ -11,7 +11,11 @@ build:
     - npm run format:check
     - npm run lint
     - npm run type-check
-    - npm run build-only -- --base "/viewer/" --outDir public
+    - npm run build:lib -- --outDir public --base /viewer/
+    - npm run build:app -- --outDir public/app
+    # Move the demo index.html to the root of the public Pages directory
+    - mv public/demo/index.html public/index.html
+    - rmdir public/demo
 
   artifacts:
     paths:
