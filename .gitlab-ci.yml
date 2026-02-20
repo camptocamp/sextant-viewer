@@ -22,6 +22,22 @@ build:
       - public
     expire_in: 1 week
 
+build-maplibre:
+  stage: build
+  before_script:
+    - git fetch origin use-maplibre
+    - git checkout use-maplibre
+  script:
+    - npm install
+    - npm run build:lib -- --outDir public/maplibre --base /viewer/maplibre/
+    - mv public/maplibre/demo/index.html public/maplibre/index.html
+    - rmdir public/maplibre/demo
+
+  artifacts:
+    paths:
+      - public/maplibre
+    expire_in: 1 week
+
 pages:
   stage: pages
   script:
