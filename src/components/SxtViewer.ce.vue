@@ -8,6 +8,7 @@ import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
 import type { Extent } from 'ol/extent'
 import type Map from 'ol/Map'
+import { useLayerActions } from '@/composables/useLayerActions'
 
 const emit = defineEmits<{
   'map-extent-change': [extent: Extent]
@@ -17,6 +18,7 @@ const mapStore = useMapStore()
 usePersistentContextStore()
 
 const containerRef = ref<HTMLElement | null>(null)
+const mapViewerRef = ref<typeof MapViewer | null>(null)
 
 // This will copy the nuxt-ui-colors style tag into the shadow DOM of the custom element
 onMounted(() => {
@@ -33,17 +35,33 @@ const onMapReady = (map: Map) => {
   })
 }
 
-const addLayer = (layer: MapContextLayer) => {
-  mapStore.addLayer(layer)
+const addLayer = async (layer: MapContextLayer, zoomToExtent: boolean) => {
+  const enrichedLayer = await mapStore.addLayer(layer)
+
+  const { canZoomToExtent, zoomToExtent: zoomToLayerExtent } = useLayerActions(() => enrichedLayer)
+  if (zoomToExtent && canZoomToExtent.value) {
+    zoomToLayerExtent()
+  }
 }
 
 const setInitialContext = (context: ExtendedMapContext) => {
-  mapStore.setInitialContext(context)
+  mapStore.setInitialContext(context, true)
 }
 
 // does not support layers that need enrichement
 const setContext = (context: ExtendedMapContext) => {
   mapStore.setContext(context)
+}
+
+const getContext = (): ExtendedMapContext => {
+  const cleanedLayers = mapStore.layers.map(({ id: _id, version: _version, ...rest }) => rest)
+
+  return {
+    layers: cleanedLayers,
+    view: {
+      extent: mapStore.currentExtent!,
+    },
+  }
 }
 
 const setView = (view: MapContextView) => {
@@ -52,8 +70,9 @@ const setView = (view: MapContextView) => {
 
 defineExpose({
   addLayer,
-  setInitialContext,
+  getContext,
   setContext,
+  setInitialContext,
   setView,
 })
 </script>

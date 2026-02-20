@@ -17,7 +17,7 @@ export async function enrichStacLayer(layer: MapLayerStac) {
 
   const stacLayerInfo = await getStacLayerInfo(layer)
   const updates: Partial<MapLayer> = {
-    label: stacLayerInfo.label,
+    label: layer.label ? layer.label : stacLayerInfo.label,
     filters: stacLayerInfo.filters,
     initialFilters: stacLayerInfo.initialFilters,
     data: stacLayerInfo.data,
