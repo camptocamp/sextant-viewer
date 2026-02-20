@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import LayoutGrid from '@/components/layout/LayoutGrid.vue'
-import { useMapStore, type ExtendedMapContext } from '@/stores/map.store'
-import { usePersistentContextStore } from '@/stores/persistentContext.store'
+import { type ExtendedMapContext, useMapStore } from '@/stores/map.store.ts'
+import { usePersistentContextStore } from '@/stores/persistentContext.store.ts'
 import type { MapContextLayer, MapContextView } from '@geospatial-sdk/core'
 import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
 import type { Extent } from 'ol/extent'
 import type Map from 'ol/Map'
-import { useLayerActions } from '@/composables/useLayerActions'
+import { useLayerActions } from '@/composables/useLayerActions.ts'
 
 const emit = defineEmits<{
   'map-extent-change': [extent: Extent]

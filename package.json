@@ -8,11 +8,11 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "test:unit": "vitest",
     "test:e2e": "playwright test",
-    "build-only": "vite build",
+    "build:lib": "vite build",
+    "build:app": "vite build --config vite.app.config.ts",
     "type-check": "vue-tsc --build",
     "lint": "eslint . --fix --cache",
     "knip": "knip",
