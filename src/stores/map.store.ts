@@ -15,7 +15,6 @@ import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
 import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
-import { computedAsync } from '@vueuse/core'
 import { enrichStacLayer } from '@/utils/stac.utils'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -31,26 +30,7 @@ export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
 export const useMapStore = defineStore('map', () => {
   const initialContext = ref<ExtendedMapContext>(DEFAULT_MAP_CONTEXT)
 
-  const initialEnrichedContext: Ref<ExtendedMapContext> = computedAsync<ExtendedMapContext>(
-    async () => {
-      const enrichedLayers = await Promise.all(
-        initialContext.value.layers.map(async (layer) => {
-          if (isStacLayer(layer)) {
-            return (await enrichStacLayer(layer)) as MapLayerStac
-          }
-          return layer
-        }),
-      )
-      return {
-        ...initialContext.value,
-        view: initialContext.value.view,
-        layers: enrichedLayers,
-      }
-    },
-  ) as Ref<ExtendedMapContext>
-
   const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>(initialContext.value)
-
   const currentExtent = ref<Extent | null>(null)
 
   const layers = computed(() => context.value.layers)
@@ -68,20 +48,44 @@ export const useMapStore = defineStore('map', () => {
       }),
   }))
 
-  function setInitialContext(newContext: ExtendedMapContext) {
-    initialContext.value = newContext
-  }
-
-  function setContext(newContext: ExtendedMapContext) {
-    const layersWithVersionAndId = newContext.layers.map((layer) => ({
+  async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
+    const layersWithVersionAndId = {
       ...layer,
       id: layer.id ? layer.id : uuidv4(),
       version: layer.version !== undefined ? layer.version : 0,
-    }))
+    }
 
+    let enrichedLayer
+    if (isStacLayer(layer)) {
+      enrichedLayer = await enrichStacLayer(layersWithVersionAndId as MapLayerStac)
+      if (enrichedLayer === undefined) {
+        enrichedLayer = layersWithVersionAndId
+      }
+    } else {
+      enrichedLayer = layersWithVersionAndId
+    }
+
+    return enrichedLayer
+  }
+
+  async function enrichContext(context: ExtendedMapContext): Promise<ExtendedMapContext> {
+    return {
+      ...context,
+      layers: await Promise.all(context.layers.map(enrichLayer)),
+    }
+  }
+
+  async function setInitialContext(newContext: ExtendedMapContext, apply: boolean = false) {
+    initialContext.value = newContext
+    if (apply) {
+      setContext(initialContext.value)
+    }
+  }
+
+  async function setContext(newContext: ExtendedMapContext) {
     context.value = {
-      ...newContext,
-      layers: layersWithVersionAndId,
+      ...(await enrichContext(newContext)),
+      view: { ...newContext.view }, // Force view application if same as current value
     }
   }
 
@@ -103,19 +107,15 @@ export const useMapStore = defineStore('map', () => {
     currentExtent.value = extent
   }
 
-  function addLayer(layer: MapLayer): number | string {
-    const versionedLayer = {
-      ...layer,
-      id: layer.id ? layer.id : uuidv4(),
-      version: 0, // we're tracking changes on layers by version
-    }
+  async function addLayer(layer: MapLayer): Promise<MapLayer> {
+    const enrichedLayer = await enrichLayer(layer)
 
     context.value = addLayerToContext(
       context.value as MapContext,
-      versionedLayer as MapContextLayer,
+      enrichedLayer as MapContextLayer,
     ) as ExtendedMapContext
 
-    return versionedLayer.id
+    return enrichedLayer
   }
 
   function deleteLayer(layer: MapLayer): void {
@@ -164,7 +164,6 @@ export const useMapStore = defineStore('map', () => {
     context,
     sdkContext,
     initialContext,
-    initialEnrichedContext,
     layers,
     view,
     currentExtent,
