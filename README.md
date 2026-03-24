@@ -1,5 +1,14 @@
 # Sextant Viewer
 
+The Sextant Viewer is a map viewer built with several important architecture decisions:
+* distributed as a Web Component with a full API for efficient integration in any web application
+* support for cloud-optimized and global/environmental datasets
+* the ability to use either OpenLayers for 2D rendering or MapLibre for a globe view 
+
+Funded by Ifremer and the Sextant project:
+
+[![Logo Ifremer](ifremer_logo.png)](https://www.ifremer.fr/fr) [![Logo Sextant](sextant_logo.png)](https://sextant.ifremer.fr/)
+
 Web Component demo: https://sextant.gitlab-pages.ifremer.fr/viewer/
 
 App demo: https://sextant.gitlab-pages.ifremer.fr/viewer/app/

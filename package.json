@@ -1,7 +1,9 @@
 {
-  "name": "viewer",
-  "version": "0.0.0",
-  "private": true,
+  "name": "sextant-viewer",
+  "author": "olivia.guyot@camptocamp.com",
+  "version": "0.1.0",
+  "license": "BSD-3-Clause",
+  "repository": "https://github.com/camptocamp/sextant-viewer",
   "type": "module",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
