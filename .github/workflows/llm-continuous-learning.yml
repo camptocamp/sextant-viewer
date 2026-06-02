@@ -1,0 +1,240 @@
+name: Continuous Learning for LLMs
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  absorb-knowledge:
+    if: github.event.review.state == 'approved'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Collect PR context
+        id: collect-context
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const pr = context.payload.pull_request
+            const { data: diff } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              mediaType: { format: 'diff' }
+            })
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            })
+            const { data: reviewComments } = await github.rest.pulls.listReviewComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            })
+            const { data: issueComments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number
+            })
+
+            const allComments = [
+              ...reviews.map(r => `[Review by ${r.user.login} (${r.state})]: ${r.body || ''}`),
+              ...reviewComments.map(c => `[Review comment on ${c.path}]: ${c.body}`),
+              ...issueComments.map(c => `[Comment by ${c.user.login}]: ${c.body}`)
+            ].join('\n\n')
+            //].filter(c => c.trim().length > 10).join('\n\n')
+
+            const fs = require('fs')
+            fs.writeFileSync('/tmp/pr_diff.txt', diff)
+            fs.writeFileSync('/tmp/pr_comments.txt', allComments)
+
+      - name: Collect LLM files in their current state
+        run: |
+          {
+            echo "=== AGENTS.md ==="
+            cat AGENTS.md
+            echo ""
+            for f in .claude/skills/**/*.md; do
+              [ -f "$f" ] || continue
+              echo "=== $f ==="
+              cat "$f"
+              echo ""
+            done
+          } > /tmp/llm_files_combined.txt
+
+      - name: Generate amendments to LLM files
+        uses: actions/github-script@v8
+        env:
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        with:
+          script: |
+            const fs = require('fs')
+            const https = require('https')
+  
+            const prDiff = fs.readFileSync('/tmp/pr_diff.txt', 'utf8')
+            const prComments = fs.readFileSync('/tmp/pr_comments.txt', 'utf8')
+            const llmFiles = fs.readFileSync('/tmp/llm_files_combined.txt', 'utf8')
+            const prTitle = process.env.PR_TITLE
+            const prBody = process.env.PR_BODY
+  
+            const systemPrompt = `You are a technical writer maintaining LLM guidance files for a software project.
+            Your job is to propose minimal, targeted amendments to the project's LLM markdown files based on a merged PR.
+  
+            Goals:
+            1. Improve guidance so LLMs avoid repeating mistakes seen in the PR
+            2. Reflect new patterns, conventions, or architecture introduced by the PR
+            3. Remove outdated, conflicting, or redundant content
+            4. Keep files concise — do not add content that doesn't add value
+  
+            Respond with a JSON object with a single key "patches" containing an array of patch objects:
+            {
+              "patches": [
+                {
+                  "file": "relative/path/to/file.md",
+                  "unified_diff": "<unified diff patch to apply with patch -p1>"
+                }
+              ]
+            }
+            Only include files that genuinely need changes. If no changes are needed, return { "patches": [] }.`
+  
+            const userPrompt = `## Merged PR: ${prTitle}
+  
+            ### PR Description
+            ${prBody}
+  
+            ### PR Diff (truncated)
+            \`\`\`diff
+            ${prDiff}
+            \`\`\`
+  
+            ### Review Comments and Discussions
+            ${prComments}
+  
+            ### Current LLM Guidance Files
+            ${llmFiles}
+  
+            Based on the above, propose amendments to the LLM guidance files.`
+  
+            const body = JSON.stringify({
+              model: 'mistral-medium-3',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+              ],
+              response_format: { type: 'json_object' },
+              max_tokens: 4096,
+              temperature: 0.2
+            })
+  
+            const options = {
+              hostname: 'api.mistral.ai',
+              path: '/v1/chat/completions',
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
+                'Content-Length': Buffer.byteLength(body)
+              }
+            }
+  
+            const req = https.request(options, res => {
+              let data = ''
+              res.on('data', chunk => data += chunk)
+              res.on('end', () => {
+                const result = JSON.parse(data)
+                const content = result.choices?.[0]?.message?.content
+                if (!content) {
+                  console.error('No content returned from API:', JSON.stringify(result))
+                  process.exit(1)
+                }
+                let patches
+                try {
+                  const parsed = JSON.parse(content)
+                  patches = parsed.patches ?? (Array.isArray(parsed) ? parsed : Object.values(parsed)[0])
+                } catch (e) {
+                  console.error('Failed to parse LLM response:', content)
+                  process.exit(1)
+                }
+                if (!Array.isArray(patches)) {
+                  console.error('Unexpected patches shape:', patches)
+                  process.exit(1)
+                }
+                fs.writeFileSync('/tmp/patches.json', JSON.stringify(patches, null, 2))
+                console.log(`Generated ${patches.length} patch(es)`)
+              })
+            })
+            req.on('error', e => { console.error(e); process.exit(1) })
+            req.write(body)
+            req.end()
+
+      - name: Apply patches
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs')
+            const { execSync } = require('child_process')
+  
+            const patches = JSON.parse(fs.readFileSync('/tmp/patches.json', 'utf8'))
+            if (!patches.length) {
+              console.log('No patches to apply')
+              fs.writeFileSync('/tmp/has_changes', '0')
+              process.exit(0)
+            }
+  
+            let applied = 0
+            for (const p of patches) {
+              if (!p.unified_diff || !p.file) continue
+              const patchFile = `/tmp/patch_${applied}.diff`
+              fs.writeFileSync(patchFile, p.unified_diff)
+              try {
+                execSync(`patch -p1 < ${patchFile}`, { stdio: 'inherit' })
+                applied++
+              } catch (e) {
+                console.warn(`Failed to apply patch for ${p.file}:`, e.message)
+              }
+            }
+            fs.writeFileSync('/tmp/has_changes', applied > 0 ? '1' : '0')
+
+      - name: Create PR with amendments
+        uses: actions/github-script@v8
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          script: |
+            const { execSync } = require('child_process')
+          
+            const prNumber = process.env.PR_NUMBER
+            const branch = `llm-docs/post-pr-${prNumber}`
+            
+            execSync(`git config user.name "github-actions[bot]"`)
+            execSync(`git config user.email "github-actions[bot]@users.noreply.github.com"`)
+            execSync(`git checkout -b ${branch}`)
+            execSync(`git add AGENTS.md .claude/`)
+            execSync(`git commit -m "docs(llm): update LLM guidance after PR #${prNumber}"`)
+            execSync(`git push origin ${branch}`)
+            
+            github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `docs(llm): update LLM guidance after PR #${prNumber}`,
+              body: `Automated amendments to LLM guidance files based on the changes and review discussions in PR #${prNumber}.`,
+              base: 'main',
+              head: branch
+            })
+            .then(() => console.log('PR created successfully'))
+            .catch(e => { console.error(e); process.exit(1) })
