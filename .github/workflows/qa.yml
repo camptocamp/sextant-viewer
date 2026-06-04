@@ -1,0 +1,36 @@
+name: Quality Assurance
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  format-typecheck-test:
+    name: Formatting, types and tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node & NPM
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Linting
+        run: npm run lint
+
+      # - name: Run tests
+      #   run: npm run test:unit
