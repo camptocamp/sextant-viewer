@@ -190,6 +190,7 @@ export const DEFAULT_MAP_CONTEXT: ExtendedMapContext = {
       type: 'xyz',
       id: 'basemap-osm',
       url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      referrerPolicy: 'strict-origin-when-cross-origin',
       visibility: true,
       opacity: 1,
       label: 'OpenStreetMap',
