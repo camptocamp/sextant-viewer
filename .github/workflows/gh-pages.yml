@@ -1,0 +1,116 @@
+# Simple workflow for deploying static content to GitHub Pages
+name: Deploy static content to Pages
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node & NPM
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build lib
+        run: npm run build:lib -- --outDir public --base /viewer/
+
+      - name: Build app
+        run: npm run build:app -- --outDir public/app
+
+      - name: Move demo page at public root
+        run: |
+          mv public/demo/index.html public/index.html
+          rmdir public/demo
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: viewer-build
+          path: public
+
+  build-maplibre:
+    name: Build (MapLibre)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout use-maplibre
+        uses: actions/checkout@v4
+        with:
+          ref: use-maplibre
+
+      - name: Install Node & NPM
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build lib
+        run: npm run build:lib -- --outDir public/maplibre --base /viewer/maplibre/
+
+      - name: Move maplibre demo page at public/maplibre
+        run: |
+          mv public/maplibre/demo/index.html public/maplibre/index.html
+          rmdir public/maplibre/demo
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: viewer-maplibre-build
+          path: public/maplibre
+
+  deploy:
+    name: Deploy
+    needs: [build, build-maplibre]
+    if: always() && needs.build.result == 'success' && github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Download main build
+        uses: actions/download-artifact@v4
+        with:
+          name: viewer-build
+          path: public
+
+      - name: Download maplibre build
+        if: needs.build-maplibre.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: viewer-maplibre-build
+          path: public/maplibre
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
