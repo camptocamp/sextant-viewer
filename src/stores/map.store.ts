@@ -17,15 +17,13 @@ import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
 import { v4 as uuidv4 } from 'uuid'
+import type { ExtendedMapContext } from '@/types/map.types'
+
+export type { ExtendedMapContext }
 
 const FALLBACK_VIEW: MapContextView = {
   center: [0, 0] as [number, number],
   zoom: 2,
-}
-export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
-  view: MapContextView
-  layers: MapLayer[]
-  backgroundLayers: MapLayer[]
 }
 
 export const useMapStore = defineStore('map', () => {
