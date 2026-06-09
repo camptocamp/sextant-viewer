@@ -3,6 +3,7 @@ import LayoutGrid from '@/components/layout/LayoutGrid.vue'
 import { type ExtendedMapContext, useMapStore } from '@/stores/map.store.ts'
 import { usePersistentContextStore } from '@/stores/persistentContext.store.ts'
 import type { MapContextLayer, MapContextView } from '@geospatial-sdk/core'
+import type { MapLayer } from '@/utils/layer.utils'
 import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
@@ -53,11 +54,13 @@ const setContext = (context: ExtendedMapContext) => {
   mapStore.setContext(context)
 }
 
-const getContext = (): ExtendedMapContext => {
-  const cleanedLayers = mapStore.layers.map(({ id: _id, version: _version, ...rest }) => rest)
+const cleanLayers = (layers: MapLayer[]) =>
+  layers.map(({ id: _id, version: _version, ...rest }) => rest)
 
+const getContext = (): ExtendedMapContext => {
   return {
-    layers: cleanedLayers,
+    layers: cleanLayers(mapStore.layers),
+    backgroundLayers: cleanLayers(mapStore.backgroundLayers),
     view: {
       extent: mapStore.currentExtent!,
     },

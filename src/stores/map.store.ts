@@ -25,6 +25,7 @@ const FALLBACK_VIEW: MapContextView = {
 export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
   view: MapContextView
   layers: MapLayer[]
+  backgroundLayers: MapLayer[]
 }
 
 export const useMapStore = defineStore('map', () => {
@@ -33,19 +34,23 @@ export const useMapStore = defineStore('map', () => {
   const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>(initialContext.value)
   const currentExtent = ref<Extent | null>(null)
 
+  const backgroundLayers = computed<MapLayer[]>(() => context.value.backgroundLayers)
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
 
   const sdkContext = computed<MapContext>(() => ({
     view: context.value.view,
-    layers: context.value.layers
-      .filter((layer) => !isStacLayer(layer) || layer.data)
-      .map((layer) => {
-        if (isStacLayer(layer)) {
-          return fromStacToGeojsonLayer(layer)
-        }
-        return layer as MapContextLayer
-      }),
+    layers: [
+      ...(context.value.backgroundLayers as MapContextLayer[]),
+      ...context.value.layers
+        .filter((layer) => !isStacLayer(layer) || layer.data)
+        .map((layer) => {
+          if (isStacLayer(layer)) {
+            return fromStacToGeojsonLayer(layer)
+          }
+          return layer as MapContextLayer
+        }),
+    ],
   }))
 
   async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
@@ -105,6 +110,16 @@ export const useMapStore = defineStore('map', () => {
 
   function setCurrentViewExtent(extent: Extent) {
     currentExtent.value = extent
+  }
+
+  function selectBackgroundLayer(id: string) {
+    context.value = {
+      ...context.value,
+      backgroundLayers: backgroundLayers.value.map((l) => ({
+        ...l,
+        visibility: String(l.id) === id,
+      })),
+    }
   }
 
   async function addLayer(layer: MapLayer): Promise<MapLayer> {
@@ -167,11 +182,13 @@ export const useMapStore = defineStore('map', () => {
     layers,
     view,
     currentExtent,
+    backgroundLayers,
     setInitialContext,
     setContext,
     setView,
     resetView,
     setCurrentViewExtent,
+    selectBackgroundLayer,
     addLayer,
     deleteLayer,
     changeLayerPosition,
