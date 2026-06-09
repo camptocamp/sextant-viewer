@@ -77,6 +77,7 @@ export const useMapStore = defineStore('map', () => {
     return {
       ...context,
       layers: await Promise.all(context.layers.map(enrichLayer)),
+      backgroundLayers: await Promise.all(context.backgroundLayers.map(enrichLayer)),
     }
   }
 
