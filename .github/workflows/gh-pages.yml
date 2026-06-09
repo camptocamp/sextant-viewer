@@ -30,7 +30,7 @@ jobs:
         run: npm ci
 
       - name: Build lib
-        run: npm run build:lib -- --outDir public --base /viewer/
+        run: npm run build:lib -- --outDir public --base /sextant-viewer/
 
       - name: Build app
         run: npm run build:app -- --outDir public/app
@@ -65,7 +65,7 @@ jobs:
         run: npm ci
 
       - name: Build lib
-        run: npm run build:lib -- --outDir public/maplibre --base /viewer/maplibre/
+        run: npm run build:lib -- --outDir public/maplibre --base /sextant-viewer/maplibre/
 
       - name: Move maplibre demo page at public/maplibre
         run: |
