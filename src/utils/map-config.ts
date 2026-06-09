@@ -1,4 +1,4 @@
-import type { ExtendedMapContext } from '@/stores/map.store'
+import type { ExtendedMapContext } from '@/types/map.types'
 import type { MapLayer } from '@/utils/layer.utils'
 
 /**
