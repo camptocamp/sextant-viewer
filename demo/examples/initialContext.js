@@ -1,7 +1,7 @@
 const viewer = document.getElementById('viewer')
 
 viewer.setInitialContext({
-  layers: [
+  backgroundLayers: [
     {
       type: 'xyz',
       id: 'basemap-osm',
@@ -15,6 +15,7 @@ viewer.setInitialContext({
       },
     },
   ],
+  layers: [],
   view: {
     center: [-4.56243, 48.36143],
     zoom: 15,

@@ -18,6 +18,7 @@ import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch }
 import FeaturePopup from './FeaturePopup.vue'
 import MapLoadingIndicator from './MapLoadingIndicator.vue'
 import ResetExtentButton from './ResetExtentButton.vue'
+import BackgroundLayerSelector from './BackgroundLayerSelector.vue'
 import { useDebounceFn } from '@vueuse/core'
 
 const mapStore = useMapStore()
@@ -123,7 +124,10 @@ onBeforeUnmount(() => {
     <div ref="mapContainer" class="absolute inset-0"></div>
     <MapLoadingIndicator />
     <FeaturePopup />
-    <ResetExtentButton class="absolute top-15 right-[.5em]" />
+    <div class="absolute top-15 right-[.5em] flex flex-col gap-1">
+      <ResetExtentButton />
+      <BackgroundLayerSelector />
+    </div>
   </div>
 </template>
 

@@ -1,4 +1,5 @@
 import type { ExtendedMapContext } from '@/stores/map.store'
+import type { MapLayer } from '@/utils/layer.utils'
 
 /**
  * Default MapContext configuration for the map application
@@ -184,21 +185,61 @@ import type { ExtendedMapContext } from '@/stores/map.store'
 //     zoom: 11,
 //   },
 // }
+export const DEFAULT_BACKGROUND_LAYERS: MapLayer[] = [
+  {
+    type: 'xyz',
+    id: 'basemap-osm',
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    visibility: true,
+    opacity: 1,
+    label: 'OpenStreetMap',
+    attributions: '© OpenStreetMap contributors',
+  },
+  {
+    type: 'wmts',
+    id: 'basemap-planign',
+    url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities',
+    name: 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2',
+    visibility: false,
+    opacity: 1,
+    label: 'Plan IGN',
+    attributions: '© IGN',
+  },
+  {
+    type: 'wmts',
+    id: 'basemap-bdortho',
+    url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities',
+    name: 'ORTHOIMAGERY.ORTHOPHOTOS',
+    visibility: false,
+    opacity: 1,
+    label: 'BD ORTHO',
+    attributions: '© IGN - BD ORTHO®',
+  },
+  {
+    type: 'wmts',
+    id: 'basemap-cadastre',
+    url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities',
+    name: 'CADASTRALPARCELS.PARCELS',
+    visibility: false,
+    opacity: 1,
+    label: 'BS PARCELLLAIRE',
+    attributions: '© IGN',
+  },
+  {
+    type: 'wmts',
+    id: 'basemap-relief',
+    url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities',
+    name: 'ELEVATION.SLOPES',
+    visibility: false,
+    opacity: 1,
+    label: 'Relief',
+    attributions: '© IGN',
+  },
+]
+
 export const DEFAULT_MAP_CONTEXT: ExtendedMapContext = {
-  layers: [
-    {
-      type: 'xyz',
-      id: 'basemap-osm',
-      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      visibility: true,
-      opacity: 1,
-      label: 'OpenStreetMap',
-      attributions: '© OpenStreetMap contributors',
-      extras: {
-        basemap: true,
-      },
-    },
-  ],
+  layers: [],
+  backgroundLayers: DEFAULT_BACKGROUND_LAYERS,
   view: {
     center: [3.0586, 50.6292],
     zoom: 11,

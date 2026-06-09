@@ -1,7 +1,7 @@
 const viewer = document.getElementById('viewer')
 
 viewer.setContext({
-  layers: [
+  backgroundLayers: [
     {
       type: 'wmts',
       url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities',
@@ -14,6 +14,8 @@ viewer.setContext({
         basemap: true,
       },
     },
+  ],
+  layers: [
     {
       type: 'wms',
       url: 'https://data.geopf.fr/wms-r/wms',
