@@ -32,14 +32,16 @@ export const useMapStore = defineStore('map', () => {
   const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>(initialContext.value)
   const currentExtent = ref<Extent | null>(null)
 
-  const backgroundLayers = computed<MapLayer[]>(() => context.value.backgroundLayers)
+  const backgroundLayers = computed<MapLayer[]>(
+    () => context.value.backgroundLayers ?? DEFAULT_MAP_CONTEXT.backgroundLayers,
+  )
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
 
   const sdkContext = computed<MapContext>(() => ({
     view: context.value.view,
     layers: [
-      ...(context.value.backgroundLayers as MapContextLayer[]),
+      ...(backgroundLayers.value as MapContextLayer[]),
       ...context.value.layers
         .filter((layer) => !isStacLayer(layer) || layer.data)
         .map((layer) => {
