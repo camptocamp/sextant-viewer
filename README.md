@@ -55,10 +55,9 @@ Note: once demo page has been opened, hot-reload does not work anymore in the st
 ### Type-Check, Compile and Minify for Production
 
 ```sh
-npm run build
+npm run build:lib    # Build the web component library (entry: src/register.ts)
+npm run build:app    # Build the standard app
 ```
-
-Note that standard app is not built and therefore not available in preview.
 
 Only the Web Component demo page is available in preview: http://localhost:4173/demo/index.html
 

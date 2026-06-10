@@ -43,12 +43,24 @@ The end goal is a web component library that consumers install in their projects
 
 ```bash
 npm run dev              # Vite dev server (http://localhost:5173)
-npm run build            # Type-check + build (parallel)
-npm run lint             # ESLint with auto-fix
-npm run format           # Prettier formatting
-npm run type-check       # vue-tsc type checking
-npm run test:unit        # Vitest unit tests
+npm run build:lib        # Build the web component library (entry: src/register.ts)
+npm run build:app        # Build the standard app (vite.app.config.ts)
+npm run preview          # Preview the production build (web component demo only)
+npm run type-check       # vue-tsc --build
+npm run lint             # ESLint with auto-fix (cached)
+npm run format           # Prettier write (src/, index.html, demo/)
+npm run format:check     # Prettier check (CI uses this)
+npm run knip             # Detect unused files/exports/deps
+npm run test:unit        # Vitest unit tests (watch)
 npm run test:e2e         # Playwright E2E tests
+```
+
+Run a single test:
+
+```bash
+npm run test:unit -- src/path/to/file.spec.ts   # one Vitest file
+npm run test:unit -- -t "test name"             # by test name
+npm run test:e2e -- e2e/vue.spec.ts             # one Playwright spec
 ```
 
 **After each iteration**: Run `npm run format` to ensure consistent code formatting before committing.
@@ -65,26 +77,67 @@ All map state flows through geospatial-sdk's `MapContext` stored in Pinia:
 
 Direct OpenLayers manipulation is avoided unless technically impossible through the SDK.
 
+The store works with `ExtendedMapContext` (see `map.store.ts`), which extends the SDK's `MapContext` but replaces `layers` with `MapLayer[]` (`MapLayer = (MapContextLayer | MapLayerStac) & { error?: boolean }`). A `sdkContext` computed strips the extensions back down to a plain `MapContext` before handing it to the SDK — STAC layers are converted to GeoJSON layers at that boundary. Use the `isStacLayer()` / `isBasemapLayer()` type guards in `layer.utils.ts` rather than checking `.type` inline.
+
+### Web Component API
+
+`SxtViewer.ce.vue` is the custom element root. Its public API is the `defineExpose` block — keep it in sync when changing capabilities:
+
+- **Methods**: `addLayer`, `getContext`, `setContext`, `setInitialContext`, `setView`
+- **Events**: `map-extent-change`
+
+`register.ts` defines the `<sxt-viewer>` element; `main.ts` mounts the standard dev app (`App.vue`).
+
+### Shadow DOM styling (gotcha)
+
+The component renders inside a shadow root, so styling is non-trivial:
+
+- `register.ts` inlines `main.css` and re-injects Tailwind's `@property` initial values into `:host` (Tailwind `@property` rules don't cross the shadow boundary). The `<length> 0 → 0px` fix there works around a box-shadow bug — don't remove it.
+- `SxtViewer.ce.vue` copies the NuxtUI `[data-nuxt-ui-colors]` style tag into the shadow DOM on mount.
+- Vite is configured with `vue({ features: { customElement: true } })` so component styles are embedded in the JS bundle (no separate CSS file).
+
+### STAC subsystem
+
+STAC (SpatioTemporal Asset Catalog) layers are a first-class layer type alongside standard OGC layers:
+
+- `types/stac.types.ts` — `MapLayerStac` and related types
+- `composables/useStacLayer.ts`, `utils/stac.utils.ts` (`enrichStacLayer`) — loading/enrichment
+- `components/stac/` — filter panel, date-range/spatial filters, pagination, item indicator, details
+
+### Persistence
+
+`stores/persistentContext.store.ts` mirrors `initialContext` and `context` into `sessionStorage` (debounced) and restores them on load, with ignore-flags to break the restore↔watch cycle. It is instantiated for its side effects by calling `usePersistentContextStore()` in `SxtViewer.ce.vue`.
+
+### Localization
+
+User-facing strings are currently hard-coded in **French** (e.g. `'Couche sans titre'`, STAC error messages). Match the existing language when adding UI text.
+
 ### Project Structure
 
 ```
 src/
+├── register.ts                # Defines <sxt-viewer> custom element
+├── main.ts / App.vue          # Standard dev app entry
 ├── components/
-│   ├── SxtViewer.ce.vue      # Web component root
-│   ├── map/                   # MapViewer, FeaturePopup
-│   ├── layout/                # LayoutGrid, panels
-│   └── layer-manager/         # Layer list, details
-├── composables/               # useMapFeatureInteraction, useLayerActions
-├── stores/                    # Pinia: map.store, layers.store, featureSelection.store
-├── types/                     # TypeScript definitions
-└── utils/                     # map-config, layer utilities
+│   ├── SxtViewer.ce.vue       # Web component root + public API
+│   ├── map/                   # MapViewer, FeaturePopup, loading/extent controls
+│   ├── layout/                # LayoutGrid, panels, resizable dividers
+│   ├── layer-manager/         # Layer list, details
+│   ├── stac/                  # STAC filter/pagination/details UI
+│   └── tools/                 # ToolsPanel
+├── composables/               # useLayerActions, useFeatureInfo, useStacLayer, ...
+├── stores/                    # Pinia: map, layers, featureSelection, persistentContext
+├── constants/                 # layout constants
+├── types/                     # feature-selection, stac types
+└── utils/                     # map-config, layer/stac utils, feature-styles
 ```
 
 ### State Management
 
-- **map.store.ts**: MapContext (source of truth), view state, diff-based updates
+- **map.store.ts**: `ExtendedMapContext` (source of truth), view state, diff-based updates, layer CRUD
 - **layers.store.ts**: UI layer selection (not map state)
 - **featureSelection.store.ts**: Selected/hovered features, popup state
+- **persistentContext.store.ts**: sessionStorage persistence/restore of the map context
 
 ## Technology Constraints
 
@@ -121,6 +174,11 @@ src/
 - Minimal comments - code should be self-documenting
 - Explain "why" not "what"
 - No task/story references (US1, T024) in code
+
+### Error Handling
+
+- User-facing errors: surface through NuxtUI `Toast`/`Alert` components with clear messaging
+- Development errors: `console.error()` with context
 
 ### Immutability
 
