@@ -175,6 +175,11 @@ src/
 - Explain "why" not "what"
 - No task/story references (US1, T024) in code
 
+### Error Handling
+
+- User-facing errors: surface through NuxtUI `Toast`/`Alert` components with clear messaging
+- Development errors: `console.error()` with context
+
 ### Immutability
 
 Always use immutable patterns for state updates:
