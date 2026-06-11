@@ -13,7 +13,8 @@ import {
 } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
-import { isStacLayer } from '@/utils/layer.utils'
+import { isStacLayer, isWmsLayer, isWmtsLayer } from '@/utils/layer.utils'
+import { resolveLegendUrl } from '@/utils/legend.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
 import { v4 as uuidv4 } from 'uuid'
@@ -60,6 +61,12 @@ export const useMapStore = defineStore('map', () => {
       enrichedLayer = await enrichStacLayer(layersWithVersionAndId as MapLayerStac)
       if (enrichedLayer === undefined) {
         enrichedLayer = layersWithVersionAndId
+      }
+    } else if (isWmsLayer(layer) || isWmtsLayer(layer)) {
+      const legendUrl = await resolveLegendUrl(layersWithVersionAndId)
+      enrichedLayer = {
+        ...layersWithVersionAndId,
+        extras: { ...layersWithVersionAndId.extras, legendUrl },
       }
     } else {
       enrichedLayer = layersWithVersionAndId
