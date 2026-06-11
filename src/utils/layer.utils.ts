@@ -26,6 +26,27 @@ export function isBasemapLayer(layer: MapLayer): boolean {
 }
 
 /**
+ * Type guard to check if a layer is a WMS layer.
+ */
+export function isWmsLayer(layer: MapLayer): boolean {
+  return layer.type === 'wms'
+}
+
+/**
+ * Type guard to check if a layer is a WMTS layer.
+ */
+export function isWmtsLayer(layer: MapLayer): boolean {
+  return layer.type === 'wmts'
+}
+
+/**
+ * Read the legend URL resolved at layer-load time, if any.
+ */
+export function getLegendUrl(layer: MapLayer): string | undefined {
+  return layer.extras?.legendUrl as string | undefined
+}
+
+/**
  * Get display label for a layer with fallback
  * @param layer - The layer to get label from
  * @returns Layer label or 'Untitled Layer' if no label exists
