@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useLayerActions } from '@/composables/useLayerActions'
-import { getLayerLabel, isStacLayer, isWmsLayer, isWmtsLayer } from '@/utils/layer.utils'
+import { getLayerLabel, hasLegendSupport, isStacLayer } from '@/utils/layer.utils'
 import type { MapLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import StacLayerDetails from '@/components/stac/StacLayerDetails.vue'
@@ -15,7 +15,7 @@ const { opacity, canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(
 
 const tabItems = computed(() => {
   const items = []
-  if (isWmsLayer(props.layer) || isWmtsLayer(props.layer)) {
+  if (hasLegendSupport(props.layer)) {
     items.push({ slot: 'legend', label: 'Légende' })
   }
   if (isStacLayer(props.layer)) {

@@ -40,6 +40,13 @@ export function isWmtsLayer(layer: MapLayer): boolean {
 }
 
 /**
+ * Whether a layer can carry a legend.
+ */
+export function hasLegendSupport(layer: MapLayer): boolean {
+  return isWmsLayer(layer) || isWmtsLayer(layer)
+}
+
+/**
  * Read the legend URL resolved at layer-load time, if any.
  */
 export function getLegendUrl(layer: MapLayer): string | undefined {
