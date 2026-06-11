@@ -118,7 +118,7 @@ export const useMapStore = defineStore('map', () => {
       ...context.value,
       backgroundLayers: backgroundLayers.value.map((l) => ({
         ...l,
-        visibility: String(l.id) === id,
+        visibility: l.id?.toString() === id,
       })),
     }
   }
