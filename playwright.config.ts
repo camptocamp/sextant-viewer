@@ -12,6 +12,8 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './e2e',
+  /* Tests tagged @optional are excluded by default — use `npm run test:e2e:examples` to run them */
+  grepInvert: process.env.INCLUDE_OPTIONAL ? undefined : /@optional/,
   /* Maximum time one test can run for. */
   timeout: 30 * 1000,
   expect: {

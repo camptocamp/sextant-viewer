@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "test:unit": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:examples": "INCLUDE_OPTIONAL=1 playwright test --grep @examples",
     "build:lib": "vite build",
     "build:app": "vite build --config vite.app.config.ts",
     "type-check": "vue-tsc --build",
