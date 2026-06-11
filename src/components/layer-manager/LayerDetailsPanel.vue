@@ -50,7 +50,7 @@ const tabItems = computed(() => {
       </UButton>
     </div>
 
-    <UTabs :items="tabItems" :ui="{ content: 'mt-3 h-full' }" class="sxt-panel">
+    <UTabs :items="tabItems" :ui="{ content: 'p-3 h-full' }">
       <template #legend>
         <LayerLegend :layer="layer" />
       </template>

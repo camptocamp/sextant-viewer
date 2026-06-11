@@ -7,7 +7,11 @@ const tabItems = [
 </script>
 
 <template>
-  <UTabs :items="tabItems" :ui="{ content: 'mt-3 h-full' }" class="sxt-panel">
+  <UTabs
+    :items="tabItems"
+    :ui="{ root: 'flex min-h-0 flex-col', content: 'mt-3 min-h-0 flex-1 overflow-auto' }"
+    class="sxt-panel"
+  >
     <template #list>
       <LayerManager />
     </template>
