@@ -4,7 +4,7 @@ import type { MapContextLayer } from '@geospatial-sdk/core'
 /**
  * Union type combining standard MapContext layers with STAC layers.
  */
-export type MapLayer = (MapContextLayer | MapLayerStac) & { error?: boolean }
+export type MapLayer = (MapContextLayer | MapLayerStac) & { loading?: boolean; error?: boolean }
 
 /**
  * Type guard to check if a layer is a STAC layer.

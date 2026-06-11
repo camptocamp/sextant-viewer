@@ -9,6 +9,7 @@ import {
   type MapClickEvent,
   type MapContext,
   type MapExtentChangeEvent,
+  type MapLayerStateChangeEvent,
   type Extent,
 } from '@geospatial-sdk/core'
 import { applyContextDiffToMap, createMapFromContext, listen } from '@geospatial-sdk/openlayers'
@@ -100,6 +101,13 @@ onMounted(async () => {
   })
   listen(mapRef.value, 'map-click', handleMapClick)
   listen(mapRef.value, 'features-click', handleFeaturesClick)
+  listen(mapRef.value, 'map-layer-state-change', (event: MapLayerStateChangeEvent) => {
+    const sdkLayer = sdkContext.value.layers[event.layerIndex]
+    if (!sdkLayer?.id) return
+    const hasError = 'loadingError' in event.layerState || 'creationError' in event.layerState
+    const isLoading = 'loading' in event.layerState
+    mapStore.setLayerState(sdkLayer.id, { loading: isLoading, error: hasError })
+  })
 })
 
 watch(fullMapContext, (newContext, oldContext) => {

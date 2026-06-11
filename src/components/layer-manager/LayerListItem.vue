@@ -35,8 +35,9 @@ const { isVisible, toggleVisibility } = useLayerActions(() => props.layer as Map
       class="mx-1"
     />
     <span class="truncate text-sm">{{ getLayerLabel(layer) }}</span>
-    <UTooltip v-if="layer.error" :text="getLayerError(layer)">
-      <UIcon name="i-tabler-alert-circle" class="shrink-0" />
+    <UIcon v-if="layer.loading" name="i-tabler-loader-2" class="shrink-0 animate-spin" />
+    <UTooltip v-else-if="layer.error" :text="getLayerError(layer)">
+      <UIcon name="i-tabler-alert-circle" class="shrink-0 text-red-500" />
     </UTooltip>
   </UButton>
 </template>
