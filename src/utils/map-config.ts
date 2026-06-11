@@ -222,7 +222,7 @@ export const DEFAULT_BACKGROUND_LAYERS: MapLayer[] = [
     name: 'CADASTRALPARCELS.PARCELS',
     visibility: false,
     opacity: 1,
-    label: 'BS PARCELLLAIRE',
+    label: 'BD PARCELLAIRE',
     attributions: '© IGN',
   },
   {
