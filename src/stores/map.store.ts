@@ -52,27 +52,27 @@ export const useMapStore = defineStore('map', () => {
   async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
     const layersWithVersionAndId = {
       ...layer,
-      id: layer.id ? layer.id : uuidv4(),
-      version: layer.version !== undefined ? layer.version : 0,
+      id: layer.id || uuidv4(),
+      version: layer.version ?? 0,
     }
 
-    let enrichedLayer
     if (isStacLayer(layer)) {
-      enrichedLayer = await enrichStacLayer(layersWithVersionAndId as MapLayerStac)
-      if (enrichedLayer === undefined) {
-        enrichedLayer = layersWithVersionAndId
-      }
-    } else if (hasLegendSupport(layer)) {
-      const legendUrl = await resolveLegendUrl(layersWithVersionAndId)
-      enrichedLayer = {
-        ...layersWithVersionAndId,
-        extras: { ...layersWithVersionAndId.extras, legendUrl },
-      }
-    } else {
-      enrichedLayer = layersWithVersionAndId
+      const enrichedLayer = await enrichStacLayer(layersWithVersionAndId as MapLayerStac)
+      return enrichedLayer ?? layersWithVersionAndId
     }
 
-    return enrichedLayer
+    if (hasLegendSupport(layer)) {
+      const legendUrl = await resolveLegendUrl(layersWithVersionAndId)
+      return {
+        ...layersWithVersionAndId,
+        extras: {
+          ...layersWithVersionAndId.extras,
+          legendUrl,
+        },
+      }
+    }
+
+    return layersWithVersionAndId
   }
 
   async function enrichContext(context: ExtendedMapContext): Promise<ExtendedMapContext> {
