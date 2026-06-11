@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useLayerActions } from '@/composables/useLayerActions'
 import { getLayerLabel, getLegendUrl, hasLegendSupport, isStacLayer } from '@/utils/layer.utils'
 import type { MapLayer } from '@/utils/layer.utils'
@@ -33,6 +33,18 @@ const tabItems = computed(() => {
 
 // Set the default tab to the first available one
 const defaultTab = computed(() => tabItems.value.find((item) => !item.disabled)?.value)
+
+const activeTab = ref<string | undefined>(undefined)
+watch(
+  () => props.layer,
+  () => {
+    // Reset to default tab when layer changes
+    activeTab.value = defaultTab.value
+  },
+  {
+    immediate: true,
+  },
+)
 </script>
 
 <template>
@@ -59,7 +71,7 @@ const defaultTab = computed(() => tabItems.value.find((item) => !item.disabled)?
       </UButton>
     </div>
 
-    <UTabs :items="tabItems" :default-value="defaultTab" :ui="{ content: 'p-3 h-full' }">
+    <UTabs v-model="activeTab" :items="tabItems" :ui="{ content: 'p-3 h-full' }">
       <template #legend>
         <LayerLegend :layer="layer" />
       </template>
