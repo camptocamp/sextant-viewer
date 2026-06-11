@@ -18,7 +18,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
 
 <template>
   <UDropdownMenu :items="items">
-    <UTooltip text="Fond de plan">
+    <UTooltip text="Fond de plan" :ignore-non-keyboard-focus="true">
       <UButton
         class="h-5.5 w-5.5 rounded-xs"
         icon="i-tabler-stack-2"
