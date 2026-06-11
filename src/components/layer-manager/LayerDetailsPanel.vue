@@ -6,12 +6,13 @@ import type { MapLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import StacLayerDetails from '@/components/stac/StacLayerDetails.vue'
 import LayerLegend from '@/components/layer-manager/LayerLegend.vue'
+import LayerSettings from '@/components/layer-manager/LayerSettings.vue'
 
 const props = defineProps<{
   layer: MapLayer
 }>()
 
-const { opacity, canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(() => props.layer)
+const { canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(() => props.layer)
 
 const tabItems = computed(() => {
   const items = []
@@ -68,10 +69,7 @@ const defaultTab = computed(() => tabItems.value.find((item) => !item.disabled)?
       </template>
 
       <template #settings>
-        <div class="flex items-baseline gap-2">
-          <span class="shrink-0">Transparence :</span
-          ><USlider v-model="opacity" :min="0" :max="100" tooltip class="w-full" />
-        </div>
+        <LayerSettings :layer="layer" />
       </template>
     </UTabs>
   </div>
