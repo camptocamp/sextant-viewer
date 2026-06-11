@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useLayerActions } from '@/composables/useLayerActions'
-import { getLayerLabel, hasLegendSupport, isStacLayer } from '@/utils/layer.utils'
+import { getLayerLabel, getLegendUrl, hasLegendSupport, isStacLayer } from '@/utils/layer.utils'
 import type { MapLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import StacLayerDetails from '@/components/stac/StacLayerDetails.vue'
@@ -16,14 +16,22 @@ const { opacity, canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(
 const tabItems = computed(() => {
   const items = []
   if (hasLegendSupport(props.layer)) {
-    items.push({ slot: 'legend', label: 'Légende' })
+    items.push({
+      slot: 'legend',
+      value: 'legend',
+      label: 'Légende',
+      disabled: !getLegendUrl(props.layer),
+    })
   }
   if (isStacLayer(props.layer)) {
-    items.push({ slot: 'stac', label: 'Données' })
+    items.push({ slot: 'stac', value: 'stac', label: 'Données' })
   }
-  items.push({ slot: 'settings', label: 'Paramètres' })
+  items.push({ slot: 'settings', value: 'settings', label: 'Paramètres' })
   return items
 })
+
+// Set the default tab to the first available one
+const defaultTab = computed(() => tabItems.value.find((item) => !item.disabled)?.value)
 </script>
 
 <template>
@@ -50,7 +58,7 @@ const tabItems = computed(() => {
       </UButton>
     </div>
 
-    <UTabs :items="tabItems" :ui="{ content: 'p-3 h-full' }">
+    <UTabs :items="tabItems" :default-value="defaultTab" :ui="{ content: 'p-3 h-full' }">
       <template #legend>
         <LayerLegend :layer="layer" />
       </template>
