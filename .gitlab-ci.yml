@@ -2,6 +2,7 @@ image: node:lts-trixie
 
 stages:
   - build
+  - test
   - pages
 
 build:
@@ -36,6 +37,18 @@ build-maplibre:
   artifacts:
     paths:
       - public/maplibre
+    expire_in: 1 week
+
+test:e2e:
+  image: mcr.microsoft.com/playwright:v1.58.1-noble
+  stage: test
+  script:
+    - npm ci
+    - npx playwright test --project=chromium
+  artifacts:
+    when: always
+    paths:
+      - playwright-report/
     expire_in: 1 week
 
 pages:
