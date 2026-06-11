@@ -76,8 +76,8 @@ export const useMapStore = defineStore('map', () => {
   async function enrichContext(context: ExtendedMapContext): Promise<ExtendedMapContext> {
     return {
       ...context,
-      layers: await Promise.all(context.layers.map(enrichLayer)),
-      backgroundLayers: await Promise.all(context.backgroundLayers.map(enrichLayer)),
+      layers: await Promise.all((context.layers ?? []).map(enrichLayer)),
+      backgroundLayers: await Promise.all((context.backgroundLayers ?? []).map(enrichLayer)),
     }
   }
 
