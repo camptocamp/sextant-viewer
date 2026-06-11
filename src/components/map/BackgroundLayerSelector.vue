@@ -11,6 +11,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
     type: 'checkbox',
     label: getLayerLabel(layer),
     checked: !!layer.visibility,
+    class: 'cursor-pointer',
     onSelect: () => mapStore.selectBackgroundLayer(String(layer.id)),
   })),
 ])
