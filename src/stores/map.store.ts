@@ -41,7 +41,7 @@ export const useMapStore = defineStore('map', () => {
   const sdkContext = computed<MapContext>(() => ({
     view: context.value.view,
     layers: [
-      ...(backgroundLayers.value as MapContextLayer[]),
+      ...(backgroundLayers.value.filter((l) => l.visibility !== false) as MapContextLayer[]),
       ...context.value.layers
         .filter((layer) => !isStacLayer(layer) || layer.data)
         .map((layer) => {
