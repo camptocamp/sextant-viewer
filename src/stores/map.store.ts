@@ -38,26 +38,38 @@ export const useMapStore = defineStore('map', () => {
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
 
-  const sdkContext = computed<MapContext>(() => ({
-    view: context.value.view,
-    layers: [
-      ...(backgroundLayers.value.filter((l) => l.visibility !== false) as MapContextLayer[]),
-      ...context.value.layers
-        .filter((layer) => !isStacLayer(layer) || layer.data)
-        .map((layer) => {
-          if (isStacLayer(layer)) {
-            return fromStacToGeojsonLayer(layer)
-          }
-          return layer as MapContextLayer
-        }),
-    ],
-  }))
+  const sdkContext = computed<MapContext>(() => {
+    const toSdkLayer = (layer: MapLayer): MapContextLayer => {
+      const { loading: _loading, error: _error, ...sdkLayer } = layer as MapLayer & {
+        loading?: boolean
+        error?: boolean
+      }
+      return sdkLayer as MapContextLayer
+    }
+    return {
+      view: context.value.view,
+      layers: [
+        ...backgroundLayers.value
+          .filter((l) => l.visibility !== false)
+          .map(toSdkLayer),
+        ...context.value.layers
+          .filter((layer) => !isStacLayer(layer) || layer.data)
+          .map((layer) => {
+            if (isStacLayer(layer)) {
+              return fromStacToGeojsonLayer(layer)
+            }
+            return toSdkLayer(layer)
+          }),
+      ],
+    }
+  })
 
   async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
     const layersWithVersionAndId = {
       ...layer,
       id: layer.id ? layer.id : uuidv4(),
       version: layer.version !== undefined ? layer.version : 0,
+      loading: true,
     }
 
     let enrichedLayer
@@ -159,6 +171,23 @@ export const useMapStore = defineStore('map', () => {
     ) as ExtendedMapContext
   }
 
+  function setLayerState(id: string | number, state: { loading?: boolean; error?: boolean }) {
+    const inLayers = context.value.layers.some((l) => l.id === id)
+    if (inLayers) {
+      context.value = {
+        ...context.value,
+        layers: context.value.layers.map((l) => (l.id === id ? { ...l, ...state } : l)),
+      }
+    } else {
+      context.value = {
+        ...context.value,
+        backgroundLayers: context.value.backgroundLayers.map((l) =>
+          l.id === id ? ({ ...l, ...state } as MapLayer) : l,
+        ),
+      }
+    }
+  }
+
   function getLayerById(id: string | number): MapLayer | undefined {
     return context.value.layers.find((layer) => layer.id === id)
   }
@@ -194,6 +223,7 @@ export const useMapStore = defineStore('map', () => {
     deleteLayer,
     changeLayerPosition,
     updateLayer,
+    setLayerState,
     getLayerById,
     fromStacToGeojsonLayer,
   }
