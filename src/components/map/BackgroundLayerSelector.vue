@@ -8,9 +8,9 @@ const mapStore = useMapStore()
 
 const items = computed<DropdownMenuItem[][]>(() => [
   mapStore.backgroundLayers.map((layer) => ({
-    type: 'checkbox',
     label: getLayerLabel(layer),
-    checked: !!layer.visibility,
+    icon: 'i-tabler-check',
+    ui: { itemLeadingIcon: layer.visibility ? '' : 'opacity-0' } as DropdownMenuItem['ui'],
     class: 'cursor-pointer',
     onSelect: () => mapStore.selectBackgroundLayer(String(layer.id)),
   })),
