@@ -10,9 +10,6 @@ viewer.setContext({
       visibility: true,
       opacity: 0.7,
       attributions: '© IGN',
-      extras: {
-        basemap: true,
-      },
     },
   ],
   layers: [

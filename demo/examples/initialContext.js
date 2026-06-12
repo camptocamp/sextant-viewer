@@ -10,9 +10,6 @@ viewer.setInitialContext({
       opacity: 1,
       label: 'OpenStreetMap',
       attributions: '© OpenStreetMap contributors',
-      extras: {
-        basemap: true,
-      },
     },
   ],
   layers: [],
