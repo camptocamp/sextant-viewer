@@ -17,14 +17,13 @@ import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
 import { v4 as uuidv4 } from 'uuid'
+import type { ExtendedMapContext } from '@/types/map.types'
+
+export type { ExtendedMapContext }
 
 const FALLBACK_VIEW: MapContextView = {
   center: [0, 0] as [number, number],
   zoom: 2,
-}
-export interface ExtendedMapContext extends Omit<MapContext, 'layers'> {
-  view: MapContextView
-  layers: MapLayer[]
 }
 
 export const useMapStore = defineStore('map', () => {
@@ -33,19 +32,25 @@ export const useMapStore = defineStore('map', () => {
   const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>(initialContext.value)
   const currentExtent = ref<Extent | null>(null)
 
+  const backgroundLayers = computed<MapLayer[]>(
+    () => context.value.backgroundLayers ?? DEFAULT_MAP_CONTEXT.backgroundLayers,
+  )
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
 
   const sdkContext = computed<MapContext>(() => ({
     view: context.value.view,
-    layers: context.value.layers
-      .filter((layer) => !isStacLayer(layer) || layer.data)
-      .map((layer) => {
-        if (isStacLayer(layer)) {
-          return fromStacToGeojsonLayer(layer)
-        }
-        return layer as MapContextLayer
-      }),
+    layers: [
+      ...(backgroundLayers.value.filter((l) => l.visibility !== false) as MapContextLayer[]),
+      ...context.value.layers
+        .filter((layer) => !isStacLayer(layer) || layer.data)
+        .map((layer) => {
+          if (isStacLayer(layer)) {
+            return fromStacToGeojsonLayer(layer)
+          }
+          return layer as MapContextLayer
+        }),
+    ],
   }))
 
   async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
@@ -71,7 +76,8 @@ export const useMapStore = defineStore('map', () => {
   async function enrichContext(context: ExtendedMapContext): Promise<ExtendedMapContext> {
     return {
       ...context,
-      layers: await Promise.all(context.layers.map(enrichLayer)),
+      layers: await Promise.all((context.layers ?? []).map(enrichLayer)),
+      backgroundLayers: await Promise.all((context.backgroundLayers ?? []).map(enrichLayer)),
     }
   }
 
@@ -105,6 +111,16 @@ export const useMapStore = defineStore('map', () => {
 
   function setCurrentViewExtent(extent: Extent) {
     currentExtent.value = extent
+  }
+
+  function selectBackgroundLayer(id: string) {
+    context.value = {
+      ...context.value,
+      backgroundLayers: backgroundLayers.value.map((l) => ({
+        ...l,
+        visibility: l.id?.toString() === id,
+      })),
+    }
   }
 
   async function addLayer(layer: MapLayer): Promise<MapLayer> {
@@ -167,11 +183,13 @@ export const useMapStore = defineStore('map', () => {
     layers,
     view,
     currentExtent,
+    backgroundLayers,
     setInitialContext,
     setContext,
     setView,
     resetView,
     setCurrentViewExtent,
+    selectBackgroundLayer,
     addLayer,
     deleteLayer,
     changeLayerPosition,
