@@ -7,4 +7,5 @@ viewer.addLayer({
   opacity: 1,
   label: 'OpenStreetMap (XYZ)',
   attributions: '© OpenStreetMap contributors',
+  referrerPolicy: 'strict-origin-when-cross-origin',
 })
