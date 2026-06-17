@@ -3,6 +3,7 @@ const tabItems = [
   { slot: 'list', label: 'Liste' },
   { slot: 'tree', label: 'Arbre' },
   { slot: 'tools', label: 'Outils' },
+  { slot: 'add', label: 'Ajout de données' },
 ]
 </script>
 
@@ -20,6 +21,9 @@ const tabItems = [
     </template>
     <template #tools>
       <ToolsPanel />
+    </template>
+    <template #add>
+      <AddDataPanel />
     </template>
   </UTabs>
 </template>
