@@ -20,6 +20,9 @@ const linkedAliases: Record<string, string> = useLinkedPackages
       '@geospatial-sdk/core': fileURLToPath(
         new URL('./node_modules/@geospatial-sdk/core/dist/index.js', import.meta.url),
       ),
+      '@geospatial-sdk/legend': fileURLToPath(
+        new URL('./node_modules/@geospatial-sdk/legend/dist/index.js', import.meta.url),
+      ),
       '@geospatial-sdk/openlayers': fileURLToPath(
         new URL('./node_modules/@geospatial-sdk/openlayers/dist/index.js', import.meta.url),
       ),
@@ -27,7 +30,12 @@ const linkedAliases: Record<string, string> = useLinkedPackages
   : {}
 
 const linkedExclude = useLinkedPackages
-  ? ['@camptocamp/ogc-client', '@geospatial-sdk/core', '@geospatial-sdk/openlayers']
+  ? [
+      '@camptocamp/ogc-client',
+      '@geospatial-sdk/core',
+      '@geospatial-sdk/legend',
+      '@geospatial-sdk/openlayers',
+    ]
   : []
 
 // https://vite.dev/config/
@@ -62,7 +70,13 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       ...linkedAliases,
     },
-    dedupe: ['@camptocamp/ogc-client', '@geospatial-sdk/core', '@geospatial-sdk/openlayers', 'ol'],
+    dedupe: [
+      '@camptocamp/ogc-client',
+      '@geospatial-sdk/core',
+      '@geospatial-sdk/legend',
+      '@geospatial-sdk/openlayers',
+      'ol',
+    ],
   },
   build: {
     lib: {
