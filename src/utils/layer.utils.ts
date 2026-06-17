@@ -1,5 +1,6 @@
 import type { MapLayerStac } from '@/types/stac.types'
 import type { MapContextLayer } from '@geospatial-sdk/core'
+import type { WmsLayerDimension } from '@camptocamp/ogc-client'
 
 /**
  * Union type combining standard MapContext layers with STAC layers.
@@ -23,6 +24,23 @@ export function isStacLayer(layer: any): layer is MapLayerStac {
  */
 export function getLayerLabel(layer: MapLayer): string {
   return layer.label || 'Couche sans titre'
+}
+
+export function getWmsTimeDimension(layer: MapLayer): WmsLayerDimension | null {
+  if (layer.type !== 'wms') return null
+  return (layer.extras?.wmsTimeDimension as WmsLayerDimension) ?? null
+}
+
+/**
+ * Resolve the TIME value a layer should default to: the server's declared
+ * default, otherwise the first allowed value (the start of an interval, if the
+ * value is expressed as "start/end/period"). Returns null if none is parseable.
+ */
+export function getDefaultWmsTime(dim: WmsLayerDimension): Date | null {
+  const candidate = dim.defaultValue || dim.values[0]?.split('/')[0]
+  if (!candidate) return null
+  const d = new Date(candidate)
+  return isNaN(d.getTime()) ? null : d
 }
 
 export function getLayerError(layer: MapLayer): string {

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useLayerActions } from '@/composables/useLayerActions'
-import { getLayerLabel, isStacLayer } from '@/utils/layer.utils'
+import { getLayerLabel, getWmsTimeDimension, isStacLayer } from '@/utils/layer.utils'
 import { hasLegendSupport } from '@geospatial-sdk/legend'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 import type { MapLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import StacLayerDetails from '@/components/stac/StacLayerDetails.vue'
+import WmsTimeDetails from '@/components/layer-manager/WmsTimeDetails.vue'
 import LayerLegend from '@/components/layer-manager/LayerLegend.vue'
 import LayerSettings from '@/components/layer-manager/LayerSettings.vue'
 
@@ -53,6 +54,8 @@ watch(
         {{ getLayerLabel(layer) }}
       </h3>
     </div>
+
+    <WmsTimeDetails v-if="getWmsTimeDimension(layer)" :layer="layer" />
 
     <div class="mb-3 flex gap-2">
       <UButton
