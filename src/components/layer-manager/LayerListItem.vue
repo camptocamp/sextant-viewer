@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { useLayerActions } from '@/composables/useLayerActions'
-import { getLayerError, getLayerLabel, type MapLayer } from '@/utils/layer.utils'
+import {
+  getLayerError,
+  getLayerLabel,
+  getWmsTimeDimension,
+  type MapLayer,
+} from '@/utils/layer.utils'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 
 const props = defineProps<{
@@ -35,6 +40,11 @@ const { isVisible, toggleVisibility } = useLayerActions(() => props.layer as Map
       class="mx-1"
     />
     <span class="truncate text-sm">{{ getLayerLabel(layer) }}</span>
+    <UIcon
+      v-if="getWmsTimeDimension(layer)"
+      name="i-lucide-alarm-clock"
+      class="shrink-0 text-gray-400"
+    />
     <UTooltip v-if="layer.error" :text="getLayerError(layer)">
       <UIcon name="i-tabler-alert-circle" class="shrink-0" />
     </UTooltip>

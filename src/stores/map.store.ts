@@ -6,6 +6,7 @@ import {
   getLayerPosition,
   type MapContext,
   type MapContextLayer,
+  type MapContextLayerWms,
   type MapContextView,
   removeLayerFromContext,
   updateLayerInContext,
@@ -13,10 +14,11 @@ import {
 } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
-import { isStacLayer } from '@/utils/layer.utils'
+import { getDefaultWmsTime, isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
 import { v4 as uuidv4 } from 'uuid'
+import { WmsEndpoint } from '@camptocamp/ogc-client'
 import type { ExtendedMapContext } from '@/types/map.types'
 
 export type { ExtendedMapContext }
@@ -54,23 +56,45 @@ export const useMapStore = defineStore('map', () => {
   }))
 
   async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
-    const layersWithVersionAndId = {
+    const layerWithVersionAndId = {
       ...layer,
       id: layer.id ? layer.id : uuidv4(),
       version: layer.version !== undefined ? layer.version : 0,
     }
 
-    let enrichedLayer
     if (isStacLayer(layer)) {
-      enrichedLayer = await enrichStacLayer(layersWithVersionAndId as MapLayerStac)
-      if (enrichedLayer === undefined) {
-        enrichedLayer = layersWithVersionAndId
-      }
-    } else {
-      enrichedLayer = layersWithVersionAndId
+      const enriched = await enrichStacLayer(layerWithVersionAndId as MapLayerStac)
+      return enriched ?? layerWithVersionAndId
     }
 
-    return enrichedLayer
+    if (layer.type === 'wms' && !layer.extras?.wmsTimeDimension) {
+      try {
+        const endpoint = new WmsEndpoint((layer as { url: string }).url)
+        await endpoint.isReady()
+        const layerInfo = endpoint.getLayerByName((layer as { name: string }).name)
+        // WMS dimension names are case-insensitive; servers may emit TIME, Time, etc.
+        const timeDim = layerInfo?.dimensions?.find((d) => d.name.toLowerCase() === 'time')
+        if (timeDim) {
+          const wmsLayer = layerWithVersionAndId as MapContextLayerWms
+          // Seed TIME so the selector reflects what the server renders by default
+          // (a GetMap without TIME falls back to the server's declared default).
+          // Mirror reset()'s target, but never overwrite a consumer-provided value.
+          const seedTime = wmsLayer.dimensionValues?.TIME ?? getDefaultWmsTime(timeDim)
+          return {
+            ...layerWithVersionAndId,
+            extras: { ...layerWithVersionAndId.extras, wmsTimeDimension: timeDim },
+            ...(seedTime && {
+              dimensionValues: { ...wmsLayer.dimensionValues, TIME: seedTime },
+            }),
+          }
+        }
+      } catch (err) {
+        // enrichment failure is non-fatal; proceed without dimension info
+        console.error('WMS time dimension enrichment failed', err)
+      }
+    }
+
+    return layerWithVersionAndId
   }
 
   async function enrichContext(context: ExtendedMapContext): Promise<ExtendedMapContext> {

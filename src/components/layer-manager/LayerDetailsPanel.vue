@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useLayerActions } from '@/composables/useLayerActions'
-import { getLayerLabel, isStacLayer } from '@/utils/layer.utils'
+import { getLayerLabel, getWmsTimeDimension, isStacLayer } from '@/utils/layer.utils'
 import type { MapLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import StacLayerDetails from '@/components/stac/StacLayerDetails.vue'
+import WmsTimeDetails from '@/components/layer-manager/WmsTimeDetails.vue'
 
 const props = defineProps<{
   layer: MapLayer
@@ -25,6 +26,8 @@ const { opacity, canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(
       <span class="shrink-0">Transparence :</span
       ><USlider v-model="opacity" :min="0" :max="100" tooltip class="w-full" />
     </div>
+
+    <WmsTimeDetails v-if="getWmsTimeDimension(layer)" :layer="layer" />
 
     <div class="flex gap-2">
       <UButton
