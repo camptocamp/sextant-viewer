@@ -236,7 +236,7 @@ Icône indicatrice (même pattern que l'icône horloge TIME) :
 | Fichier | Action |
 |---|---|
 | `geospatial-sdk/packages/core/lib/model/map-context.ts` | Ajouter `customParams` à `MapContextLayerWms` |
-| `geospatial-sdk/packages/openlayers/lib/map/wms-params.ts` | Spreader `customParams` dans `buildWmsParams()` |
+| `geospatial-sdk/packages/openlayers/lib/map/wms-params.ts` | Ajouter le spread de `customParams` dans `buildWmsParams()` |
 | `src/types/ncwms.types.ts` | Nouveau — type `NcwmsInfo` |
 | `src/utils/ncwms.utils.ts` | Nouveau — fetch, buildStyles, buildLegend, `enrichNcwmsLayer` |
 | `src/utils/layer.utils.ts` | Ajouter `getNcwmsInfo()` |
