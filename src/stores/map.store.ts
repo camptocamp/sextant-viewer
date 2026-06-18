@@ -10,6 +10,8 @@ import {
   removeLayerFromContext,
   updateLayerInContext,
   type Extent,
+  type ResolvedMapState,
+  type ResolvedMapLayerState,
 } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
@@ -30,13 +32,24 @@ export const useMapStore = defineStore('map', () => {
   const initialContext = ref<ExtendedMapContext>(DEFAULT_MAP_CONTEXT)
 
   const context: Ref<ExtendedMapContext> = ref<ExtendedMapContext>(initialContext.value)
-  const currentExtent = ref<Extent | null>(null)
 
   const backgroundLayers = computed<MapLayer[]>(
     () => context.value.backgroundLayers ?? DEFAULT_MAP_CONTEXT.backgroundLayers,
   )
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
+
+  const mapState = ref<ResolvedMapState>({ layers: [], view: null })
+  const currentExtent = computed<Extent | null>(() => mapState.value.view?.extent ?? null)
+  const layerStates = computed(() => {
+    const states: Record<string | number, ResolvedMapLayerState> = {}
+    for (const state of mapState.value.layers) {
+      if (state?.id !== undefined) {
+        states[state.id] = state
+      }
+    }
+    return states
+  })
 
   const sdkContext = computed<MapContext>(() => ({
     view: context.value.view,
@@ -109,8 +122,8 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  function setCurrentViewExtent(extent: Extent) {
-    currentExtent.value = extent
+  function setMapState(newState: ResolvedMapState) {
+    mapState.value = newState
   }
 
   function selectBackgroundLayer(id: string) {
@@ -181,6 +194,7 @@ export const useMapStore = defineStore('map', () => {
     sdkContext,
     initialContext,
     layers,
+    layerStates,
     view,
     currentExtent,
     backgroundLayers,
@@ -188,7 +202,7 @@ export const useMapStore = defineStore('map', () => {
     setContext,
     setView,
     resetView,
-    setCurrentViewExtent,
+    setMapState,
     selectBackgroundLayer,
     addLayer,
     deleteLayer,

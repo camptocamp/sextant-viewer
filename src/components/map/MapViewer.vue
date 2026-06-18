@@ -8,8 +8,8 @@ import {
   type FeaturesClickEvent,
   type MapClickEvent,
   type MapContext,
-  type MapExtentChangeEvent,
-  type Extent,
+  type MapStateChangeEvent,
+  type ResolvedMapState,
 } from '@geospatial-sdk/core'
 import { applyContextDiffToMap, createMapFromContext, listen } from '@geospatial-sdk/openlayers'
 import type Map from 'ol/Map'
@@ -82,8 +82,8 @@ const fullMapContext = computed<MapContext>(() => {
   }
 })
 
-const debouncedSetExtent = useDebounceFn((extent: Extent) => {
-  mapStore.setCurrentViewExtent(extent)
+const debouncedSetMapState = useDebounceFn((mapState: ResolvedMapState) => {
+  mapStore.setMapState(mapState)
 }, 300)
 
 onMounted(async () => {
@@ -95,8 +95,8 @@ onMounted(async () => {
 
   emit('map-ready', mapRef.value)
 
-  listen(mapRef.value, 'map-extent-change', (event: MapExtentChangeEvent) => {
-    debouncedSetExtent(event.extent as Extent)
+  listen(mapRef.value, 'map-state-change', (event: MapStateChangeEvent) => {
+    debouncedSetMapState(event.mapState)
   })
   listen(mapRef.value, 'map-click', handleMapClick)
   listen(mapRef.value, 'features-click', handleFeaturesClick)
