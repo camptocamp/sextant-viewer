@@ -198,3 +198,19 @@ context.value.layers[0].visible = false
 - **Web Component demo**: `http://localhost:5173/demo/index.html`
 
 Production build only includes the web component.
+
+## Contribution Standards
+
+### Tests
+
+- Toute nouvelle fonctionnalité visible (interaction carte, layer manager, STAC) → un test E2E Playwright dans `e2e/`
+- Tout bugfix → un test qui reproduit la régression avant correction
+- Les tests unitaires Vitest (`src/**/*.spec.ts`) sont réservés à la logique pure (utils, stores sans DOM)
+
+### Validation avant commit
+
+```bash
+npm run format       # formatage automatique
+npm run lint         # ESLint avec auto-fix
+npm run type-check   # vérification TypeScript
+```
