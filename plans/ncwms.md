@@ -7,7 +7,7 @@ NcWMS est un serveur WMS étendu exposant des variables scientifiques (températ
 Ce plan s'appuie sur la branche `wms_time` (viewer + geospatial-sdk), déjà en place, qui établit le pattern à suivre :
 
 - Pattern viewer établi : détection dans `enrichLayer()` → stockage dans `extras` → `layer.utils.ts` → composable → composant
-- `dimensionValues` est réservé aux **vraies dimensions WMS** déclarées dans le GetCapabilities (`TIME`, `ELEVATION`) — axes du données, pas du rendu
+- `dimensionValues` est réservé aux **vraies dimensions WMS** déclarées dans le GetCapabilities (`TIME`, `ELEVATION`) — axes des données, pas du rendu
 - `COLORSCALERANGE` et `LOGSCALE` sont des **paramètres vendor NcWMS** (rendu), pas des dimensions → ils passent par un nouveau champ `customParams` dans le SDK
 
 ---
