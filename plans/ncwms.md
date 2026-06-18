@@ -68,7 +68,7 @@ Fonctions pures, aucune dépendance store :
 - Retourne `null` si réponse non-JSON ou sans `scaleRange`/`palettes`
 
 **`fetchAutoColorRange(url, layerName, bbox, dimensionValues?)`** → `Promise<{ min: number; max: number }>`
-- `GET {url}?request=GetMetadata&item=minmax&width=50&height=50&srs=EPSG:4326&layers={}&bbox={}`
+- `GET {url}?request=GetMetadata&item=minmax&width=50&height=50&srs=EPSG:4326&layers={layerName}&bbox={bbox}`
 - Passe TIME et ELEVATION si présents dans `dimensionValues`
 
 **`buildNcwmsStyles(ncInfo)`** → `Record<string, string>`
