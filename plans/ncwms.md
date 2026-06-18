@@ -38,7 +38,7 @@ return {
 
 **Liaison** :
 ```bash
-# Depuis le viewer, liens directs par chemin (sans symlink global)
+# Depuis le viewer, via `npm link` (implique un lien global / symlink)
 npm link ../geospatial-sdk/packages/core ../geospatial-sdk/packages/openlayers
 ```
 
