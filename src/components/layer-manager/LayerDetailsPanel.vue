@@ -13,6 +13,8 @@ import WmsDimensionsDetails from '@/components/layer-manager/WmsDimensionsDetail
 import LayerLegend from '@/components/layer-manager/LayerLegend.vue'
 import LayerSettings from '@/components/layer-manager/LayerSettings.vue'
 import AttributeFilterPanel from '@/components/attribute-filter/AttributeFilterPanel.vue'
+import NcwmsLayerDetails from '@/components/layer-manager/NcwmsLayerDetails.vue'
+import { getNcwmsInfo } from '@/utils/ncwms.utils'
 
 const props = defineProps<{
   layer: MapLayer
@@ -100,6 +102,7 @@ watch(
 
       <template #settings>
         <LayerSettings :layer="layer" />
+        <NcwmsLayerDetails v-if="getNcwmsInfo(layer)" :layer="layer" />
       </template>
     </UTabs>
   </div>

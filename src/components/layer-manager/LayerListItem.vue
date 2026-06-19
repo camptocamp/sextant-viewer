@@ -4,6 +4,7 @@ import { useLayerActions } from '@/composables/useLayerActions'
 import { getLayerError, getLayerLabel, type MapLayer } from '@/utils/layer.utils'
 import { getWmsTimeDimension } from '@/utils/wms.utils'
 import type { MapContextLayer, ResolvedMapLayerState } from '@geospatial-sdk/core'
+import { getNcwmsInfo } from '@/utils/ncwms.utils'
 
 const props = defineProps<{
   layer: MapLayer
@@ -52,6 +53,8 @@ const errorMessage = computed(() => {
       name="i-lucide-alarm-clock"
       class="shrink-0 text-gray-400"
     />
+
+    <UIcon v-if="getNcwmsInfo(layer)" name="i-lucide-palette" class="shrink-0 text-gray-400" />
 
     <UIcon
       v-if="state && 'loading' in state && state.loading"

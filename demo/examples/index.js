@@ -9,6 +9,7 @@ import layerWfs from './layerWfs.js?raw'
 import layerWms from './layerWms.js?raw'
 import layerWmsTime from './layerWmsTime.js?raw'
 import layerWmsAttributeFilter from './layerWmsAttributeFilter.js?raw'
+import layerNcwms from './layerNcwms.js?raw'
 import layerWmts from './layerWmts.js?raw'
 import layerXyz from './layerXyz.js?raw'
 import setContext from './setContext.js?raw'
@@ -82,6 +83,21 @@ export const EXAMPLES = [
       </p>
     `,
     code: layerWmsAttributeFilter,
+  },
+  {
+    name: 'Add NcWMS layer',
+    description: `
+      <h4>Add a NcWMS layer from an Ifremer THREDDS server.</h4>
+      <p>
+        NcWMS layers are detected automatically. The layer details panel exposes
+        palette selection, logarithmic scale toggle, color scale range controls,
+        and an auto-range button that computes min/max over the current map extent.
+      </p>
+      <p>
+        Dataset: <a target="_blank" href="https://sextant.ifremer.fr/Donnees/Catalogue#/metadata/seanoe:52367">GLOBANA ISAS20 ARGO monthly time series (SEANOE)</a>
+      </p>
+    `,
+    code: layerNcwms,
   },
   {
     name: 'Add WMTS layer',
