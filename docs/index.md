@@ -1,0 +1,27 @@
+---
+layout: home
+
+hero:
+  name: Sextant Viewer
+  text: Web component de carte géographique
+  tagline: Intégrez une carte OpenLayers dans n'importe quelle application web avec un seul élément HTML.
+  actions:
+    - theme: brand
+      text: Démarrer
+      link: /guides/introduction
+    - theme: alt
+      text: Référence API
+      link: /api/
+    - theme: alt
+      text: Démo
+      link: /demo/
+      target: _self
+
+features:
+  - title: Un seul fichier JS
+    details: Chargez le composant via une balise script. Aucun framework requis — fonctionne dans tout environnement web.
+  - title: API JavaScript simple
+    details: Configurez la carte, ajoutez des couches, écoutez les événements — tout via des méthodes JS typées.
+  - title: Tous les formats OGC
+    details: WMS, WMTS, WFS, OGC API Features, XYZ, GeoJSON, GeoTIFF, STAC et MapLibre Style.
+---

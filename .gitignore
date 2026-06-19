@@ -41,3 +41,12 @@ __screenshots__/
 
 test-results/
 playwright-report/
+
+# Build outputs
+dist/
+pages/
+
+# Docs generated files
+docs/api/SxtViewerElement.md
+docs/.vitepress/dist/
+docs/.vitepress/cache/

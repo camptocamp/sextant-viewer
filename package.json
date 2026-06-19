@@ -5,10 +5,16 @@
   "license": "BSD-3-Clause",
   "repository": "https://github.com/camptocamp/sextant-viewer",
   "type": "module",
+  "workspaces": [
+    "docs"
+  ],
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
+    "docs:dev": "npm run docs:dev --workspace docs",
+    "docs:build": "npm run docs:build --workspace docs",
+    "preview:pages": "npm run build:lib -- --outDir pages && npm run docs:build && cp -r docs/.vitepress/dist/* pages && npx serve pages",
     "dev": "vite",
     "preview": "vite preview",
     "test:unit": "vitest",
