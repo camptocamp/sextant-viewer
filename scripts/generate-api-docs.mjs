@@ -4,12 +4,26 @@
  * using @vue/compiler-sfc and the TypeScript compiler API.
  *
  * Called automatically via: npm run docs:dev / docs:build (predocs hook)
+ *
+ * Strategy:
+ *   1. Parse the <script setup> block with the TypeScript compiler.
+ *   2. Collect all arrow-function declarations by name, plus destructured
+ *      composable calls that carry a JSDoc (e.g. `const { addLayer } = useAddLayer()`),
+ *      for lookup.
+ *   3. Find defineExpose({ name1, name2, ... }) to know the public API surface.
+ *      defineExpose only gives us names — we cross-reference with (2) to get
+ *      the full signature and JSDoc for each exposed method.
+ *   4. Find defineEmits<{ … }>() to extract event names and payload types
+ *      directly from the type argument (no runtime value to inspect).
+ *   5. Render everything as Markdown.
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+// @vue/compiler-sfc and typescript are CJS packages; createRequire lets us
+// import them from this ESM script without a full transpile step.
 const require = createRequire(import.meta.url)
 const { parse: parseSfc } = require('@vue/compiler-sfc')
 const ts = require('typescript')
@@ -19,67 +33,70 @@ const root = resolve(__dir, '..')
 const SFC_PATH = resolve(root, 'src/components/SxtViewer.ce.vue')
 const OUT_PATH = resolve(root, 'docs/api/SxtViewerElement.md')
 
-// ── Parse SFC ────────────────────────────────────────────────────────────────
+// ── 1. Parse SFC ──────────────────────────────────────────────────────────────
 
 const sfcSource = readFileSync(SFC_PATH, 'utf-8')
 const { descriptor } = parseSfc(sfcSource)
-const script = descriptor.scriptSetup.content
+const scriptContent = descriptor.scriptSetup.content
 
-const sf = ts.createSourceFile('SxtViewer.ts', script, ts.ScriptTarget.Latest, /* setParentNodes */ true)
+// sf = SourceFile — the root node of the TypeScript AST
+const sf = ts.createSourceFile('SxtViewer.ts', scriptContent, ts.ScriptTarget.Latest, /* setParentNodes */ true)
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── JSDoc helpers ─────────────────────────────────────────────────────────────
 
-function toText(comment) {
+function getJsDoc(node) {
+  return node.jsDoc?.at(-1) ?? null
+}
+
+// JSDoc comments can be a plain string or an array of text/link nodes.
+function jsDocCommentToText(comment) {
   if (!comment) return ''
   if (typeof comment === 'string') return comment.trim()
   if (Array.isArray(comment)) {
-    return comment
-      .map((c) => (typeof c === 'string' ? c : (c.text ?? '')))
-      .join('')
-      .trim()
+    return comment.map((c) => (typeof c === 'string' ? c : (c.text ?? ''))).join('').trim()
   }
   return ''
 }
 
-function getJsDoc(node) {
-  const docs = node.jsDoc
-  return docs?.length ? docs[docs.length - 1] : null
-}
-
-function getParamDocs(jsDoc) {
-  if (!jsDoc?.tags) return {}
+// Returns { paramName: description } from @param tags in a JSDoc block.
+function getParamDescriptions(jsDoc) {
   const result = {}
-  for (const tag of jsDoc.tags) {
-    if (tag.kind === ts.SyntaxKind.JSDocParameterTag) {
-      const name = tag.name?.text ?? tag.name?.right?.text ?? ''
-      if (name) result[name] = toText(tag.comment)
-    }
+  for (const tag of jsDoc?.tags ?? []) {
+    if (tag.kind !== ts.SyntaxKind.JSDocParameterTag) continue
+    const name = tag.name?.text ?? tag.name?.right?.text ?? ''
+    if (name) result[name] = jsDocCommentToText(tag.comment)
   }
   return result
 }
 
-// ── Collect arrow function declarations ───────────────────────────────────────
+// ── 2. Collect arrow-function and JSDoc-annotated destructured declarations ───
+// We build two maps so that step 3 can look up any exposed method's signature
+// and JSDoc by name:
+//   - arrowFunctionsByName: regular `const foo = (...) => ...` declarations
+//   - jsdocDecls:           destructured calls like `const { addLayer } = useAddLayer()`
+//                           that carry a JSDoc block (signature is inferred from
+//                           @param tags since no arrow function body is present)
 
-const funcDecls = new Map()
-// Destructured declarations (e.g. `const { addLayer } = useAddLayer()`) that carry a JSDoc
+const arrowFunctionsByName = new Map()
 const jsdocDecls = new Map()
 
 ts.forEachChild(sf, (node) => {
-  if (ts.isVariableStatement(node) && node.declarationList.declarations.length === 1) {
-    const decl = node.declarationList.declarations[0]
-    if (ts.isIdentifier(decl.name) && decl.initializer && ts.isArrowFunction(decl.initializer)) {
-      funcDecls.set(decl.name.text, { varStatement: node, arrowFunc: decl.initializer })
-    } else if (ts.isObjectBindingPattern(decl.name) && getJsDoc(node)) {
-      for (const element of decl.name.elements) {
-        if (ts.isBindingElement(element) && ts.isIdentifier(element.name)) {
-          jsdocDecls.set(element.name.text, node)
-        }
+  if (!ts.isVariableStatement(node)) return
+  const decl = node.declarationList.declarations[0]
+  if (decl && ts.isIdentifier(decl.name) && decl.initializer && ts.isArrowFunction(decl.initializer)) {
+    arrowFunctionsByName.set(decl.name.text, { statement: node, fn: decl.initializer })
+  } else if (decl && ts.isObjectBindingPattern(decl.name) && getJsDoc(node)) {
+    for (const element of decl.name.elements) {
+      if (ts.isBindingElement(element) && ts.isIdentifier(element.name)) {
+        jsdocDecls.set(element.name.text, node)
       }
     }
   }
 })
 
-// ── Find defineExpose ─────────────────────────────────────────────────────────
+// ── 3. Find defineExpose ──────────────────────────────────────────────────────
+// defineExpose({ addLayer, getContext, … }) lists only names; the actual
+// signatures come from the arrow-function lookup above.
 
 let exposeNames = []
 ts.forEachChild(sf, (node) => {
@@ -92,125 +109,119 @@ ts.forEachChild(sf, (node) => {
     const arg = node.expression.arguments[0]
     if (arg && ts.isObjectLiteralExpression(arg)) {
       exposeNames = arg.properties
-        .filter((p) => ts.isShorthandPropertyAssignment(p))
+        .filter(ts.isShorthandPropertyAssignment)
         .map((p) => p.name.text)
     }
   }
 })
 
-// ── Find defineEmits ──────────────────────────────────────────────────────────
+// ── 4. Find defineEmits ───────────────────────────────────────────────────────
+// defineEmits uses a TypeScript type literal (no runtime value), so we read
+// the event names and payload types from the generic type argument.
 
-const emitsData = []
+const emits = []
 ts.forEachChild(sf, (node) => {
-  if (ts.isVariableStatement(node)) {
-    const decl = node.declarationList.declarations[0]
-    if (
-      decl &&
-      ts.isIdentifier(decl.name) &&
-      decl.name.text === 'emit' &&
-      decl.initializer &&
-      ts.isCallExpression(decl.initializer) &&
-      ts.isIdentifier(decl.initializer.expression) &&
-      decl.initializer.expression.text === 'defineEmits'
-    ) {
-      const typeArg = decl.initializer.typeArguments?.[0]
-      if (typeArg && ts.isTypeLiteralNode(typeArg)) {
-        for (const member of typeArg.members) {
-          if (ts.isPropertySignature(member) && member.type) {
-            const eventName = ts.isStringLiteral(member.name)
-              ? member.name.text
-              : member.name.getText(sf)
-            const payloadType = member.type.getText(sf)
-            const jsDoc = getJsDoc(member)
-            emitsData.push({ name: eventName, payloadType, description: toText(jsDoc?.comment) })
-          }
-        }
-      }
-    }
+  if (!ts.isVariableStatement(node)) return
+  const decl = node.declarationList.declarations[0]
+  if (
+    !decl ||
+    !ts.isIdentifier(decl.name) ||
+    decl.name.text !== 'emit' ||
+    !decl.initializer ||
+    !ts.isCallExpression(decl.initializer) ||
+    !ts.isIdentifier(decl.initializer.expression) ||
+    decl.initializer.expression.text !== 'defineEmits'
+  )
+    return
+
+  const typeArg = decl.initializer.typeArguments?.[0]
+  if (!typeArg || !ts.isTypeLiteralNode(typeArg)) return
+
+  for (const member of typeArg.members) {
+    if (!ts.isPropertySignature(member) || !member.type) continue
+    const name = ts.isStringLiteral(member.name) ? member.name.text : member.name.getText(sf)
+    emits.push({
+      name,
+      payloadType: member.type.getText(sf),
+      description: jsDocCommentToText(getJsDoc(member)?.comment),
+    })
   }
 })
 
-// ── Build method signatures ───────────────────────────────────────────────────
+// ── 5. Build method signatures ────────────────────────────────────────────────
 
 function buildMethod(name) {
-  const info = funcDecls.get(name)
+  const info = arrowFunctionsByName.get(name)
   if (!info) {
     // Fallback: destructured declaration with JSDoc (e.g. const { addLayer } = useAddLayer())
-    const varStatement = jsdocDecls.get(name)
-    if (varStatement) {
-      const jsDoc = getJsDoc(varStatement)
-      const paramDocs = getParamDocs(jsDoc)
-      const paramNames = Object.keys(paramDocs)
+    const statement = jsdocDecls.get(name)
+    if (statement) {
+      const jsDoc = getJsDoc(statement)
+      const paramDescriptions = getParamDescriptions(jsDoc)
+      const paramNames = Object.keys(paramDescriptions)
       const signature = `${name}(${paramNames.join(', ')})`
-      return { name, signature, description: toText(jsDoc?.comment), params: paramDocs, arrowFunc: null }
+      return { name, signature, description: jsDocCommentToText(jsDoc?.comment), paramDescriptions, fn: null }
     }
-    return { name, signature: `${name}()`, description: '', params: {} }
+    return { name, signature: `${name}()`, description: '', paramDescriptions: {}, fn: null }
   }
 
-  const { varStatement, arrowFunc } = info
-  const jsDoc = getJsDoc(varStatement)
+  const { statement, fn } = info
+  const jsDoc = getJsDoc(statement)
+  const isAsync = fn.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword)
 
-  const isAsync = arrowFunc.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword)
-
-  const paramList = arrowFunc.parameters.map((p) => {
+  const paramList = fn.parameters.map((p) => {
     const paramName = p.name.getText(sf)
-    const typeText = p.type ? ': ' + p.type.getText(sf) : ''
+    const type = p.type ? ': ' + p.type.getText(sf) : ''
     const optional = p.questionToken || p.initializer ? '?' : ''
-    return paramName + optional + typeText
+    return paramName + optional + type
   })
 
-  const returnType = arrowFunc.type ? ': ' + arrowFunc.type.getText(sf) : ''
+  const returnType = fn.type ? ': ' + fn.type.getText(sf) : ''
   const signature = `${isAsync ? 'async ' : ''}${name}(${paramList.join(', ')})${returnType}`
 
   return {
     name,
     signature,
-    description: toText(jsDoc?.comment),
-    params: getParamDocs(jsDoc),
-    arrowFunc,
+    description: jsDocCommentToText(jsDoc?.comment),
+    paramDescriptions: getParamDescriptions(jsDoc),
+    fn,
   }
 }
 
 const methods = exposeNames.map(buildMethod)
 
-// ── Render Markdown ────────────────────────────────────────────────────────────
+// ── 6. Render Markdown ────────────────────────────────────────────────────────
 
-function renderMethod(m) {
-  const hasParams = Object.keys(m.params).length > 0
-  const paramTable = hasParams
-    ? '\n| Paramètre | Description |\n|-----------|-------------|\n' +
-      (m.arrowFunc
-        ? m.arrowFunc.parameters.map((p) => {
-            const pName = p.name.getText(sf)
-            const desc = (m.params[pName] ?? '').replace(/^-\s*/, '')
-            return `| \`${pName}\` | ${desc} |`
-          })
-        : Object.entries(m.params).map(([pName, desc]) =>
-            `| \`${pName}\` | ${String(desc).replace(/^-\s*/, '')} |`
-          )
-      ).join('\n') +
-      '\n'
-    : ''
-
-  return `### \`${m.name}\`
-
-\`\`\`typescript
-${m.signature}
-\`\`\`
-
-${m.description || '_Aucune description._'}
-${paramTable}`
+function renderParamTable(method) {
+  if (Object.keys(method.paramDescriptions).length === 0) return ''
+  const rows = method.fn
+    ? method.fn.parameters.map((p) => {
+        const name = p.name.getText(sf)
+        const desc = (method.paramDescriptions[name] ?? '').replace(/^-\s*/, '')
+        return `| \`${name}\` | ${desc} |`
+      })
+    : Object.entries(method.paramDescriptions).map(([name, desc]) =>
+        `| \`${name}\` | ${String(desc).replace(/^-\s*/, '')} |`
+      )
+  return ['', '| Paramètre | Description |', '|-----------|-------------|', ...rows, ''].join('\n')
 }
 
-const methodsMd = methods.map(renderMethod).join('\n---\n\n')
+function renderMethod(method) {
+  return `### \`${method.name}\`
 
-const eventsMd =
-  emitsData.length > 0
-    ? '| Événement | Payload | Description |\n|-----------|---------|-------------|\n' +
-      emitsData
-        .map((e) => `| \`${e.name}\` | \`${e.payloadType}\` | ${e.description} |`)
-        .join('\n')
-    : '_Aucun événement._'
+\`\`\`typescript
+${method.signature}
+\`\`\`
+
+${method.description || '_Aucune description._'}
+${renderParamTable(method)}`
+}
+
+function renderEventsTable() {
+  if (emits.length === 0) return '_Aucun événement._'
+  const rows = emits.map((e) => `| \`${e.name}\` | \`${e.payloadType}\` | ${e.description} |`)
+  return ['| Événement | Payload | Description |', '|-----------|---------|-------------|', ...rows].join('\n')
+}
 
 const output = `---
 aside: false
@@ -232,11 +243,11 @@ Obtenir une référence à l'élément puis appeler ses méthodes :
 
 ## Méthodes
 
-${methodsMd}
+${methods.map(renderMethod).join('\n---\n\n')}
 
 ## Événements
 
-${eventsMd}
+${renderEventsTable()}
 
 ## Props
 
