@@ -10,6 +10,7 @@ viewer.setInitialContext({
       opacity: 1,
       label: 'OpenStreetMap',
       attributions: '© OpenStreetMap contributors',
+      referrerPolicy: 'strict-origin-when-cross-origin',
     },
   ],
   layers: [],
