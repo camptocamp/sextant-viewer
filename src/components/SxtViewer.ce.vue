@@ -2,14 +2,14 @@
 import LayoutGrid from '@/components/layout/LayoutGrid.vue'
 import { type ExtendedMapContext, useMapStore } from '@/stores/map.store.ts'
 import { usePersistentContextStore } from '@/stores/persistentContext.store.ts'
-import type { MapContextLayer, MapContextView } from '@geospatial-sdk/core'
+import type { MapContextView } from '@geospatial-sdk/core'
 import type { MapLayer } from '@/utils/layer.utils'
 import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
 import type { Extent } from 'ol/extent'
 import type Map from 'ol/Map'
-import { useLayerActions } from '@/composables/useLayerActions.ts'
+import { useAddLayer } from '@/composables/useAddLayer.ts'
 
 const emit = defineEmits<{
   'map-extent-change': [extent: Extent]
@@ -36,14 +36,7 @@ const onMapReady = (map: Map) => {
   })
 }
 
-const addLayer = async (layer: MapContextLayer, zoomToExtent: boolean) => {
-  const enrichedLayer = await mapStore.addLayer(layer)
-
-  const { canZoomToExtent, zoomToExtent: zoomToLayerExtent } = useLayerActions(() => enrichedLayer)
-  if (zoomToExtent && canZoomToExtent.value) {
-    zoomToLayerExtent()
-  }
-}
+const { addLayer } = useAddLayer()
 
 const setInitialContext = (context: ExtendedMapContext) => {
   mapStore.setInitialContext(context, true)
