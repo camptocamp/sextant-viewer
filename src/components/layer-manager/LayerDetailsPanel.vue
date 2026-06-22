@@ -4,12 +4,13 @@ import { getLayerLabel, isStacLayer } from '@/utils/layer.utils'
 import type { MapLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import StacLayerDetails from '@/components/stac/StacLayerDetails.vue'
+import LayerSettings from '@/components/layer-manager/LayerSettings.vue'
 
 const props = defineProps<{
   layer: MapLayer
 }>()
 
-const { opacity, canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(() => props.layer)
+const { canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(() => props.layer)
 </script>
 
 <template>
@@ -21,10 +22,7 @@ const { opacity, canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(
     </div>
     <StacLayerDetails v-if="isStacLayer(layer)" :layer="layer as MapLayerStac" />
 
-    <div class="mb-3 flex items-baseline gap-2">
-      <span class="shrink-0">Transparence :</span
-      ><USlider v-model="opacity" :min="0" :max="100" tooltip class="w-full" />
-    </div>
+    <LayerSettings :layer="layer" />
 
     <div class="flex gap-2">
       <UButton
