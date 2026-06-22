@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import { useLayerActions } from '@/composables/useLayerActions'
 import { getLayerLabel, isStacLayer } from '@/utils/layer.utils'
+import { hasLegendSupport } from '@geospatial-sdk/legend'
+import type { MapContextLayer } from '@geospatial-sdk/core'
 import type { MapLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import StacLayerDetails from '@/components/stac/StacLayerDetails.vue'
+import LayerLegend from '@/components/layer-manager/LayerLegend.vue'
 import LayerSettings from '@/components/layer-manager/LayerSettings.vue'
 
 const props = defineProps<{
@@ -11,6 +15,32 @@ const props = defineProps<{
 }>()
 
 const { canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(() => props.layer)
+
+const tabItems = computed(() => {
+  const items = []
+  if (hasLegendSupport(props.layer as MapContextLayer)) {
+    items.push({
+      slot: 'legend',
+      value: 'legend',
+      label: 'Légende',
+    })
+  }
+  if (isStacLayer(props.layer)) {
+    items.push({ slot: 'stac', value: 'stac', label: 'Données' })
+  }
+  items.push({ slot: 'settings', value: 'settings', label: 'Paramètres' })
+  return items
+})
+
+const defaultTab = computed(() => tabItems.value[0]?.value)
+
+const activeTab = ref<string | undefined>(defaultTab.value)
+watch(
+  () => props.layer.id,
+  () => {
+    activeTab.value = defaultTab.value
+  },
+)
 </script>
 
 <template>
@@ -20,11 +50,8 @@ const { canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(() => pro
         {{ getLayerLabel(layer) }}
       </h3>
     </div>
-    <StacLayerDetails v-if="isStacLayer(layer)" :layer="layer as MapLayerStac" />
 
-    <LayerSettings :layer="layer" />
-
-    <div class="flex gap-2">
+    <div class="mb-3 flex gap-2">
       <UButton
         icon="i-heroicons-arrows-pointing-out"
         color="primary"
@@ -39,5 +66,19 @@ const { canZoomToExtent, zoomToExtent, deleteLayer } = useLayerActions(() => pro
         Supprimer
       </UButton>
     </div>
+
+    <UTabs v-model="activeTab" :items="tabItems" :ui="{ content: 'p-3 h-full' }">
+      <template #legend>
+        <LayerLegend :layer="layer" />
+      </template>
+
+      <template #stac>
+        <StacLayerDetails :layer="layer as MapLayerStac" />
+      </template>
+
+      <template #settings>
+        <LayerSettings :layer="layer" />
+      </template>
+    </UTabs>
   </div>
 </template>
