@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import { useAddLayer } from '@/composables/useAddLayer'
 
+const emit = defineEmits<{ 'layer-added': [] }>()
+
 const { addLayer } = useAddLayer()
 
 const geojsonUrl = ref('')
@@ -17,11 +19,13 @@ const addGeojson = async () => {
     true,
   )
   geojsonUrl.value = ''
+  emit('layer-added')
 }
 
 const addCog = async () => {
   await addLayer({ type: 'geotiff', url: cogUrl.value, label: 'Couche COG' }, true)
   cogUrl.value = ''
+  emit('layer-added')
 }
 </script>
 

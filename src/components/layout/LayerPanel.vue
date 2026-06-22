@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 const tabItems = [
-  { slot: 'list', label: 'Liste' },
-  { slot: 'tree', label: 'Arbre' },
-  { slot: 'tools', label: 'Outils' },
-  { slot: 'add', label: 'Ajout de données' },
+  { slot: 'list', label: 'Liste', value: 'list' },
+  { slot: 'tree', label: 'Arbre', value: 'tree' },
+  { slot: 'tools', label: 'Outils', value: 'tools' },
+  { slot: 'add', label: 'Ajout de données', value: 'add' },
 ]
+
+const activeTab = ref('list')
 </script>
 
 <template>
-  <UTabs :items="tabItems" :ui="{ content: 'mt-3 h-full' }" class="sxt-panel">
+  <UTabs v-model="activeTab" :items="tabItems" :ui="{ content: 'mt-3 h-full' }" class="sxt-panel">
     <template #list>
       <LayerManager />
     </template>
@@ -23,7 +27,7 @@ const tabItems = [
       <ToolsPanel />
     </template>
     <template #add>
-      <AddDataPanel />
+      <AddDataPanel @layer-added="activeTab = 'list'" />
     </template>
   </UTabs>
 </template>
