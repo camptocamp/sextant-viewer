@@ -15,10 +15,21 @@ let currentLayer: MapLayer | null = null
 async function loadLegend(layer: MapLayer) {
   currentLayer = layer
   if (!container.value) return
+
   container.value.innerHTML = ''
-  const element = await createLegendFromLayer(layer as MapContextLayer)
-  if (layer !== currentLayer || !container.value) return
-  if (element) container.value.appendChild(element)
+
+  try {
+    const element = await createLegendFromLayer(layer as MapContextLayer)
+
+    // Ensure that the layer hasn't changed while the legend was being loaded
+    if (layer !== currentLayer || !container.value) return
+
+    if (element) {
+      container.value.appendChild(element)
+    }
+  } catch (error) {
+    console.error('Failed to load legend:', error)
+  }
 }
 
 onMounted(() => loadLegend(props.layer))
