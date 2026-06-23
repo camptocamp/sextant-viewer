@@ -86,20 +86,12 @@ const debouncedSetMapState = useDebounceFn((mapState: ResolvedMapState) => {
   mapStore.setMapState(mapState)
 }, 300)
 
-onMounted(async () => {
+onMounted(() => {
   if (!mapContainer.value) return
-  const initialContext = sdkContext.value
-  const map = await createMapFromContext(initialContext, mapContainer.value)
+  // createMapFromContext is synchronous and applyContextDiffToMap serializes its
+  // own updates internally, so the watcher just diffs and applies.
+  const map = createMapFromContext(fullMapContext.value, mapContainer.value)
   mapRef.value = map
-  // Set lastAppliedContext to unblock the watch, then immediately apply any changes
-  // that may have accumulated while createMapFromContext was awaited
-  lastAppliedContext.value = initialContext
-  const currentContext = sdkContext.value
-  if (currentContext !== initialContext) {
-    const diff = computeMapContextDiff(currentContext, initialContext)
-    lastAppliedContext.value = currentContext
-    await applyContextDiffToMap(map, diff)
-  }
 
   // Set view padding to account for overlay panels (LayerPanel on left)
   map.getView().padding = MAP_VIEW_PADDING
@@ -113,23 +105,10 @@ onMounted(async () => {
   listen(map, 'features-click', handleFeaturesClick)
 })
 
-// Watch's own oldContext is captured at setup (pre-map) and goes stale across
-// the await in onMounted, so onMounted seeds the real applied baseline here and
-// the watch advances it. applyChain serializes async applies so rapid context
-// changes can't interleave on the same map.
-const lastAppliedContext = shallowRef<MapContext | null>(null)
-let applyChain = Promise.resolve()
-
-watch(fullMapContext, (newContext) => {
-  if (!mapRef.value || !lastAppliedContext.value) return
-  const previousContext = lastAppliedContext.value
-  lastAppliedContext.value = newContext
-  applyChain = applyChain.then(() => {
-    const map = mapRef.value
-    if (!map) return
-    const diff = computeMapContextDiff(newContext, previousContext)
-    return applyContextDiffToMap(map, diff).then(() => {})
-  })
+watch(fullMapContext, (newContext, oldContext) => {
+  if (!mapRef.value) return
+  const diff = computeMapContextDiff(newContext, oldContext)
+  applyContextDiffToMap(mapRef.value, diff)
 })
 
 onBeforeUnmount(() => {
