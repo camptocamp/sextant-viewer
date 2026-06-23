@@ -38,6 +38,9 @@ const activeTab = ref<string | undefined>(defaultTab.value)
 watch(
   () => props.layer.id,
   () => {
+    if (tabItems.value.find((item) => item.value === activeTab.value)) return
+
+    // Reset to default tab if the current active tab is not available for the new layer
     activeTab.value = defaultTab.value
   },
 )
