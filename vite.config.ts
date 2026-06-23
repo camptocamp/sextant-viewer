@@ -5,6 +5,31 @@ import tailwindcss from '@tailwindcss/vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import { fileURLToPath, URL } from 'node:url'
 
+// Set USE_LINKED_PACKAGES=1 when developing against locally-linked copies of
+// @camptocamp/ogc-client and @geospatial-sdk/* (via `npm link`). This forces all
+// imports (including transitive ones, e.g. ogc-client pulled in by
+// @geospatial-sdk/openlayers) to resolve to the single linked copy, so local
+// patches are picked up and Vite does not pre-bundle a stale/duplicate version.
+const useLinkedPackages = process.env.USE_LINKED_PACKAGES === '1'
+
+const linkedAliases: Record<string, string> = useLinkedPackages
+  ? {
+      '@camptocamp/ogc-client': fileURLToPath(
+        new URL('./node_modules/@camptocamp/ogc-client/dist/dist-node.js', import.meta.url),
+      ),
+      '@geospatial-sdk/core': fileURLToPath(
+        new URL('./node_modules/@geospatial-sdk/core/dist/index.js', import.meta.url),
+      ),
+      '@geospatial-sdk/openlayers': fileURLToPath(
+        new URL('./node_modules/@geospatial-sdk/openlayers/dist/index.js', import.meta.url),
+      ),
+    }
+  : {}
+
+const linkedExclude = useLinkedPackages
+  ? ['@camptocamp/ogc-client', '@geospatial-sdk/core', '@geospatial-sdk/openlayers']
+  : []
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -35,7 +60,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      ...linkedAliases,
     },
+    dedupe: ['@camptocamp/ogc-client', '@geospatial-sdk/core', '@geospatial-sdk/openlayers', 'ol'],
   },
   build: {
     lib: {
@@ -51,6 +78,11 @@ export default defineConfig({
         inlineDynamicImports: true,
       },
     },
+  },
+  optimizeDeps: {
+    // When using linked packages, exclude them from the dep optimizer so Vite serves
+    // the aliased dist files directly and always reflects local source changes.
+    exclude: linkedExclude,
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
