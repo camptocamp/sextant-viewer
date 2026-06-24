@@ -1,5 +1,6 @@
 import type { MapLayerStac } from '@/types/stac.types'
 import type { MapContextLayer } from '@geospatial-sdk/core'
+import type { AttributeFilterState } from '@/types/attribute-filter.types'
 
 /**
  * Union type combining standard MapContext layers with STAC layers.
@@ -23,6 +24,18 @@ export function isStacLayer(layer: any): layer is MapLayerStac {
  */
 export function getLayerLabel(layer: MapLayer): string {
   return layer.label || 'Couche sans titre'
+}
+
+/**
+ * Return the attribute-filter state of a WMS layer, when present and valid. The state is set on
+ * `extras.attributeFilter` by detection (see `attributeFilterDetection.ts`); the presence of a
+ * resolved ES source is what "detects" that a filterable index is available.
+ */
+export function getAttributeFilterState(layer: MapLayer): AttributeFilterState | undefined {
+  if (layer.type !== 'wms') return undefined
+  const state = (layer.extras as { attributeFilter?: AttributeFilterState } | undefined)
+    ?.attributeFilter
+  return state?.source?.url ? state : undefined
 }
 
 export function getLayerError(layer: MapLayer): string {
