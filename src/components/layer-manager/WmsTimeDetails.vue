@@ -14,7 +14,8 @@ const {
   minDate,
   maxDate,
   supportsCurrent,
-  nearestValue,
+  isEnumerated,
+  timesForDay,
 } = useWmsTimeDimension(() => props.layer)
 
 const formatDate = (date: Date | null): string => {
@@ -41,6 +42,11 @@ function utcDayKey(date: Date): string {
   return `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`
 }
 
+// UTC midnight of a date's calendar day, for whole-day range comparisons.
+function utcDay(date: Date): number {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+}
+
 const allowedDateByDay = computed<Map<string, Date>>(() => {
   return new Map(allowedDates.value.map((d) => [utcDayKey(d), d]))
 })
@@ -60,14 +66,38 @@ const calendarValue = computed<DateValue | undefined>({
   },
 })
 
-// nearestValue=false means the server requires exact values → disable all non-matching dates
 function isDateDisabled(date: DateValue): boolean {
-  if (nearestValue.value || allowedDates.value.length === 0) return false
-  return !allowedDateByDay.value.has(`${date.year}-${date.month - 1}-${date.day}`)
+  // Enumerated list: only the listed days are selectable.
+  if (isEnumerated.value) {
+    return !allowedDateByDay.value.has(`${date.year}-${date.month - 1}-${date.day}`)
+  }
+  // Interval: bound on [min, max] — allowedDates is capped, so unusable here.
+  const picked = Date.UTC(date.year, date.month - 1, date.day)
+  if (minDate.value && picked < utcDay(minDate.value)) return true
+  if (maxDate.value && picked > utcDay(maxDate.value)) return true
+  return false
 }
 
 // Open the calendar at the min date (or default) rather than today
 const calendarPlaceholder = computed<DateValue | undefined>(() => toCalendarDate(minDate.value))
+
+// Discrete instants the server offers on the selected day. Only a real choice
+// (>1) warrants a control — a single instant is already fixed by the day.
+const timesForCurrentDay = computed<Map<string, Date>>(() =>
+  currentDate.value ? timesForDay(currentDate.value) : new Map(),
+)
+
+const timeValue = computed<string>({
+  get: () => {
+    const d = currentDate.value
+    if (!d) return ''
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+  },
+  set: (value) => {
+    const exact = timesForCurrentDay.value.get(value)
+    if (exact) currentDate.value = exact
+  },
+})
 </script>
 
 <template>
@@ -83,12 +113,22 @@ const calendarPlaceholder = computed<DateValue | undefined>(() => toCalendarDate
           {{ currentDate ? formatDate(currentDate) : 'Non définie' }}
         </UButton>
         <template #content>
-          <UCalendar
-            v-model="calendarValue"
-            :placeholder="calendarValue ?? calendarPlaceholder"
-            :is-date-disabled="isDateDisabled"
-            class="p-2"
-          />
+          <div class="flex flex-col gap-2 p-2">
+            <UCalendar
+              v-model="calendarValue"
+              :placeholder="calendarValue ?? calendarPlaceholder"
+              :is-date-disabled="isDateDisabled"
+            />
+            <label v-if="timesForCurrentDay.size > 1" class="flex items-center gap-2 text-sm">
+              Heure&nbsp;:
+              <USelect
+                v-model="timeValue"
+                :items="[...timesForCurrentDay.keys()]"
+                size="sm"
+                aria-label="Heure"
+              />
+            </label>
+          </div>
         </template>
       </UPopover>
       <UButton size="sm" color="neutral" variant="soft" @click="reset">Réinitialiser</UButton>

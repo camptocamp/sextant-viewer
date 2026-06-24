@@ -1,6 +1,35 @@
-import { WmsEndpoint } from '@camptocamp/ogc-client'
+import {
+  getDimensionDefaultValue,
+  WmsEndpoint,
+  type WmsLayerDimension,
+} from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
-import { getDefaultWmsTime, type MapLayer } from './layer.utils'
+import type { MapLayer } from './layer.utils'
+
+export function getWmsTimeDimension(layer: MapLayer): WmsLayerDimension | null {
+  if (layer.type !== 'wms') return null
+  return (layer.extras?.wmsTimeDimension as WmsLayerDimension) ?? null
+}
+
+/**
+ * Resolve the TIME value a layer should default to, as a Date.
+ * Delegates the WMS semantics to ogc-client; returns null if unparseable.
+ */
+export function getDefaultWmsTime(dim: WmsLayerDimension): Date | null {
+  const candidate = getDimensionDefaultValue(dim)
+  if (!candidate) return null
+  const d = new Date(candidate)
+  return isNaN(d.getTime()) ? null : d
+}
+
+/**
+ * Format a Date as ISO 8601 without milliseconds ("2026-06-24T03:00:00Z").
+ * Some WMS servers (e.g. GeoMet) reject the ".000" that Date.toISOString() emits.
+ * Stored as a string so the SDK forwards it verbatim rather than re-serializing.
+ */
+export function toWmsTime(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, 'Z')
+}
 
 /**
  * Enrich a WMS layer with its TIME dimension, if the server declares one.
@@ -22,7 +51,10 @@ export async function enrichWmsTimeLayer(layer: MapLayer): Promise<MapLayer> {
     if (!timeDim) return layer
 
     const wmsLayer = layer as MapContextLayerWms
-    const seedTime = wmsLayer.dimensionValues?.TIME ?? getDefaultWmsTime(timeDim)
+    // Preserve a consumer-provided TIME as-is; only normalize our own default to
+    // the millisecond-free format WMS servers expect (see toWmsTime).
+    const defaultTime = getDefaultWmsTime(timeDim)
+    const seedTime = wmsLayer.dimensionValues?.TIME ?? (defaultTime && toWmsTime(defaultTime))
     return {
       ...layer,
       extras: { ...layer.extras, wmsTimeDimension: timeDim },

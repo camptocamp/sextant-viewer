@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useLayerActions } from '@/composables/useLayerActions'
-import {
-  getLayerError,
-  getLayerLabel,
-  getWmsTimeDimension,
-  type MapLayer,
-} from '@/utils/layer.utils'
+import { getLayerError, getLayerLabel, type MapLayer } from '@/utils/layer.utils'
+import { getWmsTimeDimension } from '@/utils/wms.utils'
 import type { MapContextLayer, ResolvedMapLayerState } from '@geospatial-sdk/core'
 
 const props = defineProps<{
