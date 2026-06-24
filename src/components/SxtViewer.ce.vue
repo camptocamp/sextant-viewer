@@ -4,6 +4,7 @@ import { type ExtendedMapContext, useMapStore } from '@/stores/map.store.ts'
 import { usePersistentContextStore } from '@/stores/persistentContext.store.ts'
 import type { MapContextView } from '@geospatial-sdk/core'
 import type { MapLayer } from '@/utils/layer.utils'
+import type { DataSource } from '@/types/attribute-filter.types'
 import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
@@ -89,7 +90,13 @@ const setView = (view: MapContextView): void => {
   mapStore.setView(view)
 }
 
+// Register a data source (e.g. an ElasticSearch index) probed to detect filterable WMS layers.
+const addDataSource = (dataSource: DataSource) => {
+  mapStore.addDataSource(dataSource)
+}
+
 defineExpose({
+  addDataSource,
   addLayer,
   getContext,
   setContext,
