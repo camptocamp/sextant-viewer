@@ -1,10 +1,6 @@
 import { WmsEndpoint } from '@camptocamp/ogc-client'
 import { isLayerIndexed } from './attributeIndex'
-import type {
-  AttributeFieldConfig,
-  AttributeMatch,
-  GeonetworkSource,
-} from './attributeIndex.types'
+import type { AttributeFieldConfig, AttributeMatch, GeonetworkSource } from './attributeIndex.types'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 import type { DataSource } from '@/types/attribute-filter.types'
 

@@ -7,6 +7,7 @@ import layerOgcApi from './layerOgcApi.js?raw'
 import layerStac from './layerStac.js?raw'
 import layerWfs from './layerWfs.js?raw'
 import layerWms from './layerWms.js?raw'
+import layerWmsAttributeFilter from './layerWmsAttributeFilter.js?raw'
 import layerWmts from './layerWmts.js?raw'
 import layerXyz from './layerXyz.js?raw'
 import setContext from './setContext.js?raw'
@@ -68,6 +69,18 @@ export const EXAMPLES = [
       ${symbolDoc('interfaces', 'MapContextLayerWmts')}
     `,
     code: layerWmts,
+  },
+  {
+    name: 'Filter WMS layer by attributes',
+    description: `
+      <h4>Filter a WMS layer by its attributes.</h4>
+      <p>
+        Declare ElasticSearch <code>dataSources</code> on the context. The viewer detects whether
+        a WMS layer is indexed (DescribeLayer + harvesterReport probe) and, if so, offers a
+        <em>Filtre</em> tab to restrict the layer by attribute values via the WMS GetMap FILTER.
+      </p>
+    `,
+    code: layerWmsAttributeFilter,
   },
   {
     name: 'Add WFS layer',
