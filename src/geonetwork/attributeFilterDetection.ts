@@ -53,7 +53,7 @@ export async function resolveAttributeFilter(
   return null
 }
 
-// ponytail: Sextant convention — DescribeLayer advertises the WMS endpoint; the index id uses /wfs.
+// Sextant convention — DescribeLayer advertises the WMS endpoint; the index id uses /wfs.
 function wmsUrlToWfs(url: string): string {
   return url.replace(/\/wms(\/|$|\?)/, '/wfs$1')
 }

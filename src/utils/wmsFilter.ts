@@ -1,4 +1,5 @@
-import type { ActiveFilters, AttributeFieldConfig } from '@/types/attribute-filter.types'
+import type { ActiveFilters } from '@/types/attribute-filter.types'
+import type { AttributeFieldConfig } from '@/geonetwork/attributeIndex.types'
 
 function xmlEscape(value: string): string {
   return value

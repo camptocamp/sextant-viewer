@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { refDebounced } from '@vueuse/core'
-import type { AttributeFieldConfig, FieldValue } from '@/types/attribute-filter.types'
+import type { AttributeFieldConfig, FieldValue } from '@/geonetwork/attributeIndex.types'
 
 const props = defineProps<{
   field: AttributeFieldConfig

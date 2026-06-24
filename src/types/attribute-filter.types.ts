@@ -15,14 +15,6 @@
 
 import type { AttributeFieldConfig, GeonetworkSource } from '@/geonetwork/attributeIndex.types'
 
-export type {
-  AttributeFieldConfig,
-  AttributeMatch,
-  GeonetworkSource,
-  FieldValue,
-  FieldValues,
-} from '@/geonetwork/attributeIndex.types'
-
 /**
  * A data source declared on the map context. Only ElasticSearch is supported for now; the
  * `url` is the search endpoint (or same-origin proxy) probed to detect whether a layer is indexed.
