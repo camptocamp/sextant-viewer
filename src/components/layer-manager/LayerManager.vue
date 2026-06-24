@@ -5,10 +5,13 @@ import { storeToRefs } from 'pinia'
 import SubdividedPanel from '@/components/layout/SubdividedPanel.vue'
 import LayerListItem from '@/components/layer-manager/LayerListItem.vue'
 import type { MapLayer } from '@/utils/layer.utils'
+import { useMapStore } from '@/stores/map.store'
 
 const { dataLayers, sortableRef } = useLayerReordering()
 const layerStore = useLayersStore()
 const { selectedLayer } = storeToRefs(layerStore)
+const mapStore = useMapStore()
+const { layerStates } = storeToRefs(mapStore)
 
 const handleLayerClick = (layer: MapLayer) => {
   if (layer !== selectedLayer.value) {
@@ -43,6 +46,7 @@ const handleDeselectLayer = () => {
           v-for="(layer, index) in dataLayers"
           :key="layer.id || `layer-${index}`"
           :layer="layer"
+          :state="layer.id !== undefined ? layerStates[layer.id] : null"
           :active="isSelected(layer)"
           @click="handleLayerClick(layer)"
         />
