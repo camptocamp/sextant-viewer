@@ -27,8 +27,8 @@ export interface AttributeFieldConfig {
   esField: string
   /** Human-readable label shown in the UI. */
   label: string
-  /** Aggregatable field used for the terms aggregation (defaults to `${esField}.keyword`). */
-  aggField?: string
+  /** Aggregatable field used for the terms aggregation, e.g. `ft_<COLUMN>_s`. */
+  aggField: string
   /** How a value is meant to be matched; `equals` for keyword columns, `contains` for text. */
   match?: AttributeMatch
 }

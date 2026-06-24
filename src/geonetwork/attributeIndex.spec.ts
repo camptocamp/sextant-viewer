@@ -8,11 +8,12 @@ import {
 } from './attributeIndex'
 import type { AttributeFieldConfig, GeonetworkSource } from './attributeIndex.types'
 
-const es: GeonetworkSource = {
-  url: 'https://host/es',
-  headers: { Authorization: 'Bearer x' },
+const es: GeonetworkSource = { url: 'https://host/es' }
+const field: AttributeFieldConfig = {
+  esField: 'THEME',
+  label: 'Thème',
+  aggField: 'THEME.keyword',
 }
-const field: AttributeFieldConfig = { esField: 'THEME', label: 'Thème' }
 
 let originalFetch: typeof globalThis.fetch
 
@@ -74,7 +75,7 @@ describe('isLayerIndexed', () => {
 })
 
 describe('fetchFieldValues', () => {
-  it('POSTs a terms aggregation to the index endpoint with headers', async () => {
+  it('POSTs a terms aggregation to the index endpoint', async () => {
     const fetchMock = mockFetch({
       aggregations: { values: { buckets: [], sum_other_doc_count: 0 } },
     })
@@ -85,9 +86,7 @@ describe('fetchFieldValues', () => {
     // POSTed to the endpoint as-is, no `/_search` suffix.
     expect(url).toBe('https://host/es')
     expect(init.method).toBe('POST')
-    const headers = init.headers as Record<string, string>
-    expect(headers['Content-Type']).toBe('application/json')
-    expect(headers.Authorization).toBe('Bearer x')
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
     expect(JSON.parse(init.body as string)).toEqual({
       size: 0,
       aggs: { values: { terms: { field: 'THEME.keyword', size: 51 } } },
@@ -118,39 +117,22 @@ describe('fetchFieldValues', () => {
   })
 
   it('flags truncation and drops the extra bucket when more than the cap exist', async () => {
-    const buckets = Array.from({ length: 4 }, (_, i) => ({
-      key: `v${i}`,
-      doc_count: 4 - i,
-    }))
+    // One bucket past the cap: the cap is dropped from the values and `truncated` is set.
+    const buckets = Array.from({ length: 51 }, (_, i) => ({ key: `v${i}`, doc_count: 51 - i }))
     mockFetch({ aggregations: { values: { buckets } } })
 
-    const result = await fetchFieldValues(es, {
-      esField: 'THEME',
-      label: 'Thème',
-      valuesSize: 3,
-    })
+    const result = await fetchFieldValues(es, field)
     expect(result.truncated).toBe(true)
-    expect(result.values).toEqual([
-      { value: 'v0', count: 4 },
-      { value: 'v1', count: 3 },
-      { value: 'v2', count: 2 },
-    ])
+    expect(result.values).toHaveLength(50)
+    expect(result.values[0]).toEqual({ value: 'v0', count: 51 })
   })
 
-  it('honours aggField and valuesSize overrides', async () => {
+  it('honours an explicit aggField', async () => {
     const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
 
-    await fetchFieldValues(es, {
-      esField: 'p',
-      label: 'P',
-      aggField: 'p_raw',
-      valuesSize: 10,
-    })
+    await fetchFieldValues(es, { esField: 'p', label: 'P', aggField: 'p_raw' })
 
-    expect(bodyOf(fetchMock).aggs.values.terms).toEqual({
-      field: 'p_raw',
-      size: 11,
-    })
+    expect(bodyOf(fetchMock).aggs.values.terms).toEqual({ field: 'p_raw', size: 51 })
   })
 
   it('scopes the aggregation by feature type when set', async () => {
@@ -180,8 +162,10 @@ describe('fetchFieldValues', () => {
 })
 
 describe('buildFieldFilter', () => {
-  it('builds a terms clause for equals fields, defaulting aggField to `<esField>.keyword`', () => {
-    expect(buildFieldFilter({ esField: 'REGION', label: 'R' }, ['A', 'B'])).toEqual({
+  it('builds a terms clause for equals fields', () => {
+    expect(
+      buildFieldFilter({ esField: 'REGION', label: 'R', aggField: 'REGION.keyword' }, ['A', 'B']),
+    ).toEqual({
       terms: { 'REGION.keyword': ['A', 'B'] },
     })
   })
@@ -194,7 +178,10 @@ describe('buildFieldFilter', () => {
 
   it('builds a wildcard should clause for contains fields', () => {
     expect(
-      buildFieldFilter({ esField: 'THEME', label: 'T', match: 'contains' }, ['micro', 'bio']),
+      buildFieldFilter(
+        { esField: 'THEME', label: 'T', aggField: 'THEME.keyword', match: 'contains' },
+        ['micro', 'bio'],
+      ),
     ).toEqual({
       bool: {
         should: [
@@ -208,7 +195,10 @@ describe('buildFieldFilter', () => {
 
   it('escapes ES wildcard metacharacters in contains values', () => {
     expect(
-      buildFieldFilter({ esField: 'THEME', label: 'T', match: 'contains' }, ['a*b?c\\d']),
+      buildFieldFilter(
+        { esField: 'THEME', label: 'T', aggField: 'THEME.keyword', match: 'contains' },
+        ['a*b?c\\d'],
+      ),
     ).toEqual({
       bool: {
         should: [{ wildcard: { 'THEME.keyword': '*a\\*b\\?c\\\\d*' } }],

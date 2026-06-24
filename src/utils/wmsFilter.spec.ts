@@ -2,8 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { buildFilterBody, buildWmsFilterParam } from './wmsFilter'
 import type { AttributeFieldConfig } from '@/types/attribute-filter.types'
 
-const region: AttributeFieldConfig = { esField: 'DCSMM_SOUS_REGION', label: 'Sous-région' }
-const theme: AttributeFieldConfig = { esField: 'THEME', label: 'Thème', match: 'contains' }
+const region: AttributeFieldConfig = {
+  esField: 'DCSMM_SOUS_REGION',
+  label: 'Sous-région',
+  aggField: 'ft_DCSMM_SOUS_REGION_s',
+}
+const theme: AttributeFieldConfig = {
+  esField: 'THEME',
+  label: 'Thème',
+  aggField: 'ft_THEME_s',
+  match: 'contains',
+}
 
 const eq = (field: string, value: string) =>
   `<PropertyIsEqualTo><PropertyName>${field}</PropertyName><Literal>${value}</Literal></PropertyIsEqualTo>`
@@ -41,7 +50,7 @@ describe('buildFilterBody', () => {
   })
 
   it('XML-escapes the field name and values', () => {
-    const field: AttributeFieldConfig = { esField: 'A&B', label: 'x' }
+    const field: AttributeFieldConfig = { esField: 'A&B', label: 'x', aggField: 'ft_A_B_s' }
     expect(buildFilterBody({ 'A&B': [`a<'&"`] }, [field])).toBe(
       eq('A&amp;B', 'a&lt;&apos;&amp;&quot;'),
     )

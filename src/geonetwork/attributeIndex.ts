@@ -132,18 +132,17 @@ export function buildFieldFilter(
   field: AttributeFieldConfig,
   values: string[],
 ): Record<string, unknown> {
-  const aggField = field.aggField ?? `${field.esField}.keyword`
   if (field.match === 'contains') {
     return {
       bool: {
         should: values.map((value) => ({
-          wildcard: { [aggField]: `*${escapeEsWildcard(value)}*` },
+          wildcard: { [field.aggField]: `*${escapeEsWildcard(value)}*` },
         })),
         minimum_should_match: 1,
       },
     }
   }
-  return { terms: { [aggField]: values } }
+  return { terms: { [field.aggField]: values } }
 }
 
 /**
@@ -170,7 +169,7 @@ export async function fetchFieldValues(
       aggs: {
         values: {
           terms: {
-            field: field.aggField ?? `${field.esField}.keyword`,
+            field: field.aggField,
             size: size + 1,
           },
         },
