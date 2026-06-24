@@ -14,8 +14,6 @@ export type AttributeMatch = 'equals' | 'contains'
 export interface GeonetworkSource {
   /** Search endpoint URL (the request is POSTed here as-is), e.g. `/geonetwork/srv/index/_search`. */
   url: string
-  /** Optional headers sent with every request (e.g. authentication). */
-  headers?: Record<string, string>
   /**
    * Feature-type value when a single index holds several feature types. When set, queries are
    * scoped with a term filter on the `featureTypeId` field.
@@ -33,8 +31,6 @@ export interface AttributeFieldConfig {
   aggField?: string
   /** How a value is meant to be matched; `equals` for keyword columns, `contains` for text. */
   match?: AttributeMatch
-  /** Max number of distinct values requested from the terms aggregation. */
-  valuesSize?: number
 }
 
 /** A distinct value of a column together with its occurrence count. */

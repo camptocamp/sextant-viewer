@@ -23,7 +23,7 @@ async function esSearch<T>(
 ): Promise<T> {
   const response = await fetch(source.url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...source.headers },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal,
   })
@@ -158,7 +158,7 @@ export async function fetchFieldValues(
   filters: Array<Record<string, unknown>> = [],
   signal?: AbortSignal,
 ): Promise<FieldValues> {
-  const size = field.valuesSize ?? DEFAULT_VALUES_SIZE
+  const size = DEFAULT_VALUES_SIZE
   const query = filteredQuery(source, filters)
   // Request one extra bucket so truncation is "more distinct values than the cap exist",
   // not ES's `sum_other_doc_count` which over-reports on multi-shard indices.
