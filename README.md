@@ -48,7 +48,7 @@ npm run dev
 
 Main `index.html` page is a standard app, useful for development with hot-reload.
 
-Web Component demo page is available at: http://localhost:5173/demo/index.html
+Web Component demo page is available at: http://localhost:5173/demo/
 
 Note: once demo page has been opened, hot-reload does not work anymore in the standard app.
 
@@ -59,7 +59,32 @@ npm run build:lib    # Build the web component library (entry: src/register.ts)
 npm run build:app    # Build the standard app
 ```
 
-Only the Web Component demo page is available in preview: http://localhost:4173/demo/index.html
+Web Component demo preview: http://localhost:4173/demo/ (run `npm run preview` after `build:lib`)
+
+### Documentation
+
+The documentation site is built with [VitePress](https://vitepress.dev/) and lives in the `docs/` folder.
+
+**Development**
+
+```sh
+npm run docs:dev
+```
+
+**Production preview** — builds the full site (lib + docs) into `pages/` and serves it locally:
+
+```sh
+npm run preview:pages
+```
+
+This mirrors the GitHub Pages structure exactly:
+
+| URL | Content |
+|-----|---------|
+| `http://localhost:3000/` | Documentation VitePress |
+| `http://localhost:3000/demo/` | Demo du web component |
+
+Note that `/maplibre` is missing as it lives in another branch.
 
 ### Run Unit Tests with [Vitest](https://vitest.dev/)
 

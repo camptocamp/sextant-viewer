@@ -1,0 +1,14 @@
+{
+  "name": "sextant-viewer-docs",
+  "private": true,
+  "scripts": {
+    "predocs:dev": "node ../scripts/generate-api-docs.mjs",
+    "docs:dev": "vitepress dev",
+    "predocs:build": "node ../scripts/generate-api-docs.mjs",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "~1.6.4"
+  }
+}

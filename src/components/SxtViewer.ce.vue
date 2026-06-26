@@ -12,6 +12,7 @@ import type Map from 'ol/Map'
 import { useAddLayer } from '@/composables/useAddLayer.ts'
 
 const emit = defineEmits<{
+  /** Émis à chaque déplacement ou zoom de la carte. Le payload est en EPSG:4326. */
   'map-extent-change': [extent: Extent]
 }>()
 
@@ -36,20 +37,40 @@ const onMapReady = (map: Map) => {
   })
 }
 
+/**
+ * Ajoute une couche au-dessus de la pile de couches actuelle.
+ * @param layer - Définition de la couche. Accepte tous les types `MapContextLayer` ainsi que le type `stac`.
+ * @param zoomToExtent - Si `true` et que la couche a une emprise connue, la vue s'ajuste automatiquement.
+ */
 const { addLayer } = useAddLayer()
 
-const setInitialContext = (context: ExtendedMapContext) => {
+/**
+ * Définit le contexte initial et déclenche l'enrichissement des couches.
+ * À utiliser au premier chargement ou pour les couches nécessitant une initialisation
+ * asynchrone (ex. collections STAC).
+ * @param context - Le contexte initial de la carte.
+ */
+const setInitialContext = (context: ExtendedMapContext): void => {
   mapStore.setInitialContext(context, true)
 }
 
-// does not support layers that need enrichement
-const setContext = (context: ExtendedMapContext) => {
+/**
+ * Remplace l'intégralité du contexte de carte (couches, couches de fond, vue).
+ * Ne supporte pas les couches nécessitant un enrichissement asynchrone (ex. STAC) ;
+ * utiliser `setInitialContext` dans ce cas.
+ * @param context - Le nouveau contexte à appliquer.
+ */
+const setContext = (context: ExtendedMapContext): void => {
   mapStore.setContext(context)
 }
 
 const cleanLayers = (layers: MapLayer[]) =>
   layers.map(({ id: _id, version: _version, ...rest }) => rest)
 
+/**
+ * Retourne le contexte de carte actuel incluant les couches, couches de fond et l'étendue de la vue.
+ * Les métadonnées internes (`id`, `version`) sont supprimées du résultat.
+ */
 const getContext = (): ExtendedMapContext => {
   return {
     layers: cleanLayers(mapStore.layers),
@@ -60,7 +81,11 @@ const getContext = (): ExtendedMapContext => {
   }
 }
 
-const setView = (view: MapContextView) => {
+/**
+ * Déplace ou zoom la carte vers la vue spécifiée sans modifier les couches.
+ * @param view - Vue définie par zoom+centre, emprise ou géométrie.
+ */
+const setView = (view: MapContextView): void => {
   mapStore.setView(view)
 }
 
