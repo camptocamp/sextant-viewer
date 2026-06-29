@@ -30,6 +30,9 @@ const tabItems = computed(() => {
   if (isStacLayer(props.layer)) {
     items.push({ slot: 'stac', value: 'stac', label: 'Données' })
   }
+  if (getWmsTimeDimension(props.layer)) {
+    items.push({ slot: 'dimensions', value: 'dimensions', label: 'Dimensions' })
+  }
   items.push({ slot: 'settings', value: 'settings', label: 'Paramètres' })
   return items
 })
@@ -56,8 +59,6 @@ watch(
       </h3>
     </div>
 
-    <WmsTimeDetails v-if="getWmsTimeDimension(layer)" :layer="layer" />
-
     <div class="mb-3 flex gap-2">
       <UButton
         icon="i-heroicons-arrows-pointing-out"
@@ -81,6 +82,10 @@ watch(
 
       <template #stac>
         <StacLayerDetails :layer="layer as MapLayerStac" />
+      </template>
+
+      <template #dimensions>
+        <WmsTimeDetails :layer="layer" />
       </template>
 
       <template #settings>

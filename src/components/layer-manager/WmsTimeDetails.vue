@@ -107,7 +107,7 @@ const timeValue = computed<string>({
     </p>
 
     <div class="flex flex-wrap items-center gap-2">
-      <span class="shrink-0 text-sm">Paramètre TIME&nbsp;:</span>
+      <span class="shrink-0 text-sm">Temps&nbsp;:</span>
       <UPopover :content="{ side: 'top', align: 'start' }">
         <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-calendar">
           {{ currentDate ? formatDate(currentDate) : 'Non définie' }}
