@@ -8,12 +8,12 @@
  * values are translated into an OGC Filter applied to the WMS layer through its GetMap `FILTER`
  * parameter (the SDK `filter` field).
  *
- * The Geonetwork ElasticSearch primitives and their types live in `@/geonetwork/attributeIndex`;
+ * The Geonetwork ElasticSearch primitives and their types live in `@/utils/attributeIndex`;
  * this module only adds the viewer-specific `DataSource`, `ActiveFilters` and per-layer
  * `AttributeFilterState`.
  */
 
-import type { AttributeFieldConfig, GeonetworkSource } from '@/geonetwork/attributeIndex.types'
+import type { AttributeFieldConfig, GeonetworkSource } from '@/utils/attributeIndex.types'
 
 /**
  * A data source declared on the map context. Only ElasticSearch is supported for now; the

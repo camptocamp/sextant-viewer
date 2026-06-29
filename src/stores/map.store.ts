@@ -15,10 +15,10 @@ import {
 } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
-import { getAttributeFilterState, isStacLayer } from '@/utils/layer.utils'
-import { buildWmsFilterParam } from '@/utils/wmsFilter'
-import { resolveAttributeFilter as detectAttributeFilter } from '@/geonetwork/attributeFilterDetection'
-import type { AttributeFilterState, DataSource } from '@/types/attribute-filter.types'
+import { isStacLayer } from '@/utils/layer.utils'
+import { applyWmsFilter } from '@/utils/wmsFilter'
+import { resolveAttributeFilter } from '@/utils/attributeFilterDetection'
+import type { DataSource } from '@/types/attribute-filter.types'
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
 import { v4 as uuidv4 } from 'uuid'
@@ -69,21 +69,6 @@ export const useMapStore = defineStore('map', () => {
     ],
   }))
 
-  /**
-   * For a WMS layer with attribute-filter state, encode the active selections as the SDK `filter`
-   * (an OGC FILTER applied at GetMap) and drop the app-only `attributeFilter` from `extras` before
-   * handing the layer to the SDK. Other layers pass through unchanged.
-   */
-  function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
-    if (layer.type !== 'wms') return layer
-    const state = getAttributeFilterState(layer)
-    if (!state) return layer
-    const extras = { ...layer.extras }
-    delete extras.attributeFilter
-    const filter = buildWmsFilterParam(layer.name, state.active ?? {}, state.fields ?? [])
-    return { ...layer, filter: filter ?? undefined, extras }
-  }
-
   async function enrichLayer(
     layer: MapLayer,
     dataSources: DataSource[] = context.value.dataSources ?? [],
@@ -102,31 +87,6 @@ export const useMapStore = defineStore('map', () => {
     const attributeFilter = await resolveAttributeFilter(base, dataSources)
     if (!attributeFilter) return base
     return { ...base, extras: { ...base.extras, attributeFilter } }
-  }
-
-  /**
-   * Detect the ES index behind a WMS layer from the context's `dataSources` and return the
-   * `attributeFilter` state, preserving any cached fields/active selections (so re-enriching a
-   * restored context does not drop the user's filter). `undefined` leaves the layer untouched.
-   */
-  async function resolveAttributeFilter(
-    layer: MapLayer,
-    dataSources: DataSource[],
-  ): Promise<AttributeFilterState | undefined> {
-    if (layer.type !== 'wms' || dataSources.length === 0) return undefined
-    try {
-      const resolved = await detectAttributeFilter(layer as MapContextLayer, dataSources)
-      if (!resolved) return undefined
-      const existing = getAttributeFilterState(layer)
-      return {
-        source: resolved.source,
-        fields: resolved.fields ?? existing?.fields,
-        active: existing?.active,
-      }
-    } catch (error) {
-      console.error('Erreur lors de la résolution du filtre attributaire', error)
-      return undefined
-    }
   }
 
   async function enrichContext(context: ExtendedMapContext): Promise<ExtendedMapContext> {

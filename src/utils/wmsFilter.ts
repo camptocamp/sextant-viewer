@@ -1,5 +1,7 @@
+import type { MapContextLayer } from '@geospatial-sdk/core'
 import type { ActiveFilters } from '@/types/attribute-filter.types'
-import type { AttributeFieldConfig } from '@/geonetwork/attributeIndex.types'
+import { getAttributeFilterState } from '@/utils/layer.utils'
+import type { AttributeFieldConfig } from './attributeIndex.types'
 
 function xmlEscape(value: string): string {
   return value
@@ -75,4 +77,19 @@ export function buildWmsFilterParam(
     .map((name) => name.trim())
     .filter(Boolean)
   return sublayers.length > 1 ? sublayers.map(() => `(${filter})`).join('') : filter
+}
+
+/**
+ * For a WMS layer with attribute-filter state, encode the active selections as the SDK `filter`
+ * (an OGC FILTER applied at GetMap) and drop the app-only `attributeFilter` from `extras` before
+ * handing the layer to the SDK. Other layers pass through unchanged.
+ */
+export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
+  if (layer.type !== 'wms') return layer
+  const state = getAttributeFilterState(layer)
+  if (!state) return layer
+  const extras = { ...layer.extras }
+  delete extras.attributeFilter
+  const filter = buildWmsFilterParam(layer.name, state.active ?? {}, state.fields ?? [])
+  return { ...layer, filter: filter ?? undefined, extras }
 }

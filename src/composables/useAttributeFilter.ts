@@ -5,10 +5,10 @@ import {
   discoverFields,
   fetchCount,
   fetchFieldValues,
-} from '@/geonetwork/attributeIndex'
+} from '@/utils/attributeIndex'
 import { getAttributeFilterState, type MapLayer } from '@/utils/layer.utils'
 import type { ActiveFilters } from '@/types/attribute-filter.types'
-import type { AttributeFieldConfig, FieldValues } from '@/geonetwork/attributeIndex.types'
+import type { AttributeFieldConfig, FieldValues } from '@/utils/attributeIndex.types'
 
 // Stable fallback so unrelated `extras` changes don't yield a new `{}` and trip `watch(activeFilters)`.
 const EMPTY_FILTERS: ActiveFilters = Object.freeze({})

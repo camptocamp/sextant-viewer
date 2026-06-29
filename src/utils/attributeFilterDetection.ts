@@ -2,7 +2,8 @@ import { WmsEndpoint } from '@camptocamp/ogc-client'
 import { isLayerIndexed } from './attributeIndex'
 import type { AttributeFieldConfig, AttributeMatch, GeonetworkSource } from './attributeIndex.types'
 import type { MapContextLayer } from '@geospatial-sdk/core'
-import type { DataSource } from '@/types/attribute-filter.types'
+import { getAttributeFilterState, type MapLayer } from '@/utils/layer.utils'
+import type { AttributeFilterState, DataSource } from '@/types/attribute-filter.types'
 
 /**
  * Detect whether a WMS layer has a filterable ElasticSearch index among the context's
@@ -18,7 +19,7 @@ import type { DataSource } from '@/types/attribute-filter.types'
  *
  * Returns `null` when the layer has no filterable index.
  */
-export async function resolveAttributeFilter(
+async function detectAttributeFilter(
   layer: MapContextLayer,
   dataSources: DataSource[],
 ): Promise<{ source: GeonetworkSource; fields?: AttributeFieldConfig[] } | null> {
@@ -51,6 +52,31 @@ export async function resolveAttributeFilter(
     return { source, fields }
   }
   return null
+}
+
+/**
+ * Detect the ES index behind a WMS layer from the context's `dataSources` and return the
+ * `attributeFilter` state, preserving any cached fields/active selections (so re-enriching a
+ * restored context does not drop the user's filter). `undefined` leaves the layer untouched.
+ */
+export async function resolveAttributeFilter(
+  layer: MapLayer,
+  dataSources: DataSource[],
+): Promise<AttributeFilterState | undefined> {
+  if (layer.type !== 'wms' || dataSources.length === 0) return undefined
+  try {
+    const resolved = await detectAttributeFilter(layer as MapContextLayer, dataSources)
+    if (!resolved) return undefined
+    const existing = getAttributeFilterState(layer)
+    return {
+      source: resolved.source,
+      fields: resolved.fields ?? existing?.fields,
+      active: existing?.active,
+    }
+  } catch (error) {
+    console.error('Erreur lors de la résolution du filtre attributaire', error)
+    return undefined
+  }
 }
 
 // Sextant convention — DescribeLayer advertises the WMS endpoint; the index id uses /wfs.

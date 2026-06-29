@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildFilterBody, buildWmsFilterParam } from './wmsFilter'
-import type { AttributeFieldConfig } from '@/geonetwork/attributeIndex.types'
+import type { AttributeFieldConfig } from './attributeIndex.types'
 
 const region: AttributeFieldConfig = {
   esField: 'DCSMM_SOUS_REGION',
