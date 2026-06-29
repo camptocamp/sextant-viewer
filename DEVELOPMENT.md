@@ -1,21 +1,22 @@
 # Developing against locally-linked packages
 
-This project depends on three Camptocamp packages that you may need to patch and
+This project depends on four Camptocamp packages that you may need to patch and
 test locally before publishing:
 
 - `@camptocamp/ogc-client` → `~/Sites/ogc-client`
 - `@geospatial-sdk/core` → `~/Sites/geospatial-sdk/packages/core`
+- `@geospatial-sdk/legend` → `~/Sites/geospatial-sdk/packages/legend`
 - `@geospatial-sdk/openlayers` → `~/Sites/geospatial-sdk/packages/openlayers`
 
 The procedure below wires those local checkouts into `sextant-viewer` via
 `npm link`. It is intentionally precise — `npm link` is fragile here for two
 reasons:
 
-1. **Nested duplicate.** `@geospatial-sdk/openlayers` has its own nested
+1. **Nested duplicate.** The `geospatial-sdk` monorepo has its own
    `node_modules/@camptocamp/ogc-client`. If that copy is the unpatched published
    version, WMS dimension parsing (and anything else patched in ogc-client)
-   silently does nothing, because openlayers resolves the nested copy instead of
-   the linked one.
+   silently does nothing, because `@geospatial-sdk/openlayers` resolves that
+   nested copy instead of the linked one. Step 2 replaces it with a symlink.
 2. **Silent clobbering.** Running `npm install`, or running `npm link` for the
    three packages in separate commands, overwrites the symlinks with the
    published copies again — without any error.
@@ -30,6 +31,7 @@ not the TypeScript sources):
 ```bash
 cd ~/Sites/ogc-client && npm run build
 cd ~/Sites/geospatial-sdk/packages/core && npm run build
+cd ~/Sites/geospatial-sdk/packages/legend && npm run build
 cd ~/Sites/geospatial-sdk/packages/openlayers && npm run build
 ```
 
@@ -38,6 +40,7 @@ cd ~/Sites/geospatial-sdk/packages/openlayers && npm run build
 ```bash
 cd ~/Sites/ogc-client && npm link
 cd ~/Sites/geospatial-sdk/packages/core && npm link
+cd ~/Sites/geospatial-sdk/packages/legend && npm link
 cd ~/Sites/geospatial-sdk/packages/openlayers && npm link
 
 # Link the patched ogc-client INTO geospatial-sdk so @geospatial-sdk/openlayers
@@ -45,11 +48,11 @@ cd ~/Sites/geospatial-sdk/packages/openlayers && npm link
 cd ~/Sites/geospatial-sdk && npm link @camptocamp/ogc-client
 ```
 
-### 3. Link all three into sextant-viewer — in a SINGLE command
+### 3. Link all four into sextant-viewer — in a SINGLE command
 
 ```bash
 cd ~/Sites/sextant-viewer
-npm link @camptocamp/ogc-client @geospatial-sdk/core @geospatial-sdk/openlayers
+npm link @camptocamp/ogc-client @geospatial-sdk/core @geospatial-sdk/legend @geospatial-sdk/openlayers
 ```
 
 > ⚠️ Must be one command. Linking them separately makes npm reinstall published
