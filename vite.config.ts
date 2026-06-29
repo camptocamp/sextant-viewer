@@ -30,6 +30,12 @@ const linkedExclude = useLinkedPackages
   ? ['@camptocamp/ogc-client', '@geospatial-sdk/core', '@geospatial-sdk/openlayers']
   : []
 
+// @geospatial-sdk/openlayers is excluded from pre-bundling above, so Vite does not
+// convert its CommonJS deps. lodash.throttle is the only CJS one — force it through
+// the dep optimizer so the CJS→ESM interop is applied and `import throttle from
+// 'lodash.throttle'` resolves to a default export.
+const linkedInclude = useLinkedPackages ? ['lodash.throttle'] : []
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -83,6 +89,7 @@ export default defineConfig({
     // When using linked packages, exclude them from the dep optimizer so Vite serves
     // the aliased dist files directly and always reflects local source changes.
     exclude: linkedExclude,
+    include: linkedInclude,
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
