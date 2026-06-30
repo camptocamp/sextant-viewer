@@ -3,7 +3,6 @@ import LayoutGrid from '@/components/layout/LayoutGrid.vue'
 import { type ExtendedMapContext, useMapStore } from '@/stores/map.store.ts'
 import { usePersistentContextStore } from '@/stores/persistentContext.store.ts'
 import type { MapContextView } from '@geospatial-sdk/core'
-import type { MapLayer } from '@/utils/layer.utils'
 import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
@@ -64,22 +63,11 @@ const setContext = (context: ExtendedMapContext): void => {
   mapStore.setContext(context)
 }
 
-const cleanLayers = (layers: MapLayer[]) =>
-  layers.map(({ id: _id, version: _version, ...rest }) => rest)
-
 /**
  * Retourne le contexte de carte actuel incluant les couches, couches de fond et l'étendue de la vue.
  * Les métadonnées internes (`id`, `version`) sont supprimées du résultat.
  */
-const getContext = (): ExtendedMapContext => {
-  return {
-    layers: cleanLayers(mapStore.layers),
-    backgroundLayers: cleanLayers(mapStore.backgroundLayers),
-    view: {
-      extent: mapStore.currentExtent!,
-    },
-  }
-}
+const getContext = (): ExtendedMapContext => mapStore.getContext()
 
 /**
  * Déplace ou zoom la carte vers la vue spécifiée sans modifier les couches.
