@@ -1,14 +1,13 @@
 import type { MapLayerStac } from '@/types/stac.types'
-import type { AttributeFilterState } from '@/types/attribute-filter.types'
+import type { ExtendedMapLayerWms } from '@/types/wms.types'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 
 /**
  * Union type combining standard MapContext layers with STAC layers. `extras.attributeFilter` is
  * typed here so viewer code reads it without casting (the SDK types `extras` as `unknown` values).
  */
-export type MapLayer = (MapContextLayer | MapLayerStac) & {
+export type MapLayer = (MapContextLayer | MapLayerStac | ExtendedMapLayerWms) & {
   error?: boolean
-  extras?: Record<string, unknown> & { attributeFilter?: AttributeFilterState }
 }
 
 /**

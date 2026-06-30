@@ -7,6 +7,8 @@ import type { MapLayer } from '../layer.utils'
 /**
  * Get the AttributeFilterState of a layer when present.
  */
+
+//rename to "isLayerDataIndexed()" and move to layer utils
 export function getAttributeFilterState(layer: MapLayer): AttributeFilterState | undefined {
   if (layer.type !== 'wms') return undefined
 
