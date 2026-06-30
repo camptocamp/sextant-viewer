@@ -8,10 +8,10 @@ export interface GeonetworkSource {
   /** Search endpoint URL (the request is POSTed here as-is), e.g. `/geonetwork/srv/index/_search`. */
   url: string
   /**
-   * Feature-type value when a single index holds several feature types. When set, queries are
-   * scoped with a term filter on the `featureTypeId` field.
+   * Feature-type value scoping queries to one layer in the shared index, via a term filter on the
+   * `featureTypeId` field. Derived at detection time as the URL-encoded `${wfsUrl}#${layerName}`.
    */
-  featureType?: string
+  featureType: string
 }
 
 /** A single filterable column discovered from the index. */

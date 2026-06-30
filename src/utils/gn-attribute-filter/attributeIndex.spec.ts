@@ -8,7 +8,7 @@ import {
 } from './attributeIndex'
 import type { AttributeFieldConfig, GeonetworkSource } from './attributeIndex.types'
 
-const es: GeonetworkSource = { url: 'https://host/es' }
+const es: GeonetworkSource = { url: 'https://host/es', featureType: 'ft1' }
 const field: AttributeFieldConfig = {
   esField: 'THEME',
   label: 'Thème',
@@ -46,7 +46,8 @@ describe('isLayerIndexed', () => {
 
     const wfsUrl = 'https://sextant.ifremer.fr/services/wfs/environnement_marin'
     const docId = `${wfsUrl}#surval_parametre_point,surval_parametre_ligne`
-    expect(await isLayerIndexed({ url: '/geonetwork/srv/index/_search' }, docId)).toBe(true)
+    const source = { url: '/geonetwork/srv/index/_search', featureType: 'ft1' }
+    expect(await isLayerIndexed(source, docId)).toBe(true)
 
     expect(urlOf(fetchMock)).toBe('/geonetwork/srv/index/_search')
     expect(bodyOf(fetchMock)).toEqual({
@@ -89,6 +90,7 @@ describe('fetchFieldValues', () => {
     expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
     expect(JSON.parse(init.body as string)).toEqual({
       size: 0,
+      query: { term: { featureTypeId: 'ft1' } },
       aggs: { values: { terms: { field: 'THEME.keyword', size: 51 } } },
     })
   })
@@ -133,15 +135,6 @@ describe('fetchFieldValues', () => {
     await fetchFieldValues(es, { esField: 'p', label: 'P', aggField: 'p_raw' })
 
     expect(bodyOf(fetchMock).aggs.values.terms).toEqual({ field: 'p_raw', size: 51 })
-  })
-
-  it('scopes the aggregation by feature type when set', async () => {
-    const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
-
-    await fetchFieldValues({ ...es, featureType: 'surval_point' }, field)
-    expect(bodyOf(fetchMock).query).toEqual({
-      term: { featureTypeId: 'surval_point' },
-    })
   })
 
   it('combines the feature type and extra filters under a single bool', async () => {
@@ -213,7 +206,11 @@ describe('fetchCount', () => {
     const fetchMock = mockFetch({ hits: { total: { value: 4231 } } })
 
     expect(await fetchCount(es)).toBe(4231)
-    expect(bodyOf(fetchMock)).toEqual({ size: 0, track_total_hits: true })
+    expect(bodyOf(fetchMock)).toEqual({
+      size: 0,
+      track_total_hits: true,
+      query: { term: { featureTypeId: 'ft1' } },
+    })
   })
 
   it('reads a numeric `hits.total` (legacy ES response shape)', async () => {
@@ -239,7 +236,7 @@ describe('fetchCount', () => {
 })
 
 describe('discoverFields', () => {
-  const src: GeonetworkSource = { url: 'https://host/es' }
+  const src: GeonetworkSource = { url: 'https://host/es', featureType: 'ft1' }
 
   it('discovers `ft_<COLUMN>_s` columns from a sample document', async () => {
     const fetchMock = mockFetch({
@@ -275,22 +272,9 @@ describe('discoverFields', () => {
     ])
     // size:1 sample search against the endpoint, no `/_search` suffix.
     expect(urlOf(fetchMock)).toBe('https://host/es')
-    expect(bodyOf(fetchMock)).toEqual({ size: 1 })
-  })
-
-  it('scopes the sample document to the feature type when set', async () => {
-    const fetchMock = mockFetch({
-      hits: { hits: [{ _source: { ft_THEME_s: 'x' } }] },
-    })
-
-    await discoverFields({
-      url: '/geonetwork/index/features',
-      featureType: 'k',
-    })
-    expect(urlOf(fetchMock)).toBe('/geonetwork/index/features')
     expect(bodyOf(fetchMock)).toEqual({
       size: 1,
-      query: { term: { featureTypeId: 'k' } },
+      query: { term: { featureTypeId: 'ft1' } },
     })
   })
 

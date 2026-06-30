@@ -39,23 +39,19 @@ function readTotal(response: EsSearchResponse): number {
   return typeof total === 'number' ? total : (total?.value ?? 0)
 }
 
-/** Term filter scoping queries to a single feature type, when the index is shared. */
-function featureTypeQuery(source: GeonetworkSource): Record<string, unknown> | undefined {
-  return source.featureType ? { term: { featureTypeId: source.featureType } } : undefined
+/** Term filter scoping queries to the source's feature type in the shared index. */
+function featureTypeQuery(source: GeonetworkSource): Record<string, unknown> {
+  return { term: { featureTypeId: source.featureType } }
 }
 
 // Scope a search to the source's feature type and `filters`; a lone feature-type term stays bare.
 function filteredQuery(
   source: GeonetworkSource,
   filters: Array<Record<string, unknown>>,
-): Record<string, unknown> | undefined {
+): Record<string, unknown> {
   const featureType = featureTypeQuery(source)
 
-  return filters.length === 0
-    ? featureType
-    : {
-        bool: { filter: [...(featureType ? [featureType] : []), ...filters] },
-      }
+  return filters.length === 0 ? featureType : { bool: { filter: [featureType, ...filters] } }
 }
 
 /**
@@ -96,10 +92,9 @@ export async function discoverFields(
   source: GeonetworkSource,
   signal?: AbortSignal,
 ): Promise<AttributeFieldConfig[]> {
-  const query = featureTypeQuery(source)
   const json = await esSearch<EsSearchResponse>(
     source,
-    { size: 1, ...(query ? { query } : {}) },
+    { size: 1, query: featureTypeQuery(source) },
     signal,
   )
   const properties = json.hits?.hits?.[0]?._source ?? {}
@@ -156,7 +151,7 @@ export async function fetchFieldValues(
     source,
     {
       size: 0,
-      ...(query ? { query } : {}),
+      query,
       aggs: {
         values: {
           terms: {
@@ -190,7 +185,7 @@ export async function fetchCount(
   const query = filteredQuery(source, filters)
   const json = await esSearch<EsSearchResponse>(
     source,
-    { size: 0, track_total_hits: true, ...(query ? { query } : {}) },
+    { size: 0, track_total_hits: true, query },
     signal,
   )
 
