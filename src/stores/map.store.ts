@@ -18,6 +18,7 @@ import type { MapLayer } from '@/utils/layer.utils'
 import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
+import { enrichWmsDimensionsLayer } from '@/utils/wms.utils'
 import { v4 as uuidv4 } from 'uuid'
 import type { ExtendedMapContext } from '@/types/map.types'
 
@@ -67,18 +68,18 @@ export const useMapStore = defineStore('map', () => {
   }))
 
   async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
-    const layersWithVersionAndId = {
+    const layerWithVersionAndId = {
       ...layer,
       id: layer.id || uuidv4(),
       version: layer.version ?? 0,
     }
 
     if (isStacLayer(layer)) {
-      const enrichedLayer = await enrichStacLayer(layersWithVersionAndId as MapLayerStac)
-      return enrichedLayer ?? layersWithVersionAndId
+      const enriched = await enrichStacLayer(layerWithVersionAndId as MapLayerStac)
+      return enriched ?? layerWithVersionAndId
     }
 
-    return layersWithVersionAndId
+    return enrichWmsDimensionsLayer(layerWithVersionAndId)
   }
 
   async function enrichContext(context: ExtendedMapContext): Promise<ExtendedMapContext> {

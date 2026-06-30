@@ -86,20 +86,23 @@ const debouncedSetMapState = useDebounceFn((mapState: ResolvedMapState) => {
   mapStore.setMapState(mapState)
 }, 300)
 
-onMounted(async () => {
+onMounted(() => {
   if (!mapContainer.value) return
-  mapRef.value = await createMapFromContext(sdkContext.value, mapContainer.value)
+  // createMapFromContext is synchronous and applyContextDiffToMap serializes its
+  // own updates internally, so the watcher just diffs and applies.
+  const map = createMapFromContext(fullMapContext.value, mapContainer.value)
+  mapRef.value = map
 
   // Set view padding to account for overlay panels (LayerPanel on left)
-  mapRef.value.getView().padding = MAP_VIEW_PADDING
+  map.getView().padding = MAP_VIEW_PADDING
 
-  emit('map-ready', mapRef.value)
+  emit('map-ready', map)
 
-  listen(mapRef.value, 'map-state-change', (event: MapStateChangeEvent) => {
+  listen(map, 'map-state-change', (event: MapStateChangeEvent) => {
     debouncedSetMapState(event.mapState)
   })
-  listen(mapRef.value, 'map-click', handleMapClick)
-  listen(mapRef.value, 'features-click', handleFeaturesClick)
+  listen(map, 'map-click', handleMapClick)
+  listen(map, 'features-click', handleFeaturesClick)
 })
 
 watch(fullMapContext, (newContext, oldContext) => {

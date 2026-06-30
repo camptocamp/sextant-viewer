@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useLayerActions } from '@/composables/useLayerActions'
 import { getLayerError, getLayerLabel, type MapLayer } from '@/utils/layer.utils'
+import { getWmsTimeDimension } from '@/utils/wms.utils'
 import type { MapContextLayer, ResolvedMapLayerState } from '@geospatial-sdk/core'
 
 const props = defineProps<{
@@ -45,6 +46,12 @@ const errorMessage = computed(() => {
       class="mx-1"
     />
     <span class="truncate text-sm">{{ getLayerLabel(layer) }}</span>
+
+    <UIcon
+      v-if="getWmsTimeDimension(layer)"
+      name="i-lucide-alarm-clock"
+      class="shrink-0 text-gray-400"
+    />
 
     <UIcon
       v-if="state && 'loading' in state && state.loading"

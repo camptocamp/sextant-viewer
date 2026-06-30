@@ -7,6 +7,7 @@ import layerOgcApi from './layerOgcApi.js?raw'
 import layerStac from './layerStac.js?raw'
 import layerWfs from './layerWfs.js?raw'
 import layerWms from './layerWms.js?raw'
+import layerWmsTime from './layerWmsTime.js?raw'
 import layerWmts from './layerWmts.js?raw'
 import layerXyz from './layerXyz.js?raw'
 import setContext from './setContext.js?raw'
@@ -60,6 +61,14 @@ export const EXAMPLES = [
       ${symbolDoc('interfaces', 'MapContextLayerWms')}
     `,
     code: layerWms,
+  },
+  {
+    name: 'Add WMS layer with TIME dimension',
+    description: `
+      <h4>Add a WMS layer that supports the TIME dimension.</h4>
+      <p>A clock icon appears in the layer list, and a date picker is shown in the layer details panel.</p>
+    `,
+    code: layerWmsTime,
   },
   {
     name: 'Add WMTS layer',
