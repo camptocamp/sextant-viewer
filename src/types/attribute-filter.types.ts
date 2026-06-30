@@ -3,7 +3,7 @@
 import type {
   AttributeFieldConfig,
   GeonetworkSource,
-} from '@/utils/attribute-filter/attributeIndex.types'
+} from '@/utils/gn-attribute-filter/attributeIndex.types'
 
 /** A data source declared on the map context, probed to detect whether a layer is indexed. */
 export interface DataSource {
