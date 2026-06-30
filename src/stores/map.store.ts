@@ -172,6 +172,17 @@ export const useMapStore = defineStore('map', () => {
     return context.value.layers.find((layer) => layer.id === id)
   }
 
+  const cleanLayers = (toClean: MapLayer[]) =>
+    toClean.map(({ id: _id, version: _version, ...rest }) => rest)
+
+  function getContext(): ExtendedMapContext {
+    return {
+      layers: cleanLayers(layers.value),
+      backgroundLayers: cleanLayers(backgroundLayers.value),
+      view: { extent: currentExtent.value! },
+    }
+  }
+
   function fromStacToGeojsonLayer(layer: MapLayerStac): MapContextLayer {
     return {
       type: 'geojson',
@@ -205,6 +216,7 @@ export const useMapStore = defineStore('map', () => {
     changeLayerPosition,
     updateLayer,
     getLayerById,
+    getContext,
     fromStacToGeojsonLayer,
   }
 })
