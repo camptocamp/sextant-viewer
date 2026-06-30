@@ -8,7 +8,8 @@ import type { MapLayer } from './layer.utils'
 
 export function getWmsTimeDimension(layer: MapLayer): WmsLayerDimension | null {
   if (layer.type !== 'wms') return null
-  return (layer.extras?.wmsTimeDimension as WmsLayerDimension) ?? null
+  const dims = (layer.extras?.wmsDimensions as WmsLayerDimension[]) ?? []
+  return dims.find((d) => d.name.toLowerCase() === 'time') ?? null
 }
 
 /** Non-time dimensions declared by the server (elevation, band, …). */
@@ -40,9 +41,8 @@ export function toWmsTime(date: Date): string {
 
 /**
  * Enrich a WMS layer with the dimensions the server declares (TIME, ELEVATION, …).
- * Stores all dimensions in `extras.wmsDimensions` and the time one in
- * `extras.wmsTimeDimension`, then seeds `dimensionValues` from each dimension's
- * server default.
+ * Stores all dimensions in `extras.wmsDimensions`, then seeds `dimensionValues`
+ * from each dimension's server default.
  * Returns the layer unchanged when it declares no dimensions
  */
 export async function enrichWmsDimensionsLayer(layer: MapLayer): Promise<MapLayer> {
@@ -79,7 +79,6 @@ export async function enrichWmsDimensionsLayer(layer: MapLayer): Promise<MapLaye
       extras: {
         ...layer.extras,
         wmsDimensions: dims,
-        ...(timeDim && { wmsTimeDimension: timeDim }),
       },
       ...(Object.keys(seeded).length > 0 && { dimensionValues: seeded }),
     }
