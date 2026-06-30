@@ -6,7 +6,8 @@ import type {
   GeonetworkSource,
 } from './attributeIndex.types'
 
-const DEFAULT_VALUES_SIZE = 50
+// Maximum number of distinct attribute values to fetch for a column.
+const DEFAULT_FIELD_VALUES_LIMIT = 50
 
 // Each WFS attribute column is indexed as `ft_<COLUMN>_s` (keyword); other variants
 // (`_s_tree`, `_dt`, …) are not value-list filterable.
@@ -147,7 +148,7 @@ export async function fetchFieldValues(
   filters: Array<Record<string, unknown>> = [],
   signal?: AbortSignal,
 ): Promise<FieldValues> {
-  const size = DEFAULT_VALUES_SIZE
+  const size = DEFAULT_FIELD_VALUES_LIMIT
   const query = filteredQuery(source, filters)
   // Request one extra bucket so truncation is "more distinct values than the cap exist",
   // not ES's `sum_other_doc_count` which over-reports on multi-shard indices.
