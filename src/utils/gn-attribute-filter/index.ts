@@ -11,6 +11,6 @@ export function getAttributeFilterState(layer: MapLayer): AttributeFilterState |
   if (layer.type !== 'wms') return undefined
 
   // extras.attributeFilter is what marks the layer as filterable.
-  const attributeFilter = layer.extras?.attributeFilter as AttributeFilterState | undefined
+  const attributeFilter = layer.extras?.attributeFilter
   return attributeFilter?.source?.url ? attributeFilter : undefined
 }
