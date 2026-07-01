@@ -13,12 +13,6 @@ import type { DataSource } from '@/types/data-source.types'
 import type { ExtendedMapLayerWms, GeoNetworkIndexConnection } from '@/types/wms.types'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 
-/** Detection result for a filterable WMS layer: where its index lives and its filterable columns. */
-export interface DataIndexDetection {
-  dataIndex: GeoNetworkIndexConnection
-  fields: IndexField[]
-}
-
 /**
  * For a WMS layer, encode its active selections (`extras.filter`) as the SDK `filter` (an OGC
  * FILTER applied at GetMap) and strip the app-only `extras` before handing the layer to the SDK.
@@ -49,7 +43,7 @@ export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
 async function detectAttributeFilter(
   layer: MapLayer,
   dataSources: DataSource[],
-): Promise<DataIndexDetection | null> {
+): Promise<GeoNetworkIndexConnection | null> {
   if (layer.type !== 'wms' || !layer.url || !layer.name) return null
   const sources = dataSources.filter((ds) => ds.type === 'geonetwork-index')
   if (sources.length === 0) return null
@@ -69,7 +63,7 @@ async function detectAttributeFilter(
   for (const ds of sources) {
     const count = await fetchCount({ url: ds.url, featureTypeId })
     if (count > 0) {
-      return { dataIndex: { url: ds.url, featureTypeId }, fields: profileToFields(record.profile) }
+      return { url: ds.url, featureTypeId, fields: profileToFields(record.profile) }
     }
   }
   return null
@@ -82,7 +76,7 @@ async function detectAttributeFilter(
 export async function resolveAttributeFilter(
   layer: MapLayer,
   dataSources: DataSource[],
-): Promise<DataIndexDetection | undefined> {
+): Promise<GeoNetworkIndexConnection | undefined> {
   try {
     return (await detectAttributeFilter(layer, dataSources)) ?? undefined
   } catch (error) {

@@ -1,4 +1,5 @@
 import type { MapContextLayerWms, LayerExtras } from '@geospatial-sdk/core'
+import type { IndexField } from '@/utils/geonetwork-index/attributeIndex.types'
 
 /**
  * Connection to a GeoNetwork data index backed by ElasticSearch
@@ -11,6 +12,8 @@ export interface GeoNetworkIndexConnection {
    * `featureTypeId` field. Derived at detection time as the URL-encoded `${wfsUrl}#${layerName}`.
    */
   featureTypeId: string
+  /** Filterable columns discovered at detection time (from the GN record's applicationProfile). */
+  fields?: IndexField[]
 }
 
 export interface FilterByAttribute {
