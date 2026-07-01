@@ -3,11 +3,16 @@ import type { ExtendedMapLayerWms } from '@/types/wms.types'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 
 /**
- * Union type combining standard MapContext layers with STAC layers. `extras.attributeFilter` is
- * typed here so viewer code reads it without casting (the SDK types `extras` as `unknown` values).
+ * Union type combining standard MapContext layers with STAC and typed-extras WMS layers, so viewer
+ * code reads `extras` without casting (the SDK types `extras` values as `unknown`).
  */
 export type MapLayer = (MapContextLayer | MapLayerStac | ExtendedMapLayerWms) & {
   error?: boolean
+}
+
+/** Whether a WMS layer is backed by a Geonetwork data index (its `extras.dataIndex` is set). */
+export function isLayerDataIndexed(layer: MapLayer): boolean {
+  return layer.type === 'wms' && !!(layer.extras as ExtendedMapLayerWms['extras'])?.dataIndex
 }
 
 /**
