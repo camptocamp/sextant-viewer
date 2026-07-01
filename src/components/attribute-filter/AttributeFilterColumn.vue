@@ -29,12 +29,9 @@ const showTruncated = computed(() => props.truncated && !debouncedSearch.value.t
 <template>
   <UCollapsible class="border-default rounded border">
     <template #default="{ open }">
-      <button
-        type="button"
-        class="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-sm font-medium"
-      >
+      <UButton variant="ghost" color="neutral" block class="justify-between font-medium">
         <span class="truncate">{{ field.label }}</span>
-        <span class="flex shrink-0 items-center gap-1">
+        <template #trailing>
           <UBadge v-if="selected.length" size="xs" color="primary" variant="soft">
             {{ selected.length }}
           </UBadge>
@@ -43,8 +40,8 @@ const showTruncated = computed(() => props.truncated && !debouncedSearch.value.t
             class="transition-transform"
             :class="{ 'rotate-180': open }"
           />
-        </span>
-      </button>
+        </template>
+      </UButton>
     </template>
 
     <template #content>

@@ -84,6 +84,33 @@ describe('useAttributeFilter', () => {
     scope.stop()
   })
 
+  it('replacing the layer object with identical content neither aborts the load nor refetches', async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+
+    // The initial load's counts hang until released, simulating an in-flight load.
+    const pending: Array<(v: number) => void> = []
+    mocks.fetchCount.mockImplementation(() => new Promise<number>((r) => pending.push(r)))
+
+    let api!: ReturnType<typeof useAttributeFilter>
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+    const callsDuringLoad = mocks.fetchFieldValues.mock.calls.length
+
+    // An unrelated update (opacity, visibility) replaces the layer object with equal content.
+    layer.value = { ...makeLayer(), opacity: 0.5 } as MapLayer
+    await flush()
+    expect(mocks.fetchFieldValues.mock.calls.length).toBe(callsDuringLoad)
+
+    pending.forEach((resolve) => resolve(3))
+    await flush()
+    expect(api.loading.value).toBe(false)
+    expect(api.count.value).toBe(3)
+    scope.stop()
+  })
+
   it('a superseded request does not clobber fresh state', async () => {
     const layer = ref(makeLayer())
     const scope = effectScope()
