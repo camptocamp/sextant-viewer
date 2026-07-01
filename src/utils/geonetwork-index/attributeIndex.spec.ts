@@ -1,18 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import {
-  buildFieldFilter,
-  discoverFields,
-  fetchCount,
-  fetchFieldValues,
-  isLayerIndexed,
-} from './attributeIndex'
-import type { AttributeFieldConfig, GeonetworkSource } from './attributeIndex.types'
+import { buildFieldFilter, discoverFields, fetchCount, fetchFieldValues } from './attributeIndex'
+import type { IndexField } from './attributeIndex.types'
+import type { GeoNetworkIndexConnection } from '@/types/wms.types'
 
-const es: GeonetworkSource = { url: 'https://host/es', featureType: 'ft1' }
-const field: AttributeFieldConfig = {
+const index: GeoNetworkIndexConnection = { url: 'https://host/es', featureTypeId: 'ft1' }
+const field: IndexField = {
   esField: 'THEME',
   label: 'Thème',
-  aggField: 'THEME.keyword',
+  aggField: 'ft_THEME_s',
+  type: 'terms',
 }
 
 let originalFetch: typeof globalThis.fetch
@@ -40,38 +36,17 @@ afterEach(() => {
   globalThis.fetch = originalFetch
 })
 
-describe('isLayerIndexed', () => {
-  it('queries the harvesterReport doc and returns true when at least one hit', async () => {
-    const fetchMock = mockFetch({ hits: { total: { value: 1 } } })
-
-    const wfsUrl = 'https://sextant.ifremer.fr/services/wfs/environnement_marin'
-    const docId = `${wfsUrl}#surval_parametre_point,surval_parametre_ligne`
-    const source = { url: '/geonetwork/srv/index/_search', featureType: 'ft1' }
-    expect(await isLayerIndexed(source, docId)).toBe(true)
-
-    expect(urlOf(fetchMock)).toBe('/geonetwork/srv/index/_search')
-    expect(bodyOf(fetchMock)).toEqual({
-      size: 0,
-      track_total_hits: true,
-      query: {
-        bool: {
-          filter: [
-            { term: { id: encodeURIComponent(docId) } },
-            { term: { docType: 'harvesterReport' } },
-          ],
-        },
-      },
-    })
+describe('buildFieldFilter', () => {
+  it('builds a terms clause for equals filters', () => {
+    expect(
+      buildFieldFilter({ attributeName: 'REGION', matchType: 'equals', values: ['A', 'B'] }),
+    ).toEqual({ terms: { ft_REGION_s: ['A', 'B'] } })
   })
 
-  it('returns false when there are no hits', async () => {
-    mockFetch({ hits: { total: { value: 0 } } })
-    expect(await isLayerIndexed(es, 'http://wfs#layer')).toBe(false)
-  })
-
-  it('reads a legacy numeric `hits.total`', async () => {
-    mockFetch({ hits: { total: 2 } })
-    expect(await isLayerIndexed(es, 'http://wfs#layer')).toBe(true)
+  it('throws for unsupported match types', () => {
+    expect(() =>
+      buildFieldFilter({ attributeName: 'THEME', matchType: 'contains', values: ['x'] }),
+    ).toThrow(/contains/)
   })
 })
 
@@ -81,7 +56,7 @@ describe('fetchFieldValues', () => {
       aggregations: { values: { buckets: [], sum_other_doc_count: 0 } },
     })
 
-    await fetchFieldValues(es, field)
+    await fetchFieldValues(index, field)
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     // POSTed to the endpoint as-is, no `/_search` suffix.
@@ -91,7 +66,7 @@ describe('fetchFieldValues', () => {
     expect(JSON.parse(init.body as string)).toEqual({
       size: 0,
       query: { term: { featureTypeId: 'ft1' } },
-      aggs: { values: { terms: { field: 'THEME.keyword', size: 51 } } },
+      aggs: { values: { terms: { field: 'ft_THEME_s', size: 51 } } },
     })
   })
 
@@ -108,7 +83,7 @@ describe('fetchFieldValues', () => {
       },
     })
 
-    expect(await fetchFieldValues(es, field)).toEqual({
+    expect(await fetchFieldValues(index, field)).toEqual({
       esField: 'THEME',
       values: [
         { value: 'A', count: 12 },
@@ -123,81 +98,28 @@ describe('fetchFieldValues', () => {
     const buckets = Array.from({ length: 51 }, (_, i) => ({ key: `v${i}`, doc_count: 51 - i }))
     mockFetch({ aggregations: { values: { buckets } } })
 
-    const result = await fetchFieldValues(es, field)
+    const result = await fetchFieldValues(index, field)
     expect(result.truncated).toBe(true)
     expect(result.values).toHaveLength(50)
     expect(result.values[0]).toEqual({ value: 'v0', count: 51 })
   })
 
-  it('honours an explicit aggField', async () => {
+  it('combines the feature type and active filters under a single bool', async () => {
     const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
 
-    await fetchFieldValues(es, { esField: 'p', label: 'P', aggField: 'p_raw' })
-
-    expect(bodyOf(fetchMock).aggs.values.terms).toEqual({ field: 'p_raw', size: 51 })
-  })
-
-  it('combines the feature type and extra filters under a single bool', async () => {
-    const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
-
-    await fetchFieldValues({ ...es, featureType: 'x' }, field, [{ term: { REGION: 'Manche' } }])
+    await fetchFieldValues(index, field, [
+      { attributeName: 'REGION', matchType: 'equals', values: ['Manche'] },
+    ])
     expect(bodyOf(fetchMock).query).toEqual({
       bool: {
-        filter: [{ term: { featureTypeId: 'x' } }, { term: { REGION: 'Manche' } }],
+        filter: [{ term: { featureTypeId: 'ft1' } }, { terms: { ft_REGION_s: ['Manche'] } }],
       },
     })
   })
 
   it('throws when ElasticSearch responds with an error status', async () => {
     mockFetch({}, false, 503)
-    await expect(fetchFieldValues(es, field)).rejects.toThrow(/503/)
-  })
-})
-
-describe('buildFieldFilter', () => {
-  it('builds a terms clause for equals fields', () => {
-    expect(
-      buildFieldFilter({ esField: 'REGION', label: 'R', aggField: 'REGION.keyword' }, ['A', 'B']),
-    ).toEqual({
-      terms: { 'REGION.keyword': ['A', 'B'] },
-    })
-  })
-
-  it('honours an explicit aggField', () => {
-    expect(buildFieldFilter({ esField: 'r', label: 'R', aggField: 'ft_REGION_s' }, ['A'])).toEqual({
-      terms: { ft_REGION_s: ['A'] },
-    })
-  })
-
-  it('builds a wildcard should clause for contains fields', () => {
-    expect(
-      buildFieldFilter(
-        { esField: 'THEME', label: 'T', aggField: 'THEME.keyword', match: 'contains' },
-        ['micro', 'bio'],
-      ),
-    ).toEqual({
-      bool: {
-        should: [
-          { wildcard: { 'THEME.keyword': '*micro*' } },
-          { wildcard: { 'THEME.keyword': '*bio*' } },
-        ],
-        minimum_should_match: 1,
-      },
-    })
-  })
-
-  it('escapes ES wildcard metacharacters in contains values', () => {
-    expect(
-      buildFieldFilter(
-        { esField: 'THEME', label: 'T', aggField: 'THEME.keyword', match: 'contains' },
-        ['a*b?c\\d'],
-      ),
-    ).toEqual({
-      bool: {
-        should: [{ wildcard: { 'THEME.keyword': '*a\\*b\\?c\\\\d*' } }],
-        minimum_should_match: 1,
-      },
-    })
+    await expect(fetchFieldValues(index, field)).rejects.toThrow(/503/)
   })
 })
 
@@ -205,7 +127,7 @@ describe('fetchCount', () => {
   it('requests an accurate total and reads `hits.total.value`', async () => {
     const fetchMock = mockFetch({ hits: { total: { value: 4231 } } })
 
-    expect(await fetchCount(es)).toBe(4231)
+    expect(await fetchCount(index)).toBe(4231)
     expect(bodyOf(fetchMock)).toEqual({
       size: 0,
       track_total_hits: true,
@@ -215,29 +137,27 @@ describe('fetchCount', () => {
 
   it('reads a numeric `hits.total` (legacy ES response shape)', async () => {
     mockFetch({ hits: { total: 17 } })
-    expect(await fetchCount(es)).toBe(17)
+    expect(await fetchCount(index)).toBe(17)
   })
 
   it('returns 0 when no total is present', async () => {
     mockFetch({ hits: {} })
-    expect(await fetchCount(es)).toBe(0)
+    expect(await fetchCount(index)).toBe(0)
   })
 
-  it('scopes the count by feature type and filters', async () => {
+  it('scopes the count by feature type and active filters', async () => {
     const fetchMock = mockFetch({ hits: { total: { value: 0 } } })
 
-    await fetchCount({ ...es, featureType: 'x' }, [{ term: { REGION: 'Manche' } }])
+    await fetchCount(index, [{ attributeName: 'REGION', matchType: 'equals', values: ['Manche'] }])
     expect(bodyOf(fetchMock).query).toEqual({
       bool: {
-        filter: [{ term: { featureTypeId: 'x' } }, { term: { REGION: 'Manche' } }],
+        filter: [{ term: { featureTypeId: 'ft1' } }, { terms: { ft_REGION_s: ['Manche'] } }],
       },
     })
   })
 })
 
 describe('discoverFields', () => {
-  const src: GeonetworkSource = { url: 'https://host/es', featureType: 'ft1' }
-
   it('discovers `ft_<COLUMN>_s` columns from a sample document', async () => {
     const fetchMock = mockFetch({
       hits: {
@@ -256,18 +176,13 @@ describe('discoverFields', () => {
       },
     })
 
-    expect(await discoverFields(src)).toEqual([
-      {
-        esField: 'THEME',
-        label: 'THEME',
-        aggField: 'ft_THEME_s',
-        match: 'equals',
-      },
+    expect(await discoverFields(index)).toEqual([
+      { esField: 'THEME', label: 'THEME', aggField: 'ft_THEME_s', type: 'terms' },
       {
         esField: 'DCSMM_SOUS_REGION',
         label: 'DCSMM_SOUS_REGION',
         aggField: 'ft_DCSMM_SOUS_REGION_s',
-        match: 'equals',
+        type: 'terms',
       },
     ])
     // size:1 sample search against the endpoint, no `/_search` suffix.
@@ -282,11 +197,11 @@ describe('discoverFields', () => {
     mockFetch({
       hits: { hits: [{ _source: { geom: {}, featureTypeId: 'x' } }] },
     })
-    expect(await discoverFields(src)).toEqual([])
+    expect(await discoverFields(index)).toEqual([])
   })
 
   it('returns an empty list when there is no sample document', async () => {
     mockFetch({ hits: { hits: [] } })
-    expect(await discoverFields(src)).toEqual([])
+    expect(await discoverFields(index)).toEqual([])
   })
 })

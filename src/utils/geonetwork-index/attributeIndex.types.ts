@@ -1,19 +1,5 @@
 // Types for the Geonetwork ElasticSearch index backing a WFS layer (see `attributeIndex.ts`).
 
-/** How a selected value is meant to be matched (kept for callers building OGC filters). */
-// export type AttributeMatch = 'equals' | 'contains'
-
-/** Locates the Geonetwork ElasticSearch endpoint, optionally scoped to a single feature type. */
-// export interface GeonetworkSource {
-//   /** Search endpoint URL (the request is POSTed here as-is), e.g. `/geonetwork/srv/index/_search`. */
-//   url: string
-//   /**
-//    * Feature-type value scoping queries to one layer in the shared index, via a term filter on the
-//    * `featureTypeId` field. Derived at detection time as the URL-encoded `${wfsUrl}#${layerName}`.
-//    */
-//   featureType: string
-// }
-
 /** A single filterable column discovered from the index. */
 export interface IndexField {
   /** Logical field name; also the key under which selections are stored. */
@@ -22,8 +8,8 @@ export interface IndexField {
   label: string
   /** Aggregatable field used for the terms aggregation, e.g. `ft_<COLUMN>_s`. */
   aggField: string
-  /** How a value is meant to be matched; `equals` for keyword columns, `contains` for text. */
-  type:'terms' // TODO: handle other types of fields in the future
+  /** Index field kind; only `terms` (keyword) columns are filterable for now. */
+  type: 'terms'
 }
 
 export interface FieldValue {
