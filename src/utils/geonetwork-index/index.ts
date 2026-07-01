@@ -5,7 +5,7 @@ export { buildOgcFilter, buildWmsFilterParam } from './wms.utils'
 export { fetchWfsResource } from './gnRecord'
 
 import { fetchCount } from './attributeIndex'
-import { fetchWfsResource, type GnProfile } from './gnRecord'
+import { fetchWfsResource, type GnWfsApplicationProfile } from './gnRecord'
 import { buildWmsFilterParam } from './wms.utils'
 import type { IndexField } from './attributeIndex.types'
 import type { MapLayer } from '../layer.utils'
@@ -52,7 +52,7 @@ async function detectAttributeFilter(
   const uuid = metadataUuid(endpoint, layer.name)
   if (!uuid) return null
 
-  let record: { wfsUrl: string; profile: GnProfile } | null = null
+  let record: { wfsUrl: string; profile: GnWfsApplicationProfile } | null = null
   for (const ds of sources) {
     record = await fetchWfsResource(gnBaseFromEsUrl(ds.url), uuid)
     if (record) break
@@ -113,7 +113,7 @@ export function parseUuid(metadataUrl: string): string | null {
  * Translate the profile to filterable columns: visible value-list columns only (date-range and
  * tree facets dropped), French labels, `ft_<COLUMN>_s` aggregation field.
  */
-export function profileToFields(profile: GnProfile): IndexField[] {
+export function profileToFields(profile: GnWfsApplicationProfile): IndexField[] {
   const treeFields = new Set(profile.treeFields ?? [])
   return (profile.fields ?? [])
     .filter((f) => !f.hidden && f.type !== 'rangeDate' && !treeFields.has(f.name))

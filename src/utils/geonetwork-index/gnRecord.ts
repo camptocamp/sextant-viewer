@@ -1,9 +1,5 @@
-// Reads the attribute-filter config straight from a Geonetwork metadata record: the record's
-// `OGC:WFS` online resource carries the WFS url + an `applicationProfile` JSON whose shape matches
-// the `wfs-indexing-config` endpoint. Presence of that profile is what marks a layer filterable.
-
 /** Parsed `applicationProfile` JSON from the WFS online resource. */
-export interface GnProfile {
+export interface GnWfsApplicationProfile {
   fields?: Array<{
     name: string
     label?: { fr?: string; en?: string }
@@ -27,23 +23,27 @@ function localText(parent: Element, local: string): string | undefined {
 export async function fetchWfsResource(
   gnBase: string,
   uuid: string,
-): Promise<{ wfsUrl: string; profile: GnProfile } | null> {
+): Promise<{ wfsUrl: string; profile: GnWfsApplicationProfile } | null> {
   const res = await fetch(`${gnBase}/srv/api/records/${uuid}/formatters/xml`)
   if (!res.ok) return null
+
   const doc = new DOMParser().parseFromString(await res.text(), 'application/xml')
 
   const resources = doc.getElementsByTagNameNS('*', 'CI_OnlineResource')
   for (const resource of Array.from(resources)) {
     if (!localText(resource, 'protocol')?.startsWith('OGC:WFS')) continue
+
     // ISO 19115-3: the linkage value is a `gco:CharacterString` (not a `<URL>` element).
     const wfsUrl = localText(resource, 'linkage')
     const raw = localText(resource, 'applicationProfile')
     if (!wfsUrl || !raw) continue
+
     try {
-      return { wfsUrl, profile: JSON.parse(raw) as GnProfile }
+      return { wfsUrl, profile: JSON.parse(raw) as GnWfsApplicationProfile }
     } catch {
       return null
     }
   }
+
   return null
 }
