@@ -4,6 +4,7 @@ import {
   type WmsLayerDimension,
 } from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
+import type { FilterByAttribute, WmsFilterState } from '@/types/wms.types'
 import type { MapLayer } from './layer.utils'
 
 export function getWmsTimeDimension(layer: MapLayer): WmsLayerDimension | null {
@@ -95,4 +96,67 @@ export async function enrichWmsDimensionsLayer(layer: MapLayer): Promise<MapLaye
     console.error('WMS dimension enrichment failed', err)
     return layer
   }
+}
+
+function xmlEscape(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+function buildComparison(attribute: FilterByAttribute, value: string): string {
+  const property = xmlEscape(attribute.attributeName)
+  switch (attribute.matchType) {
+    case 'equals':
+      return (
+        `<PropertyIsEqualTo><PropertyName>${property}</PropertyName>` +
+        `<Literal>${xmlEscape(value)}</Literal></PropertyIsEqualTo>`
+      )
+    // ponytail: 'contains' → PropertyIsLike, add when a tokenized field becomes filterable
+    default:
+      throw new Error(`Unsupported matchType: ${attribute.matchType}`)
+  }
+}
+
+function buildFieldGroup(attribute: FilterByAttribute, values: string[]): string {
+  const comparisons = values.map((value) => buildComparison(attribute, value)).join('')
+  return values.length > 1 ? `<Or>${comparisons}</Or>` : comparisons
+}
+
+/**
+ * Build the inner body of an OGC Filter from the active selections: each attribute's
+ * selected values are OR-ed together, and the attributes are AND-ed. Returns `null`
+ * when no attribute has a selected value.
+ */
+export function buildFilterBody(filter: WmsFilterState): string | null {
+  const groups: string[] = []
+  for (const attribute of filter) {
+    const values = attribute.values.filter((value) => value != null && value !== '')
+    if (values.length > 0) {
+      groups.push(buildFieldGroup(attribute, values))
+    }
+  }
+  if (groups.length === 0) return null
+  const joined = groups.join('')
+  return groups.length === 1 ? joined : `<And>${joined}</And>`
+}
+
+/**
+ * Build the WMS `FILTER` GetMap parameter value for a (possibly multi-sublayer)
+ * layer. QGIS Server expects one parenthesised `<Filter>` group per sublayer when
+ * `LAYERS` holds several comma-separated names. Returns `null` when there is no
+ * active filter.
+ */
+export function buildWmsFilterParam(layerName: string, filter: WmsFilterState): string | null {
+  const body = buildFilterBody(filter)
+  if (!body) return null
+  const wrapped = `<Filter>${body}</Filter>`
+  const sublayers = layerName
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+  return sublayers.length > 1 ? sublayers.map(() => `(${wrapped})`).join('') : wrapped
 }
