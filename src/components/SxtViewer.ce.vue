@@ -3,6 +3,7 @@ import LayoutGrid from '@/components/layout/LayoutGrid.vue'
 import { type ExtendedMapContext, useMapStore } from '@/stores/map.store.ts'
 import { usePersistentContextStore } from '@/stores/persistentContext.store.ts'
 import type { MapContextView } from '@geospatial-sdk/core'
+import type { DataSource } from '@/types/data-source.types'
 import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
@@ -77,7 +78,17 @@ const setView = (view: MapContextView): void => {
   mapStore.setView(view)
 }
 
+/**
+ * Déclare une source de données (p. ex. un index ElasticSearch de Geonetwork) sondée pour détecter
+ * les couches WMS filtrables par attributs.
+ * @param dataSource - Source de données à enregistrer.
+ */
+const addDataSource = (dataSource: DataSource): void => {
+  mapStore.addDataSource(dataSource)
+}
+
 defineExpose({
+  addDataSource,
   addLayer,
   getContext,
   setContext,
