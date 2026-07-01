@@ -4,12 +4,13 @@ import { type MapLayer } from '@/utils/layer.utils'
 import { buildNcwmsStyles, getNcwmsInfo } from '@/utils/ncwms.utils'
 import { NcwmsEndpoint } from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
+import { toWmsTime } from '@/utils/wms.utils'
 
 export function useNcwmsLayer(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
 
   const ncwmsInfo = computed(() => getNcwmsInfo(toValue(layer)))
-  const styles = computed(() => buildNcwmsStyles(ncwmsInfo.value!))
+  const styles = computed(() => (ncwmsInfo.value ? buildNcwmsStyles(ncwmsInfo.value) : {}))
 
   const palette = computed<string>({
     get: () => {
@@ -31,7 +32,7 @@ export function useNcwmsLayer(layer: MaybeRefOrGetter<MapLayer>) {
     get: () => {
       const raw = (toValue(layer) as MapContextLayerWms).customParams?.COLORSCALERANGE ?? ''
       const [min, max] = raw.split(',').map(Number)
-      return [min ?? 0, max ?? 1] as [number, number]
+      return [Number.isFinite(min) ? min : 0, Number.isFinite(max) ? max : 1] as [number, number]
     },
     set: ([min, max]: [number, number]) => updateCustomParam({ COLORSCALERANGE: `${min},${max}` }),
   })
@@ -51,7 +52,7 @@ export function useNcwmsLayer(layer: MaybeRefOrGetter<MapLayer>) {
     const bounds = await new NcwmsEndpoint(l.url).getMinMax(l.name, extent, {
       time: l.dimensionValues?.TIME
         ? l.dimensionValues.TIME instanceof Date
-          ? l.dimensionValues.TIME.toISOString()
+          ? toWmsTime(l.dimensionValues.TIME)
           : String(l.dimensionValues.TIME)
         : undefined,
       elevation: l.dimensionValues?.ELEVATION ? String(l.dimensionValues.ELEVATION) : undefined,

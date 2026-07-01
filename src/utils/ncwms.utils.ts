@@ -27,10 +27,11 @@ export async function enrichNcwmsLayer(layer: MapLayer): Promise<MapLayer> {
     const styles = buildNcwmsStyles(ncwmsInfo)
     return {
       ...layer,
-      style: defaultPalette ? styles[defaultPalette] : layer.style,
+      style: layer.style ?? (defaultPalette ? styles[defaultPalette] : undefined),
       customParams: {
         COLORSCALERANGE: `${ncwmsInfo.scaleRange[0]},${ncwmsInfo.scaleRange[1]}`,
         LOGSCALE: 'false',
+        ...layer.customParams,
       },
       extras: { ...layer.extras, ncwmsInfo },
     }
