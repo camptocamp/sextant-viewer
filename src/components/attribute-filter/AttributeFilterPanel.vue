@@ -35,7 +35,7 @@ const {
 
     <template v-else>
       <p v-if="count !== null && totalCount !== null" class="text-center text-sm font-medium">
-        {{ count.toLocaleString('en-US') }} / {{ totalCount.toLocaleString('en-US') }} entité{{
+        {{ count.toLocaleString('fr-FR') }} / {{ totalCount.toLocaleString('fr-FR') }} entité{{
           totalCount > 1 ? 's' : ''
         }}
       </p>

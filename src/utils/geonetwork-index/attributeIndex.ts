@@ -19,11 +19,16 @@ const TERMS_FIELD_MATCH = /^ft_(.+)_s$/
 const aggFieldName = (column: string) => `ft_${column}_s`
 
 /** POST an ES query to the index URL (itself the search action; no `/_search` is appended). */
-async function esSearch<T>(index: GeoNetworkIndexConnection, body: unknown): Promise<T> {
+async function esSearch<T>(
+  index: GeoNetworkIndexConnection,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   const response = await fetch(index.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal,
   })
 
   if (!response.ok) {
@@ -102,6 +107,7 @@ export async function fetchFieldValues(
   index: GeoNetworkIndexConnection,
   field: IndexField,
   filters: WmsFilterState = [],
+  signal?: AbortSignal,
 ): Promise<DistinctFieldValues> {
   // This has to be a 'terms' field; if not, no way to obtain distinct values
   if (field.type !== 'terms') {
@@ -113,18 +119,22 @@ export async function fetchFieldValues(
 
   // Request one extra bucket so truncation is "more distinct values than the cap exist",
   // not ES's `sum_other_doc_count` which over-reports on multi-shard indices.
-  const json = await esSearch<EsSearchResponse>(index, {
-    size: 0,
-    query,
-    aggs: {
-      values: {
-        terms: {
-          field: field.aggField,
-          size: size + 1,
+  const json = await esSearch<EsSearchResponse>(
+    index,
+    {
+      size: 0,
+      query,
+      aggs: {
+        values: {
+          terms: {
+            field: field.aggField,
+            size: size + 1,
+          },
         },
       },
     },
-  })
+    signal,
+  )
 
   const buckets = json.aggregations?.values?.buckets ?? []
   const values: FieldValue[] = buckets.slice(0, size).map((bucket) => ({
@@ -143,9 +153,14 @@ export async function fetchFieldValues(
 export async function fetchCount(
   index: GeoNetworkIndexConnection,
   filters: WmsFilterState = [],
+  signal?: AbortSignal,
 ): Promise<number> {
   const query = filteredQuery(index, filters)
-  const json = await esSearch<EsSearchResponse>(index, { size: 0, track_total_hits: true, query })
+  const json = await esSearch<EsSearchResponse>(
+    index,
+    { size: 0, track_total_hits: true, query },
+    signal,
+  )
 
   return readTotal(json)
 }

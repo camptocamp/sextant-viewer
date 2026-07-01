@@ -162,6 +162,14 @@ describe('fetchCount', () => {
       },
     })
   })
+
+  it('forwards an AbortSignal to fetch', async () => {
+    const fetchMock = mockFetch({ hits: { total: { value: 0 } } })
+    const signal = new AbortController().signal
+
+    await fetchCount(index, [], signal)
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).signal).toBe(signal)
+  })
 })
 
 describe('fieldsFromSource', () => {
