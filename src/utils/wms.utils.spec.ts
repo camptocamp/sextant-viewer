@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFilterBody, buildWmsFilterParam } from './wms.utils'
+import { buildOgcFilter, buildWmsFilterParam } from './wms.utils'
 import type { FilterByAttribute } from '@/types/wms.types'
 
 const region = (values: string[]): FilterByAttribute => ({
@@ -13,39 +13,16 @@ const theme = (values: string[]): FilterByAttribute => ({
   values,
 })
 
+const NS = 'http://www.opengis.net/ogc'
+const filterXml = (body: string) => `<Filter xmlns="${NS}">${body}</Filter>`
 const eq = (field: string, value: string) =>
   `<PropertyIsEqualTo><PropertyName>${field}</PropertyName><Literal>${value}</Literal></PropertyIsEqualTo>`
 
-describe('buildFilterBody', () => {
+describe('buildOgcFilter', () => {
   it('returns null when nothing is selected', () => {
-    expect(buildFilterBody([])).toBeNull()
-    expect(buildFilterBody([region([])])).toBeNull()
-    expect(buildFilterBody([region([''])])).toBeNull()
-  })
-
-  it('builds a single PropertyIsEqualTo for an equals attribute', () => {
-    expect(buildFilterBody([region(['Manche'])])).toBe(eq('DCSMM_SOUS_REGION', 'Manche'))
-  })
-
-  it('wraps several values of one attribute in <Or>', () => {
-    expect(buildFilterBody([region(['A', 'B'])])).toBe(
-      `<Or>${eq('DCSMM_SOUS_REGION', 'A')}${eq('DCSMM_SOUS_REGION', 'B')}</Or>`,
-    )
-  })
-
-  it('AND-combines several attributes', () => {
-    expect(buildFilterBody([region(['A']), theme(['M'])])).toBe(
-      `<And>${eq('DCSMM_SOUS_REGION', 'A')}${eq('THEME', 'M')}</And>`,
-    )
-  })
-
-  it('XML-escapes the attribute name and values', () => {
-    const field: FilterByAttribute = {
-      attributeName: 'A&B',
-      matchType: 'equals',
-      values: [`a<'&"`],
-    }
-    expect(buildFilterBody([field])).toBe(eq('A&amp;B', 'a&lt;&apos;&amp;&quot;'))
+    expect(buildOgcFilter([])).toBeNull()
+    expect(buildOgcFilter([region([])])).toBeNull()
+    expect(buildOgcFilter([region([''])])).toBeNull()
   })
 
   it('throws for unsupported match types', () => {
@@ -54,7 +31,7 @@ describe('buildFilterBody', () => {
       matchType: 'contains',
       values: ['x'],
     }
-    expect(() => buildFilterBody([field])).toThrow(/contains/)
+    expect(() => buildOgcFilter([field])).toThrow(/contains/)
   })
 })
 
@@ -63,14 +40,40 @@ describe('buildWmsFilterParam', () => {
     expect(buildWmsFilterParam('a,b', [region([])])).toBeNull()
   })
 
-  it('wraps a single-sublayer filter in one <Filter>', () => {
-    expect(buildWmsFilterParam('surval_point', [region(['A'])])).toBe(
-      `<Filter>${eq('DCSMM_SOUS_REGION', 'A')}</Filter>`,
+  it('builds a single PropertyIsEqualTo for an equals attribute', () => {
+    expect(buildWmsFilterParam('surval_point', [region(['Manche'])])).toBe(
+      filterXml(eq('DCSMM_SOUS_REGION', 'Manche')),
+    )
+  })
+
+  it('wraps several values of one attribute in <Or>', () => {
+    expect(buildWmsFilterParam('surval_point', [region(['A', 'B'])])).toBe(
+      filterXml(`<Or>${eq('DCSMM_SOUS_REGION', 'A')}${eq('DCSMM_SOUS_REGION', 'B')}</Or>`),
+    )
+  })
+
+  it('AND-combines several attributes', () => {
+    expect(buildWmsFilterParam('surval_point', [region(['A']), theme(['M'])])).toBe(
+      filterXml(`<And>${eq('DCSMM_SOUS_REGION', 'A')}${eq('THEME', 'M')}</And>`),
+    )
+  })
+
+  it('XML-escapes the attribute name and values (via CDATA)', () => {
+    const field: FilterByAttribute = {
+      attributeName: 'A&B',
+      matchType: 'equals',
+      values: [`a<'&"`],
+    }
+    expect(buildWmsFilterParam('surval_point', [field])).toBe(
+      filterXml(
+        `<PropertyIsEqualTo><PropertyName><![CDATA[A&B]]></PropertyName>` +
+          `<Literal><![CDATA[a<'&"]]></Literal></PropertyIsEqualTo>`,
+      ),
     )
   })
 
   it('emits one parenthesised <Filter> per sublayer (trimmed)', () => {
-    const group = `(<Filter>${eq('DCSMM_SOUS_REGION', 'A')}</Filter>)`
+    const group = `(${filterXml(eq('DCSMM_SOUS_REGION', 'A'))})`
     expect(buildWmsFilterParam('a, b ,c', [region(['A'])])).toBe(group + group + group)
   })
 })

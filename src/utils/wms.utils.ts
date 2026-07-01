@@ -4,6 +4,9 @@ import {
   type WmsLayerDimension,
 } from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
+import { and, equalTo, or } from 'ol/format/filter'
+import { writeFilter } from 'ol/format/WFS'
+import type Filter from 'ol/format/filter/Filter'
 import type { FilterByAttribute, WmsFilterState } from '@/types/wms.types'
 import type { MapLayer } from './layer.utils'
 
@@ -98,62 +101,56 @@ export async function enrichWmsDimensionsLayer(layer: MapLayer): Promise<MapLaye
   }
 }
 
-function xmlEscape(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
-}
+// WMS version used to write the OGC Filter.
+// Version pinned to 1.1.0 to preserve QGIS Server compatibility (2.0.0 would emit the fes/ValueReference form).
+const FILTER_VERSION = '1.1.0'
 
-function buildComparison(attribute: FilterByAttribute, value: string): string {
-  const property = xmlEscape(attribute.attributeName)
+function buildComparison(attribute: FilterByAttribute, value: string): Filter {
   switch (attribute.matchType) {
     case 'equals':
-      return (
-        `<PropertyIsEqualTo><PropertyName>${property}</PropertyName>` +
-        `<Literal>${xmlEscape(value)}</Literal></PropertyIsEqualTo>`
-      )
-    // ponytail: 'contains' → PropertyIsLike, add when a tokenized field becomes filterable
+      return equalTo(attribute.attributeName, value)
+    // TODO: support `contains` matchType in the future
     default:
       throw new Error(`Unsupported matchType: ${attribute.matchType}`)
   }
 }
 
-function buildFieldGroup(attribute: FilterByAttribute, values: string[]): string {
-  const comparisons = values.map((value) => buildComparison(attribute, value)).join('')
-  return values.length > 1 ? `<Or>${comparisons}</Or>` : comparisons
+function buildFieldGroup(attribute: FilterByAttribute, values: string[]): Filter {
+  const comparisons = values.map((value) => buildComparison(attribute, value))
+  return comparisons.length > 1 ? or(...comparisons) : comparisons[0]!
 }
 
 /**
- * Build the inner body of an OGC Filter from the active selections: each attribute's
- * selected values are OR-ed together, and the attributes are AND-ed. Returns `null`
- * when no attribute has a selected value.
+ * Build an OL Filter from a WMS filter state.
+ * Returns `null` if the filter state is empty.
  */
-export function buildFilterBody(filter: WmsFilterState): string | null {
-  const groups: string[] = []
+export function buildOgcFilter(filter: WmsFilterState): Filter | null {
+  const groups: Filter[] = []
   for (const attribute of filter) {
     const values = attribute.values.filter((value) => value != null && value !== '')
     if (values.length > 0) {
       groups.push(buildFieldGroup(attribute, values))
     }
   }
+
   if (groups.length === 0) return null
-  const joined = groups.join('')
-  return groups.length === 1 ? joined : `<And>${joined}</And>`
+
+  return groups.length === 1 ? groups[0]! : and(...groups)
+}
+
+/** Serialise an OGC Filter to its `<Filter>…</Filter>` XML string. */
+function serializeFilter(filter: Filter): string {
+  return new XMLSerializer().serializeToString(writeFilter(filter, FILTER_VERSION))
 }
 
 /**
- * Build the WMS `FILTER` GetMap parameter value for a (possibly multi-sublayer)
- * layer. QGIS Server expects one parenthesised `<Filter>` group per sublayer when
- * `LAYERS` holds several comma-separated names. Returns `null` when there is no
- * active filter.
+ * Build the WMS `FILTER` GetMap parameter value for a layer.
  */
 export function buildWmsFilterParam(layerName: string, filter: WmsFilterState): string | null {
-  const body = buildFilterBody(filter)
-  if (!body) return null
-  const wrapped = `<Filter>${body}</Filter>`
+  const ogcFilter = buildOgcFilter(filter)
+  if (!ogcFilter) return null
+
+  const wrapped = serializeFilter(ogcFilter)
   const sublayers = layerName
     .split(',')
     .map((name) => name.trim())
