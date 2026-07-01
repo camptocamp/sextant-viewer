@@ -10,19 +10,20 @@ export interface GeoNetworkIndexConnection {
    * Feature-type value scoping queries to one layer in the shared index, via a term filter on the
    * `featureTypeId` field. Derived at detection time as the URL-encoded `${wfsUrl}#${layerName}`.
    */
-  featureTypeId: string;
+  featureTypeId: string
 }
 
-interface FilterByAttribute {
-    attributeName: string
-    matchType: 'contains' | 'equals'
+export interface FilterByAttribute {
+  attributeName: string
+  matchType: 'contains' | 'equals'
+  values: string[]
 }
 
 export type WmsFilterState = FilterByAttribute[]
 
 export interface ExtendedMapLayerWms extends MapContextLayerWms {
   extras?: LayerExtras & {
-    filter?: WmsFilterState,
+    filter?: WmsFilterState
     dataIndex?: GeoNetworkIndexConnection
   }
 }
