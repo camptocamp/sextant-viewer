@@ -8,6 +8,7 @@ import layerStac from './layerStac.js?raw'
 import layerWfs from './layerWfs.js?raw'
 import layerWms from './layerWms.js?raw'
 import layerWmsTime from './layerWmsTime.js?raw'
+import layerWmsAttributeFilter from './layerWmsAttributeFilter.js?raw'
 import layerWmts from './layerWmts.js?raw'
 import layerXyz from './layerXyz.js?raw'
 import setContext from './setContext.js?raw'
@@ -69,6 +70,18 @@ export const EXAMPLES = [
       <p>A clock icon appears in the layer list, and a date picker is shown in the layer details panel.</p>
     `,
     code: layerWmsTime,
+  },
+  {
+    name: 'Filter WMS layer by attributes',
+    description: `
+      <h4>Filter a WMS layer by its attributes.</h4>
+      <p>
+        Declare a Geonetwork index <code>dataSource</code>. The viewer reads the layer's Geonetwork
+        metadata record: when its WFS resource carries an attribute-filter profile, it offers a
+        <em>Filtre</em> tab to restrict the layer by attribute values via the WMS GetMap FILTER.
+      </p>
+    `,
+    code: layerWmsAttributeFilter,
   },
   {
     name: 'Add WMTS layer',
