@@ -61,14 +61,26 @@ describe('fetchWfsResources', () => {
     )
   })
 
-  it('returns [] when the WFS resource has no applicationProfile', async () => {
+  it('keeps a WFS resource with no applicationProfile (profile undefined)', async () => {
     mockFetch(recordXml(null))
-    expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([])
+    expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([
+      {
+        wfsUrl: 'https://host/services/wfs/env',
+        featureTypes: ['point', 'ligne'],
+        profile: undefined,
+      },
+    ])
   })
 
-  it('skips a resource with malformed profile JSON', async () => {
+  it('keeps a resource with malformed profile JSON (profile undefined)', async () => {
     mockFetch(recordXml('{not json'))
-    expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([])
+    expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([
+      {
+        wfsUrl: 'https://host/services/wfs/env',
+        featureTypes: ['point', 'ligne'],
+        profile: undefined,
+      },
+    ])
   })
 
   it('returns [] when the fetch fails', async () => {

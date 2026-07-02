@@ -12,7 +12,10 @@ export interface GeoNetworkIndexConnection {
    * the `featureTypeId` field. One per WMS sublayer, each the URL-encoded `${wfsUrl}#${sublayer}`.
    */
   featureTypeIds: string[]
-  /** Filterable columns discovered at detection time (from the GN record's applicationProfile). */
+  /**
+   * Filterable columns resolved at detection time: from the GN record's `applicationProfile` when
+   * it has one, otherwise discovered from a sample index document.
+   */
   fields?: IndexField[]
 }
 

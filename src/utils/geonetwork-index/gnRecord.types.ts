@@ -1,6 +1,5 @@
 // Types for the Geonetwork record (see `gnRecord.ts`).
 
-
 /** Parsed `applicationProfile` JSON from the WFS online resource. */
 export interface GnWfsApplicationProfile {
   /**
@@ -66,7 +65,7 @@ export interface GnApplicationProfileField {
   aggs?: Record<string, unknown>
 }
 
-/** A single `OGC:WFS` online resource of a record, with its feature types and parsed profile. */
+/** A single `OGC:WFS` online resource of a record, with its feature types and (optional) profile. */
 export interface GnWfsResource {
   /** WFS service URL from the resource's `linkage`. */
   wfsUrl: string
@@ -75,6 +74,9 @@ export interface GnWfsResource {
    * Empty when the resource lists no name — then it is treated as backing every sublayer.
    */
   featureTypes: string[]
-  /** Parsed `applicationProfile` JSON. */
-  profile: GnWfsApplicationProfile
+  /**
+   * Parsed `applicationProfile` JSON, when present and valid. Absent when the resource carries no
+   * profile (or it failed to parse) — the filter columns are then discovered from the index.
+   */
+  profile?: GnWfsApplicationProfile
 }

@@ -3,7 +3,7 @@ export { discoverFields, buildFieldFilter, fetchFieldValues, fetchCount } from '
 export type { IndexField, FieldValue, DistinctFieldValues } from './attributeIndex.types'
 export { buildOgcFilter, buildWmsFilterParam } from './wms.utils'
 export { fetchWfsResources } from './gnRecord'
-import { fetchCount } from './attributeIndex'
+import { discoverFields, fetchCount } from './attributeIndex'
 import { fetchWfsResources } from './gnRecord'
 import type { GnWfsApplicationProfile, GnWfsResource } from './gnRecord.types'
 import { buildWmsFilterParam } from './wms.utils'
@@ -36,11 +36,13 @@ export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
  * another, so the two are resolved independently by scanning the context `dataSources`:
  *   1. WMS `GetCapabilities` → the first sublayer's `MetadataURL` → record UUID;
  *   2. metadata scan: the first dataSource whose GN base returns a record with `OGC:WFS`
- *      `applicationProfile`(s); each WMS sublayer is matched to the WFS resource listing it as a
- *      feature type, yielding one `featureTypeId` (`${wfsUrl}#${sublayer}`) per sublayer;
+ *      resource(s); each WMS sublayer is matched to the WFS resource listing it as a feature type,
+ *      yielding one `featureTypeId` (`${wfsUrl}#${sublayer}`) per sublayer;
  *   3. index scan: the first dataSource whose ES index holds those `featureTypeIds`.
  *
- * Returns `null` when no sublayer maps to a profiled WFS resource or none are indexed.
+ * Filter columns come from the record's `applicationProfile` when present, otherwise they are
+ * discovered from a sample index document. Returns `null` when no sublayer maps to a WFS resource
+ * or none are indexed.
  */
 async function detectAttributeFilter(
   layer: MapLayer,
@@ -56,7 +58,7 @@ async function detectAttributeFilter(
 
   const resources = await firstResources(sources, uuid)
   const { featureTypeIds, profile } = matchSublayersToResources(sublayers, resources)
-  if (!featureTypeIds.length || !profile) return null
+  if (!featureTypeIds.length) return null
 
   return firstIndexedSource(sources, featureTypeIds, profile)
 }
@@ -103,17 +105,17 @@ function matchSublayersToResources(
 
 /**
  * Connection to the first dataSource whose ES index holds the `featureTypeIds`, with its filter
- * columns resolved from the profile.
+ * columns from the profile when present, otherwise discovered from a sample index document.
  */
 async function firstIndexedSource(
   sources: DataSource[],
   featureTypeIds: string[],
-  profile: GnWfsApplicationProfile,
+  profile: GnWfsApplicationProfile | undefined,
 ): Promise<GeoNetworkIndexConnection | null> {
   for (const ds of sources) {
     const index: GeoNetworkIndexConnection = { url: ds.url, featureTypeIds }
     if ((await fetchCount(index)) === 0) continue
-    return { ...index, fields: profileToFields(profile) }
+    return { ...index, fields: profile ? profileToFields(profile) : await discoverFields(index) }
   }
   return null
 }
