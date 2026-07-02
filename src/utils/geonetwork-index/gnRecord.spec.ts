@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchWfsResource } from './gnRecord'
+import { fetchWfsResources } from './gnRecord'
 
 const PROFILE = {
   tokenizedFields: { THEME: ';' },
@@ -19,6 +19,7 @@ const recordXml = (profile: string | null) => `<?xml version="1.0"?>
   <cit:CI_OnlineResource>
     <cit:linkage><gco:CharacterString>https://host/services/wfs/env</gco:CharacterString></cit:linkage>
     <cit:protocol><gco:CharacterString>OGC:WFS</gco:CharacterString></cit:protocol>
+    <cit:name><gco:CharacterString>point,ligne</gco:CharacterString></cit:name>
     ${profile == null ? '' : `<cit:applicationProfile><gco:CharacterString>${profile}</gco:CharacterString></cit:applicationProfile>`}
   </cit:CI_OnlineResource>
 </mdb:MD_Metadata>`
@@ -39,33 +40,39 @@ afterEach(() => {
   globalThis.fetch = originalFetch
 })
 
-describe('fetchWfsResource', () => {
-  it('returns the WFS url and parsed applicationProfile', async () => {
+describe('fetchWfsResources', () => {
+  it('returns each WFS resource with its url, feature types and parsed profile', async () => {
     mockFetch(recordXml(JSON.stringify(PROFILE)))
-    const res = await fetchWfsResource('/geonetwork', 'uuid-1')
-    expect(res).toEqual({ wfsUrl: 'https://host/services/wfs/env', profile: PROFILE })
+    const res = await fetchWfsResources('/geonetwork', 'uuid-1')
+    expect(res).toEqual([
+      {
+        wfsUrl: 'https://host/services/wfs/env',
+        featureTypes: ['point', 'ligne'],
+        profile: PROFILE,
+      },
+    ])
   })
 
   it('hits the record XML formatter endpoint', async () => {
     mockFetch(recordXml(JSON.stringify(PROFILE)))
-    await fetchWfsResource('/geonetwork', 'uuid-1')
+    await fetchWfsResources('/geonetwork', 'uuid-1')
     expect((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toBe(
       '/geonetwork/srv/api/records/uuid-1/formatters/xml',
     )
   })
 
-  it('returns null when the WFS resource has no applicationProfile', async () => {
+  it('returns [] when the WFS resource has no applicationProfile', async () => {
     mockFetch(recordXml(null))
-    expect(await fetchWfsResource('/geonetwork', 'uuid-1')).toBeNull()
+    expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([])
   })
 
-  it('returns null on a malformed profile JSON', async () => {
+  it('skips a resource with malformed profile JSON', async () => {
     mockFetch(recordXml('{not json'))
-    expect(await fetchWfsResource('/geonetwork', 'uuid-1')).toBeNull()
+    expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([])
   })
 
-  it('returns null when the fetch fails', async () => {
+  it('returns [] when the fetch fails', async () => {
     mockFetch('', false)
-    expect(await fetchWfsResource('/geonetwork', 'uuid-1')).toBeNull()
+    expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([])
   })
 })

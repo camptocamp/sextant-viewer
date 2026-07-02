@@ -1,6 +1,6 @@
 /** Parsed `applicationProfile` JSON from the WFS online resource. */
 export interface GnWfsApplicationProfile {
-    /**
+  /**
    * If false (default), fields present in the index but absent from `fields`
    * are removed from the panel. If true, `fields` only extends/overrides.
    */
@@ -63,27 +63,37 @@ export interface GnApplicationProfileField {
   aggs?: Record<string, unknown>
 }
 
+/** A single `OGC:WFS` online resource of a record, with its feature types and parsed profile. */
+export interface GnWfsResource {
+  /** WFS service URL from the resource's `linkage`. */
+  wfsUrl: string
+  /**
+   * Feature types the resource exposes, from its `<cit:name>` (comma-joined in the record).
+   * Empty when the resource lists no name — then it is treated as backing every sublayer.
+   */
+  featureTypes: string[]
+  /** Parsed `applicationProfile` JSON. */
+  profile: GnWfsApplicationProfile
+}
+
 /** First descendant text by local name (namespace-agnostic), trimmed. */
 function localText(parent: Element, local: string): string | undefined {
   return parent.getElementsByTagNameNS('*', local)[0]?.textContent?.trim() || undefined
 }
 
 /**
- * Fetch the metadata record and return its `OGC:WFS` online resource's url + parsed
- * `applicationProfile`. Returns `null` when the record can't be read, has no WFS resource with a
- * profile, or the profile JSON is malformed — i.e. the layer is not filterable.
+ * Fetch the metadata record and return every `OGC:WFS` online resource carrying a parsed
+ * `applicationProfile`, with the feature types it exposes. Returns `[]` when the record can't be
+ * read or has no such resource. Resources with a malformed profile JSON are skipped individually.
  */
-export async function fetchWfsResource(
-  gnBase: string,
-  uuid: string,
-): Promise<{ wfsUrl: string; profile: GnWfsApplicationProfile } | null> {
+export async function fetchWfsResources(gnBase: string, uuid: string): Promise<GnWfsResource[]> {
   const res = await fetch(`${gnBase}/srv/api/records/${uuid}/formatters/xml`)
-  if (!res.ok) return null
+  if (!res.ok) return []
 
   const doc = new DOMParser().parseFromString(await res.text(), 'application/xml')
 
-  const resources = doc.getElementsByTagNameNS('*', 'CI_OnlineResource')
-  for (const resource of Array.from(resources)) {
+  const out: GnWfsResource[] = []
+  for (const resource of Array.from(doc.getElementsByTagNameNS('*', 'CI_OnlineResource'))) {
     if (!localText(resource, 'protocol')?.startsWith('OGC:WFS')) continue
 
     // ISO 19115-3: the linkage value is a `gco:CharacterString` (not a `<URL>` element).
@@ -91,12 +101,20 @@ export async function fetchWfsResource(
     const raw = localText(resource, 'applicationProfile')
     if (!wfsUrl || !raw) continue
 
+    let profile: GnWfsApplicationProfile
     try {
-      return { wfsUrl, profile: JSON.parse(raw) as GnWfsApplicationProfile }
+      profile = JSON.parse(raw) as GnWfsApplicationProfile
     } catch {
-      return null
+      continue
     }
+
+    const featureTypes = (localText(resource, 'name') ?? '')
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean)
+
+    out.push({ wfsUrl, featureTypes, profile })
   }
 
-  return null
+  return out
 }

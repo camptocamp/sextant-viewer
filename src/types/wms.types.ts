@@ -5,13 +5,13 @@ import type { IndexField } from '@/utils/geonetwork-index/attributeIndex.types'
  * Connection to a GeoNetwork data index backed by ElasticSearch
  */
 export interface GeoNetworkIndexConnection {
-  /** Search endpoint URL (the request is POSTed here as-is), e.g. `/geonetwork/srv/index/_search`. */
+  /** Search endpoint URL (the request is POSTed here as-is), e.g. `/geonetwork/index/features`. */
   url: string
   /**
-   * Feature-type value scoping queries to one layer in the shared index, via a term filter on the
-   * `featureTypeId` field. Derived at detection time as the URL-encoded `${wfsUrl}#${layerName}`.
+   * Feature-type values scoping queries to this layer in the shared index, via a `terms` filter on
+   * the `featureTypeId` field. One per WMS sublayer, each the URL-encoded `${wfsUrl}#${sublayer}`.
    */
-  featureTypeId: string
+  featureTypeIds: string[]
   /** Filterable columns discovered at detection time (from the GN record's applicationProfile). */
   fields?: IndexField[]
 }

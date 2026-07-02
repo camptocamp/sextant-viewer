@@ -3,7 +3,7 @@ import { buildFieldFilter, discoverFields, fetchCount, fetchFieldValues } from '
 import type { IndexField } from './attributeIndex.types'
 import type { GeoNetworkIndexConnection } from '@/types/wms.types'
 
-const index: GeoNetworkIndexConnection = { url: 'https://host/es', featureTypeId: 'ft1' }
+const index: GeoNetworkIndexConnection = { url: 'https://host/es', featureTypeIds: ['ft1'] }
 const field: IndexField = {
   esField: 'THEME',
   label: 'Thème',
@@ -65,7 +65,7 @@ describe('fetchFieldValues', () => {
     expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
     expect(JSON.parse(init.body as string)).toEqual({
       size: 0,
-      query: { term: { featureTypeId: 'ft1' } },
+      query: { terms: { featureTypeId: ['ft1'] } },
       aggs: { values: { terms: { field: 'ft_THEME_s', size: 51 } } },
     })
   })
@@ -112,7 +112,7 @@ describe('fetchFieldValues', () => {
     ])
     expect(bodyOf(fetchMock).query).toEqual({
       bool: {
-        filter: [{ term: { featureTypeId: 'ft1' } }, { terms: { ft_REGION_s: ['Manche'] } }],
+        filter: [{ terms: { featureTypeId: ['ft1'] } }, { terms: { ft_REGION_s: ['Manche'] } }],
       },
     })
   })
@@ -131,7 +131,7 @@ describe('fetchCount', () => {
     expect(bodyOf(fetchMock)).toEqual({
       size: 0,
       track_total_hits: true,
-      query: { term: { featureTypeId: 'ft1' } },
+      query: { terms: { featureTypeId: ['ft1'] } },
     })
   })
 
@@ -151,7 +151,7 @@ describe('fetchCount', () => {
     await fetchCount(index, [{ attributeName: 'REGION', matchType: 'equals', values: ['Manche'] }])
     expect(bodyOf(fetchMock).query).toEqual({
       bool: {
-        filter: [{ term: { featureTypeId: 'ft1' } }, { terms: { ft_REGION_s: ['Manche'] } }],
+        filter: [{ terms: { featureTypeId: ['ft1'] } }, { terms: { ft_REGION_s: ['Manche'] } }],
       },
     })
   })
@@ -189,7 +189,7 @@ describe('discoverFields', () => {
     expect(urlOf(fetchMock)).toBe('https://host/es')
     expect(bodyOf(fetchMock)).toEqual({
       size: 1,
-      query: { term: { featureTypeId: 'ft1' } },
+      query: { terms: { featureTypeId: ['ft1'] } },
     })
   })
 

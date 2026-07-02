@@ -2,10 +2,10 @@ import { WmsEndpoint } from '@camptocamp/ogc-client'
 export { discoverFields, buildFieldFilter, fetchFieldValues, fetchCount } from './attributeIndex'
 export type { IndexField, FieldValue, DistinctFieldValues } from './attributeIndex.types'
 export { buildOgcFilter, buildWmsFilterParam } from './wms.utils'
-export { fetchWfsResource } from './gnRecord'
+export { fetchWfsResources } from './gnRecord'
 
 import { fetchCount } from './attributeIndex'
-import { fetchWfsResource, type GnWfsApplicationProfile } from './gnRecord'
+import { fetchWfsResources, type GnWfsApplicationProfile, type GnWfsResource } from './gnRecord'
 import { buildWmsFilterParam } from './wms.utils'
 import type { IndexField } from './attributeIndex.types'
 import type { MapLayer } from '../layer.utils'
@@ -33,12 +33,13 @@ export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
  *
  * A layer's Geonetwork metadata may live on one GeoNetwork while its features are indexed on
  * another, so the two are resolved independently by scanning the context `dataSources`:
- *   1. WMS `GetCapabilities` → the layer's `MetadataURL` → record UUID;
- *   2. metadata scan: the first dataSource whose GN base returns a record with an `OGC:WFS`
- *      `applicationProfile` → WFS url + filterable columns;
- *   3. index scan: the first dataSource whose ES index holds the layer's `featureTypeId`.
+ *   1. WMS `GetCapabilities` → the first sublayer's `MetadataURL` → record UUID;
+ *   2. metadata scan: the first dataSource whose GN base returns a record with `OGC:WFS`
+ *      `applicationProfile`(s); each WMS sublayer is matched to the WFS resource listing it as a
+ *      feature type, yielding one `featureTypeId` (`${wfsUrl}#${sublayer}`) per sublayer;
+ *   3. index scan: the first dataSource whose ES index holds those `featureTypeIds`.
  *
- * Returns `null` when the layer has no such profile or is not indexed on any dataSource.
+ * Returns `null` when no sublayer maps to a profiled WFS resource or none are indexed.
  */
 async function detectAttributeFilter(
   layer: MapLayer,
@@ -48,22 +49,36 @@ async function detectAttributeFilter(
   const sources = dataSources.filter((ds) => ds.type === 'geonetwork-index')
   if (sources.length === 0) return null
 
+  const sublayers = splitSublayers(layer.name)
   const endpoint = await new WmsEndpoint(layer.url).isReady()
-  const uuid = metadataUuid(endpoint, layer.name)
+  const uuid = metadataUuid(endpoint, sublayers[0] ?? layer.name)
   if (!uuid) return null
 
-  let record: { wfsUrl: string; profile: GnWfsApplicationProfile } | null = null
+  let resources: GnWfsResource[] = []
   for (const ds of sources) {
-    record = await fetchWfsResource(gnBaseFromEsUrl(ds.url), uuid)
-    if (record) break
+    resources = await fetchWfsResources(gnBaseFromEsUrl(ds.url), uuid)
+    if (resources.length) break
   }
-  if (!record) return null
+  if (!resources.length) return null
 
-  const featureTypeId = encodeURIComponent(`${record.wfsUrl}#${layer.name}`)
+  // Match each sublayer to the WFS resource that exposes it (a resource with no listed feature
+  // types backs every sublayer). All matched sublayers are assumed to share the same profile.
+  const featureTypeIds: string[] = []
+  let profile: GnWfsResource['profile'] | null = null
+  for (const sublayer of sublayers) {
+    const resource = resources.find(
+      (r) => r.featureTypes.length === 0 || r.featureTypes.includes(sublayer),
+    )
+    if (!resource) continue
+    featureTypeIds.push(encodeURIComponent(`${resource.wfsUrl}#${sublayer}`))
+    profile ??= resource.profile
+  }
+  if (!featureTypeIds.length || !profile) return null
+
   for (const ds of sources) {
-    const count = await fetchCount({ url: ds.url, featureTypeId })
+    const count = await fetchCount({ url: ds.url, featureTypeIds })
     if (count > 0) {
-      return { url: ds.url, featureTypeId, fields: profileToFields(record.profile) }
+      return { url: ds.url, featureTypeIds, fields: profileToFields(profile) }
     }
   }
   return null
@@ -90,10 +105,17 @@ export function gnBaseFromEsUrl(esUrl: string): string {
   return esUrl.replace(/\/index\/features\/?$/, '')
 }
 
-/** Read the first sublayer's `MetadataURL` from the WMS capabilities and extract its UUID. */
-function metadataUuid(endpoint: WmsEndpoint, layerName: string): string | null {
-  const firstSublayer = layerName.split(',')[0] ?? layerName
-  const metadataUrl = endpoint.getLayerByName(firstSublayer)?.metadata?.[0]?.url
+/** Sublayers of a (possibly comma-joined) WMS layer name — each an index join key. */
+function splitSublayers(layerName: string): string[] {
+  return layerName
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+}
+
+/** Read a sublayer's `MetadataURL` from the WMS capabilities and extract its UUID. */
+function metadataUuid(endpoint: WmsEndpoint, sublayer: string): string | null {
+  const metadataUrl = endpoint.getLayerByName(sublayer)?.metadata?.[0]?.url
   return metadataUrl ? parseUuid(metadataUrl) : null
 }
 

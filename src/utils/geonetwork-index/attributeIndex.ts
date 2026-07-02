@@ -39,13 +39,13 @@ function readTotal(response: EsSearchResponse): number {
   return typeof total === 'number' ? total : (total?.value ?? 0)
 }
 
-// Scope a search to the index's feature type and any active `filters`; a lone feature-type
-// term stays bare (no surrounding bool).
+// Scope a search to the index's feature types and any active `filters`; the lone feature-type
+// terms clause stays bare (no surrounding bool).
 function filteredQuery(
   index: GeoNetworkIndexConnection,
   filters: WmsFilterState = [],
 ): Record<string, unknown> {
-  const featureType = { term: { featureTypeId: index.featureTypeId } }
+  const featureType = { terms: { featureTypeId: index.featureTypeIds } }
   return filters.length === 0
     ? featureType
     : { bool: { filter: [featureType, ...filters.map(buildFieldFilter)] } }
