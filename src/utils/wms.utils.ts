@@ -10,6 +10,14 @@ import type Filter from 'ol/format/filter/Filter'
 import type { FilterByAttribute, WmsFilterState } from '@/types/wms.types'
 import type { MapLayer } from './layer.utils'
 
+/** Split a (possibly comma-joined) WMS layer name into its trimmed, non-empty sublayers. */
+export function splitSublayers(layerName: string): string[] {
+  return layerName
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+}
+
 export function getWmsTimeDimension(layer: MapLayer): WmsLayerDimension | null {
   if (layer.type !== 'wms') return null
   const dims = (layer.extras?.wmsDimensions as WmsLayerDimension[]) ?? []
@@ -151,9 +159,7 @@ export function buildWmsFilterParam(layerName: string, filter: WmsFilterState): 
   if (!ogcFilter) return null
 
   const wrapped = serializeFilter(ogcFilter)
-  const sublayers = layerName
-    .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean)
-  return sublayers.length > 1 ? sublayers.map(() => `(${wrapped})`).join('') : wrapped
+  // WMS wants one parenthesised group per sublayer when the layer is comma-joined.
+  const count = splitSublayers(layerName).length
+  return count > 1 ? `(${wrapped})`.repeat(count) : wrapped
 }

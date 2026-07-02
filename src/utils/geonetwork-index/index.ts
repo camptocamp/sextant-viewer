@@ -4,10 +4,12 @@ export type { IndexField, FieldValue, DistinctFieldValues } from './attributeInd
 export { buildOgcFilter, buildWmsFilterParam } from './wms.utils'
 export { fetchWfsResources } from './gnRecord'
 import { fetchCount } from './attributeIndex'
+import { fetchWfsResources } from './gnRecord'
 import type { GnWfsApplicationProfile, GnWfsResource } from './gnRecord.types'
 import { buildWmsFilterParam } from './wms.utils'
 import type { IndexField } from './attributeIndex.types'
 import type { MapLayer } from '../layer.utils'
+import { splitSublayers } from '../wms.utils'
 import type { DataSource } from '@/types/data-source.types'
 import type { ExtendedMapLayerWms, GeoNetworkIndexConnection } from '@/types/wms.types'
 import type { MapContextLayer } from '@geospatial-sdk/core'
@@ -49,36 +51,69 @@ async function detectAttributeFilter(
   if (sources.length === 0) return null
 
   const sublayers = splitSublayers(layer.name)
-  const endpoint = await new WmsEndpoint(layer.url).isReady()
-  const uuid = metadataUuid(endpoint, sublayers[0] ?? layer.name)
+  const uuid = await resolveRecordUuid(layer.url, sublayers[0] ?? layer.name)
   if (!uuid) return null
 
-  let resources: GnWfsResource[] = []
-  for (const ds of sources) {
-    resources = await fetchWfsResources(gnBaseFromEsUrl(ds.url), uuid)
-    if (resources.length) break
-  }
-  if (!resources.length) return null
+  const resources = await firstResources(sources, uuid)
+  const { featureTypeIds, profile } = matchSublayersToResources(sublayers, resources)
+  if (!featureTypeIds.length || !profile) return null
 
-  // Match each sublayer to the WFS resource that exposes it (a resource with no listed feature
-  // types backs every sublayer). All matched sublayers are assumed to share the same profile.
+  return firstIndexedSource(sources, featureTypeIds, profile)
+}
+
+/** WMS `GetCapabilities` → the sublayer's `MetadataURL` → record UUID. */
+async function resolveRecordUuid(wmsUrl: string, sublayer: string): Promise<string | null> {
+  const endpoint = await new WmsEndpoint(wmsUrl).isReady()
+  const metadataUrl = endpoint.getLayerByName(sublayer)?.metadata?.[0]?.url
+  return metadataUrl ? parseUuid(metadataUrl) : null
+}
+
+/** WFS resources of the first dataSource whose GeoNetwork base returns any for the record. */
+async function firstResources(sources: DataSource[], uuid: string): Promise<GnWfsResource[]> {
+  for (const ds of sources) {
+    const resources = await fetchWfsResources(gnBaseFromEsUrl(ds.url), uuid)
+    if (resources.length) return resources
+  }
+  return []
+}
+
+/** True when a WFS resource backs a sublayer — explicitly, or implicitly if it lists none. */
+function resourceBacksSublayer(resource: GnWfsResource, sublayer: string): boolean {
+  return resource.featureTypes.length === 0 || resource.featureTypes.includes(sublayer)
+}
+
+/**
+ * Match each sublayer to the WFS resource that exposes it, collecting one `featureTypeId` per
+ * matched sublayer and the first profile among them (matched sublayers share a single profile).
+ */
+function matchSublayersToResources(
+  sublayers: string[],
+  resources: GnWfsResource[],
+): { featureTypeIds: string[]; profile?: GnWfsApplicationProfile } {
   const featureTypeIds: string[] = []
-  let profile: GnWfsResource['profile'] | null = null
+  let profile: GnWfsApplicationProfile | undefined
   for (const sublayer of sublayers) {
-    const resource = resources.find(
-      (r) => r.featureTypes.length === 0 || r.featureTypes.includes(sublayer),
-    )
+    const resource = resources.find((r) => resourceBacksSublayer(r, sublayer))
     if (!resource) continue
     featureTypeIds.push(encodeURIComponent(`${resource.wfsUrl}#${sublayer}`))
     profile ??= resource.profile
   }
-  if (!featureTypeIds.length || !profile) return null
+  return { featureTypeIds, profile }
+}
 
+/**
+ * Connection to the first dataSource whose ES index holds the `featureTypeIds`, with its filter
+ * columns resolved from the profile.
+ */
+async function firstIndexedSource(
+  sources: DataSource[],
+  featureTypeIds: string[],
+  profile: GnWfsApplicationProfile,
+): Promise<GeoNetworkIndexConnection | null> {
   for (const ds of sources) {
-    const count = await fetchCount({ url: ds.url, featureTypeIds })
-    if (count > 0) {
-      return { url: ds.url, featureTypeIds, fields: profileToFields(profile) }
-    }
+    const index: GeoNetworkIndexConnection = { url: ds.url, featureTypeIds }
+    if ((await fetchCount(index)) === 0) continue
+    return { ...index, fields: profileToFields(profile) }
   }
   return null
 }
@@ -102,20 +137,6 @@ export async function resolveAttributeFilter(
 /** Strip the Geonetwork features-index suffix to get the Geonetwork base, e.g. `/geonetwork`. */
 export function gnBaseFromEsUrl(esUrl: string): string {
   return esUrl.replace(/\/index\/features\/?$/, '')
-}
-
-/** Sublayers of a (possibly comma-joined) WMS layer name — each an index join key. */
-function splitSublayers(layerName: string): string[] {
-  return layerName
-    .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean)
-}
-
-/** Read a sublayer's `MetadataURL` from the WMS capabilities and extract its UUID. */
-function metadataUuid(endpoint: WmsEndpoint, sublayer: string): string | null {
-  const metadataUrl = endpoint.getLayerByName(sublayer)?.metadata?.[0]?.url
-  return metadataUrl ? parseUuid(metadataUrl) : null
 }
 
 /** Geonetwork MetadataURL conventions: `?uuid=`/`?id=` query param, or `#/metadata/<uuid>`. */
