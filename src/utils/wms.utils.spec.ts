@@ -12,11 +12,19 @@ const theme = (values: string[]): FilterByAttribute => ({
   matchType: 'equals',
   values,
 })
+const tokenizedTheme = (values: string[]): FilterByAttribute => ({
+  attributeName: 'THEME',
+  matchType: 'contains',
+  values,
+})
 
 const NS = 'http://www.opengis.net/ogc'
 const filterXml = (body: string) => `<Filter xmlns="${NS}">${body}</Filter>`
 const eq = (field: string, value: string) =>
   `<PropertyIsEqualTo><PropertyName>${field}</PropertyName><Literal>${value}</Literal></PropertyIsEqualTo>`
+const isLike = (field: string, pattern: string) =>
+  `<PropertyIsLike wildCard="*" singleChar="." escapeChar="!">` +
+  `<PropertyName>${field}</PropertyName><Literal>${pattern}</Literal></PropertyIsLike>`
 
 describe('buildOgcFilter', () => {
   it('returns null when nothing is selected', () => {
@@ -25,13 +33,16 @@ describe('buildOgcFilter', () => {
     expect(buildOgcFilter([region([''])])).toBeNull()
   })
 
-  it('throws for unsupported match types', () => {
-    const field: FilterByAttribute = {
+  it('skips clauses with an unknown match type instead of throwing', () => {
+    const stale = {
       attributeName: 'THEME',
-      matchType: 'contains',
+      matchType: 'regex',
       values: ['x'],
-    }
-    expect(() => buildOgcFilter([field])).toThrow(/contains/)
+    } as unknown as FilterByAttribute
+    expect(buildOgcFilter([stale])).toBeNull()
+    expect(buildWmsFilterParam('surval_point', [stale, region(['A'])])).toBe(
+      filterXml(eq('DCSMM_SOUS_REGION', 'A')),
+    )
   })
 })
 
@@ -43,6 +54,18 @@ describe('buildWmsFilterParam', () => {
   it('builds a single PropertyIsEqualTo for an equals attribute', () => {
     expect(buildWmsFilterParam('surval_point', [region(['Manche'])])).toBe(
       filterXml(eq('DCSMM_SOUS_REGION', 'Manche')),
+    )
+  })
+
+  it('builds a substring PropertyIsLike for a contains (tokenized) attribute', () => {
+    expect(buildWmsFilterParam('surval_point', [tokenizedTheme(['Benthos'])])).toBe(
+      filterXml(isLike('THEME', '*Benthos*')),
+    )
+  })
+
+  it('escapes like wildcards occurring in contains values', () => {
+    expect(buildWmsFilterParam('surval_point', [tokenizedTheme(['a*b.c!d'])])).toBe(
+      filterXml(isLike('THEME', '*a!*b!.c!!d*')),
     )
   })
 

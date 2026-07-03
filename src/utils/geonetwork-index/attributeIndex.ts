@@ -66,21 +66,19 @@ export async function discoverFields(index: GeoNetworkIndexConnection): Promise<
     const name = TERMS_FIELD_MATCH.exec(key)?.[1]
     if (!name) continue
 
-    fields.push({ esField: name, label: name, aggField: key, type: 'terms' })
+    fields.push({ esField: name, label: name, aggField: key, type: 'terms', matchType: 'equals' })
   }
 
   return fields
 }
 
-/** ES filter clause selecting the documents whose attribute matches any of the selected values. */
+/**
+ * ES filter clause selecting the documents whose attribute matches any of the selected values.
+ * Both match types filter by exact token: tokenized columns are indexed token-per-token, so
+ * `contains` only changes the WFS-side comparison (see `wmsFilter.ts`).
+ */
 export function buildFieldFilter(filter: FilterByAttribute): Record<string, unknown> {
-  switch (filter.matchType) {
-    case 'equals':
-      return { terms: { [aggFieldName(filter.attributeName)]: filter.values } }
-    // TODO: support `contains` matchType in the future
-    default:
-      throw new Error(`Unsupported matchType: ${filter.matchType}`)
-  }
+  return { terms: { [aggFieldName(filter.attributeName)]: filter.values } }
 }
 
 /**

@@ -1,5 +1,5 @@
 import type { MapContextLayerWms, LayerExtras } from '@geospatial-sdk/core'
-import type { IndexField } from '@/utils/geonetwork-index/attributeIndex.types'
+import type { IndexField, MatchType } from '@/utils/geonetwork-index/attributeIndex.types'
 
 /**
  * Connection to a GeoNetwork data index backed by ElasticSearch
@@ -23,7 +23,7 @@ export interface GeoNetworkIndexConnection {
 
 export interface FilterByAttribute {
   attributeName: string
-  matchType: 'contains' | 'equals'
+  matchType: MatchType
   values: string[]
 }
 

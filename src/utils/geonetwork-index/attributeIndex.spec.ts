@@ -9,6 +9,7 @@ const field: IndexField = {
   label: 'Thème',
   aggField: 'ft_THEME_s',
   type: 'terms',
+  matchType: 'equals',
 }
 
 let originalFetch: typeof globalThis.fetch
@@ -43,10 +44,10 @@ describe('buildFieldFilter', () => {
     ).toEqual({ terms: { ft_REGION_s: ['A', 'B'] } })
   })
 
-  it('throws for unsupported match types', () => {
-    expect(() =>
-      buildFieldFilter({ attributeName: 'THEME', matchType: 'contains', values: ['x'] }),
-    ).toThrow(/contains/)
+  it('filters contains (tokenized) attributes by exact token too', () => {
+    expect(
+      buildFieldFilter({ attributeName: 'THEME', matchType: 'contains', values: ['Benthos'] }),
+    ).toEqual({ terms: { ft_THEME_s: ['Benthos'] } })
   })
 })
 
@@ -177,12 +178,19 @@ describe('discoverFields', () => {
     })
 
     expect(await discoverFields(index)).toEqual([
-      { esField: 'THEME', label: 'THEME', aggField: 'ft_THEME_s', type: 'terms' },
+      {
+        esField: 'THEME',
+        label: 'THEME',
+        aggField: 'ft_THEME_s',
+        type: 'terms',
+        matchType: 'equals',
+      },
       {
         esField: 'DCSMM_SOUS_REGION',
         label: 'DCSMM_SOUS_REGION',
         aggField: 'ft_DCSMM_SOUS_REGION_s',
         type: 'terms',
+        matchType: 'equals',
       },
     ])
     // size:1 sample search against the endpoint, no `/_search` suffix.

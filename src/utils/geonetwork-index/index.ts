@@ -175,7 +175,8 @@ export function parseUuid(metadataUrl: string): string | null {
 
 /**
  * Translate the profile to filterable columns: visible value-list columns only (date-range and
- * tree facets dropped), French labels, `ft_<COLUMN>_s` aggregation field.
+ * tree facets dropped), French labels, `ft_<COLUMN>_s` aggregation field. Columns declared in
+ * `tokenizedFields` compare by substring on the WFS side (`contains`).
  */
 export function profileToFields(profile: GnWfsApplicationProfile): IndexField[] {
   const treeFields = new Set(profile.treeFields ?? [])
@@ -186,5 +187,6 @@ export function profileToFields(profile: GnWfsApplicationProfile): IndexField[] 
       label: f.label?.fr ?? f.label?.en ?? f.name,
       aggField: `ft_${f.name}_s`,
       type: 'terms' as const,
+      matchType: profile.tokenizedFields?.[f.name] ? ('contains' as const) : ('equals' as const),
     }))
 }

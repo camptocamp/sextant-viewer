@@ -4,7 +4,7 @@ import {
   type WmsLayerDimension,
 } from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
-import { and, equalTo, or } from 'ol/format/filter'
+import { and, equalTo, like, or } from 'ol/format/filter'
 import { writeFilter } from 'ol/format/WFS'
 import type Filter from 'ol/format/filter/Filter'
 import type { FilterByAttribute, WmsFilterState } from '@/types/wms.types'
@@ -113,32 +113,51 @@ export async function enrichWmsDimensionsLayer(layer: MapLayer): Promise<MapLaye
 // Version pinned to 1.1.0 to preserve QGIS Server compatibility (2.0.0 would emit the fes/ValueReference form).
 const FILTER_VERSION = '1.1.0'
 
-function buildComparison(attribute: FilterByAttribute, value: string): Filter {
+// PropertyIsLike special characters; literal occurrences in values are escaped with ESCAPE_CHAR.
+const WILD_CARD = '*'
+const SINGLE_CHAR = '.'
+const ESCAPE_CHAR = '!'
+
+const escapeLikeValue = (value: string) => value.replace(/[*.!]/g, (c) => `${ESCAPE_CHAR}${c}`)
+
+function buildComparison(attribute: FilterByAttribute, value: string): Filter | null {
   switch (attribute.matchType) {
     case 'equals':
       return equalTo(attribute.attributeName, value)
-    // TODO: support `contains` matchType in the future
+    case 'contains':
+      // Tokenized column: the raw WFS value is the separator-joined token string, match by substring.
+      return like(
+        attribute.attributeName,
+        `${WILD_CARD}${escapeLikeValue(value)}${WILD_CARD}`,
+        WILD_CARD,
+        SINGLE_CHAR,
+        ESCAPE_CHAR,
+      )
     default:
-      throw new Error(`Unsupported matchType: ${attribute.matchType}`)
+      // Unknown match types (stale persisted state, consumer contexts) must not break the render.
+      console.error(`Type de filtre attributaire non supporté: ${attribute.matchType}`)
+      return null
   }
 }
 
-function buildFieldGroup(attribute: FilterByAttribute, values: string[]): Filter {
-  const comparisons = values.map((value) => buildComparison(attribute, value))
+function buildFieldGroup(attribute: FilterByAttribute, values: string[]): Filter | null {
+  const comparisons = values
+    .map((value) => buildComparison(attribute, value))
+    .filter((comparison): comparison is Filter => comparison !== null)
+  if (comparisons.length === 0) return null
   return comparisons.length > 1 ? or(...comparisons) : comparisons[0]!
 }
 
 /**
  * Build an OL Filter from a WMS filter state.
- * Returns `null` if the filter state is empty.
+ * Returns `null` if the filter state is empty (or holds no usable clause).
  */
 export function buildOgcFilter(filter: WmsFilterState): Filter | null {
   const groups: Filter[] = []
   for (const attribute of filter) {
     const values = attribute.values.filter((value) => value != null && value !== '')
-    if (values.length > 0) {
-      groups.push(buildFieldGroup(attribute, values))
-    }
+    const group = values.length > 0 ? buildFieldGroup(attribute, values) : null
+    if (group) groups.push(group)
   }
 
   if (groups.length === 0) return null

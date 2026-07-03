@@ -1,5 +1,13 @@
 // Types for the Geonetwork ElasticSearch index backing a WFS layer (see `attributeIndex.ts`).
 
+/**
+ * How selected values compare against the WFS column at GetMap time. `equals` matches the raw
+ * column value; `contains` is for tokenized columns (the raw value is a separator-joined string,
+ * e.g. `"Benthos;Microbiologie"`, while the index holds individual tokens) and matches by
+ * substring (`PropertyIsLike *value*`). Both filter the index by exact token.
+ */
+export type MatchType = 'equals' | 'contains'
+
 /** A single filterable column discovered from the index. */
 export interface IndexField {
   /** Logical field name; also the key under which selections are stored. */
@@ -10,6 +18,8 @@ export interface IndexField {
   aggField: string
   /** Index field kind; only `terms` (keyword) columns are filterable for now. */
   type: 'terms'
+  /** WFS-side comparison for this column's values; `contains` for tokenized columns. */
+  matchType: MatchType
 }
 
 export interface FieldValue {

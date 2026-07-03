@@ -54,8 +54,32 @@ describe('profileToFields', () => {
         ],
       }),
     ).toEqual([
-      { esField: 'THEME', label: 'Thème', aggField: 'ft_THEME_s', type: 'terms' },
-      { esField: 'REGION', label: 'Region', aggField: 'ft_REGION_s', type: 'terms' },
+      {
+        esField: 'THEME',
+        label: 'Thème',
+        aggField: 'ft_THEME_s',
+        type: 'terms',
+        matchType: 'equals',
+      },
+      {
+        esField: 'REGION',
+        label: 'Region',
+        aggField: 'ft_REGION_s',
+        type: 'terms',
+        matchType: 'equals',
+      },
+    ])
+  })
+
+  it('marks tokenized columns as contains', () => {
+    expect(
+      profileToFields({
+        tokenizedFields: { THEME: ';' },
+        fields: [{ name: 'THEME' }, { name: 'REGION' }],
+      }).map(({ esField, matchType }) => ({ esField, matchType })),
+    ).toEqual([
+      { esField: 'THEME', matchType: 'contains' },
+      { esField: 'REGION', matchType: 'equals' },
     ])
   })
 
@@ -70,6 +94,8 @@ describe('profileToFields', () => {
         ],
         treeFields: ['D'],
       }),
-    ).toEqual([{ esField: 'C', label: 'C', aggField: 'ft_C_s', type: 'terms' }])
+    ).toEqual([
+      { esField: 'C', label: 'C', aggField: 'ft_C_s', type: 'terms', matchType: 'equals' },
+    ])
   })
 })
