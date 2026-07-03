@@ -1,8 +1,21 @@
 import type { GnWfsApplicationProfile, GnWfsResource } from './gnRecord.types'
 
-/** First descendant text by local name (namespace-agnostic), trimmed. */
+// ISO value wrappers: `gco:CharacterString` (both schemas), `gmd:URL` (19139 linkage),
+// `gcx:Anchor`/`gmx:Anchor` (linked values).
+const VALUE_LOCAL_NAMES = ['CharacterString', 'URL', 'Anchor']
+
+/**
+ * Text of a property's value element by local name (namespace-agnostic), trimmed.
+ *
+ * The value child is read instead of the property's `textContent`: on multilingual records the
+ * property also carries `PT_FreeText` translations, which `textContent` would concatenate into
+ * the value. Falls back to the property's own text for records inlining the value.
+ */
 function localText(parent: Element, local: string): string | undefined {
-  return parent.getElementsByTagNameNS('*', local)[0]?.textContent?.trim() || undefined
+  const property = parent.getElementsByTagNameNS('*', local)[0]
+  if (!property) return undefined
+  const value = Array.from(property.children).find((c) => VALUE_LOCAL_NAMES.includes(c.localName))
+  return (value ?? property).textContent?.trim() || undefined
 }
 
 /**

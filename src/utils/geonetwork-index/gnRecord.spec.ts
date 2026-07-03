@@ -87,4 +87,36 @@ describe('fetchWfsResources', () => {
     mockFetch('', false)
     expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([])
   })
+
+  it('ignores PT_FreeText translations on multilingual records', async () => {
+    mockFetch(`<?xml version="1.0"?>
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+  xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+  xmlns:lan="http://standards.iso.org/iso/19115/-3/lan/1.0"
+  xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0">
+  <cit:CI_OnlineResource>
+    <cit:linkage>
+      <gco:CharacterString>https://host/services/wfs/env</gco:CharacterString>
+      <lan:PT_FreeText><lan:textGroup>
+        <lan:LocalisedCharacterString locale="#EN">https://host/en/wfs</lan:LocalisedCharacterString>
+      </lan:textGroup></lan:PT_FreeText>
+    </cit:linkage>
+    <cit:protocol><gco:CharacterString>OGC:WFS</gco:CharacterString></cit:protocol>
+    <cit:name>
+      <gco:CharacterString>point,ligne</gco:CharacterString>
+      <lan:PT_FreeText><lan:textGroup>
+        <lan:LocalisedCharacterString locale="#EN">point_en,ligne_en</lan:LocalisedCharacterString>
+      </lan:textGroup></lan:PT_FreeText>
+    </cit:name>
+    <cit:applicationProfile><gco:CharacterString>${JSON.stringify(PROFILE)}</gco:CharacterString></cit:applicationProfile>
+  </cit:CI_OnlineResource>
+</mdb:MD_Metadata>`)
+    expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([
+      {
+        wfsUrl: 'https://host/services/wfs/env',
+        featureTypes: ['point', 'ligne'],
+        profile: PROFILE,
+      },
+    ])
+  })
 })
