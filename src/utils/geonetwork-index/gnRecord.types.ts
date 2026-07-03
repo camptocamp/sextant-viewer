@@ -70,8 +70,14 @@ export interface GnWfsResource {
   /** WFS service URL from the resource's `linkage`. */
   wfsUrl: string
   /**
-   * Feature types the resource exposes, from its `<cit:name>` (comma-joined in the record).
-   * Empty when the resource lists no name — then it is treated as backing every sublayer.
+   * The resource's `<cit:name>` verbatim — the Geonetwork indexer keys `featureTypeId` on this
+   * exact string, so it must not be normalised. Absent when the resource lists no name.
+   */
+  name?: string
+  /**
+   * Feature types the resource exposes, split from `name` (comma-joined in the record) — used for
+   * sublayer matching only. Empty when the resource lists no name — then it is treated as backing
+   * every sublayer.
    */
   featureTypes: string[]
   /**

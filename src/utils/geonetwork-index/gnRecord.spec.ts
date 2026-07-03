@@ -47,6 +47,7 @@ describe('fetchWfsResources', () => {
     expect(res).toEqual([
       {
         wfsUrl: 'https://host/services/wfs/env',
+        name: 'point,ligne',
         featureTypes: ['point', 'ligne'],
         profile: PROFILE,
       },
@@ -66,6 +67,7 @@ describe('fetchWfsResources', () => {
     expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([
       {
         wfsUrl: 'https://host/services/wfs/env',
+        name: 'point,ligne',
         featureTypes: ['point', 'ligne'],
         profile: undefined,
       },
@@ -77,6 +79,7 @@ describe('fetchWfsResources', () => {
     expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([
       {
         wfsUrl: 'https://host/services/wfs/env',
+        name: 'point,ligne',
         featureTypes: ['point', 'ligne'],
         profile: undefined,
       },
@@ -86,6 +89,18 @@ describe('fetchWfsResources', () => {
   it('returns [] when the fetch fails', async () => {
     mockFetch('', false)
     expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([])
+  })
+
+  it('keeps the raw name verbatim while trimming the split feature types', async () => {
+    mockFetch(
+      recordXml(JSON.stringify(PROFILE)).replace(
+        '<gco:CharacterString>point,ligne</gco:CharacterString>',
+        '<gco:CharacterString>point, ligne</gco:CharacterString>',
+      ),
+    )
+    const [resource] = await fetchWfsResources('/geonetwork', 'uuid-1')
+    expect(resource!.name).toBe('point, ligne')
+    expect(resource!.featureTypes).toEqual(['point', 'ligne'])
   })
 
   it('ignores PT_FreeText translations on multilingual records', async () => {
@@ -114,6 +129,7 @@ describe('fetchWfsResources', () => {
     expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([
       {
         wfsUrl: 'https://host/services/wfs/env',
+        name: 'point,ligne',
         featureTypes: ['point', 'ligne'],
         profile: PROFILE,
       },

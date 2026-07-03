@@ -72,8 +72,8 @@ function resourceBacksSublayer(resource: GnWfsResource, sublayer: string): boole
  * matched resource and the first profile among them (matched resources share a single profile).
  *
  * The Geonetwork indexer keys documents by the WFS resource's full feature-type name — the
- * comma-joined `<cit:name>` verbatim, even when it lists several types — so the id is built from
- * the whole resource, not per sublayer (a nameless resource falls back to the layer's own name).
+ * `<cit:name>` verbatim, even when it lists several types — so the id is built from the resource's
+ * raw name, not per sublayer (a nameless resource falls back to the layer's own name).
  */
 function matchSublayersToResources(
   sublayers: string[],
@@ -88,9 +88,7 @@ function matchSublayersToResources(
     profile ??= resource.profile
   }
   const featureTypeIds = [...matched].map((r) =>
-    encodeURIComponent(
-      `${r.wfsUrl}#${(r.featureTypes.length ? r.featureTypes : sublayers).join(',')}`,
-    ),
+    encodeURIComponent(`${r.wfsUrl}#${r.name ?? sublayers.join(',')}`),
   )
   return { featureTypeIds, profile }
 }

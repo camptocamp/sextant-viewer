@@ -39,13 +39,15 @@ export async function fetchWfsResources(gnBase: string, uuid: string): Promise<G
     const wfsUrl = localText(resource, 'linkage')
     if (!wfsUrl) continue
 
-    const featureTypes = (localText(resource, 'name') ?? '')
+    const name = localText(resource, 'name')
+    const featureTypes = (name ?? '')
       .split(',')
-      .map((name) => name.trim())
+      .map((type) => type.trim())
       .filter(Boolean)
 
     out.push({
       wfsUrl,
+      name,
       featureTypes,
       profile: parseProfile(localText(resource, 'applicationProfile')),
     })
