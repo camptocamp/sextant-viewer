@@ -62,7 +62,11 @@ export const useMapStore = defineStore('map', () => {
           if (isStacLayer(layer)) {
             return fromStacToGeojsonLayer(layer)
           }
-          return layer as MapContextLayer
+          const l = layer as MapContextLayer
+          if (l.type === 'wms' && l.useTiles === undefined) {
+            return { ...l, useTiles: false }
+          }
+          return l
         }),
     ],
   }))
