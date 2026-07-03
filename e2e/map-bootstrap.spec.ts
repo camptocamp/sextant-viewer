@@ -18,8 +18,7 @@ test.describe('Map Bootstrap', () => {
   })
 
   test('shows the layer panel with tabs', async ({ page }) => {
-    await expect(page.getByRole('tab', { name: 'Liste' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Arbre' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Couches' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Outils' })).toBeVisible()
   })
 
