@@ -62,9 +62,17 @@ async function firstResources(sources: DataSource[], uuid: string): Promise<GnWf
   return []
 }
 
-/** True when a WFS resource backs a sublayer — explicitly, or implicitly if it lists none. */
+/**
+ * Layer-name comparison key: WMS names are often `workspace:name` (GeoServer) while the record's
+ * WFS `<cit:name>` lists the bare feature type, and casing can differ between the two services.
+ */
+function canonicalName(name: string): string {
+  return name.split(':').pop()!.toLowerCase()
+}
+
+/** True when a WFS resource explicitly lists a feature type matching the sublayer. */
 function resourceBacksSublayer(resource: GnWfsResource, sublayer: string): boolean {
-  return resource.featureTypes.length === 0 || resource.featureTypes.includes(sublayer)
+  return resource.featureTypes.some((type) => canonicalName(type) === canonicalName(sublayer))
 }
 
 /**
@@ -82,7 +90,11 @@ function matchSublayersToResources(
   const matched = new Set<GnWfsResource>()
   let profile: GnWfsApplicationProfile | undefined
   for (const sublayer of sublayers) {
-    const resource = resources.find((r) => resourceBacksSublayer(r, sublayer))
+    // Prefer a resource explicitly listing the sublayer; a nameless resource backs any sublayer
+    // but only as a fallback, so it can't shadow the properly-described one.
+    const resource =
+      resources.find((r) => resourceBacksSublayer(r, sublayer)) ??
+      resources.find((r) => r.featureTypes.length === 0)
     if (!resource) continue
     matched.add(resource)
     profile ??= resource.profile
