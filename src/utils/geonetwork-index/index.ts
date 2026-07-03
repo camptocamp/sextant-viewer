@@ -117,7 +117,9 @@ function matchSublayersToResources(
 
 /**
  * Connection to the first dataSource whose ES index holds the `featureTypeIds`, with its filter
- * columns from the profile when present, otherwise discovered from a sample index document.
+ * columns from the profile when it declares some, otherwise discovered from a sample index
+ * document (a profile may only carry tokenizedFields/treeFields — its tokenized markers still
+ * apply to the discovered columns).
  */
 async function firstIndexedSource(
   sources: DataSource[],
@@ -127,9 +129,23 @@ async function firstIndexedSource(
   for (const ds of sources) {
     const index: GeoNetworkIndexConnection = { url: ds.url, featureTypeIds }
     if ((await fetchCount(index)) === 0) continue
-    return { ...index, fields: profile ? profileToFields(profile) : await discoverFields(index) }
+    return { ...index, fields: await resolveFields(index, profile) }
   }
   return null
+}
+
+/** Filter columns: from the profile when it declares fields, else discovered from the index. */
+async function resolveFields(
+  index: GeoNetworkIndexConnection,
+  profile: GnWfsApplicationProfile | undefined,
+): Promise<IndexField[]> {
+  const fromProfile = profile ? profileToFields(profile) : []
+  if (fromProfile.length) return fromProfile
+  const discovered = await discoverFields(index)
+  return discovered.map((field) => ({
+    ...field,
+    matchType: profile?.tokenizedFields?.[field.esField] ? 'contains' : 'equals',
+  }))
 }
 
 /**
