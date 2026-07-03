@@ -29,8 +29,18 @@ describe('parseUuid', () => {
     expect(parseUuid('https://host/geonetwork/#/metadata/abc-3')).toBe('abc-3')
   })
 
+  it('reads case-variant CSW params (ID=, Uuid=)', () => {
+    expect(parseUuid('https://host/srv/fre/csw?request=GetRecordById&ID=abc-4')).toBe('abc-4')
+    expect(parseUuid('https://host/srv/csw?Uuid=abc-5')).toBe('abc-5')
+  })
+
+  it('reads the GN REST path form `…/records/<uuid>`', () => {
+    expect(parseUuid('https://host/geonetwork/srv/api/records/abc-6')).toBe('abc-6')
+    expect(parseUuid('https://host/geonetwork/srv/api/records/abc-7/formatters/xml')).toBe('abc-7')
+  })
+
   it('returns null when no uuid is present', () => {
-    expect(parseUuid('https://host/geonetwork/srv/records')).toBeNull()
+    expect(parseUuid('https://host/geonetwork/srv/search')).toBeNull()
   })
 })
 

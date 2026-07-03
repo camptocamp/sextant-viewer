@@ -1,4 +1,4 @@
-import { WmsEndpoint } from '@camptocamp/ogc-client'
+import { WmsEndpoint, type MetadataURL } from '@camptocamp/ogc-client'
 export { discoverFields, buildFieldFilter, fetchFieldValues, fetchCount } from './attributeIndex'
 export type { IndexField, FieldValue, DistinctFieldValues } from './attributeIndex.types'
 export { fetchWfsResources } from './gnRecord'
@@ -46,11 +46,21 @@ async function detectAttributeFilter(
   return firstIndexedSource(sources, featureTypeIds, profile)
 }
 
-/** WMS `GetCapabilities` → the sublayer's `MetadataURL` → record UUID. */
+/** ISO/CSW metadata entries carry the record; HTML landing pages often come first in capabilities. */
+function isIsoMetadata(entry: MetadataURL): boolean {
+  return /19115|TC211/i.test(entry.type ?? '') || /xml/i.test(entry.format ?? '')
+}
+
+/** WMS `GetCapabilities` → the sublayer's `MetadataURL` entries → record UUID. */
 async function resolveRecordUuid(wmsUrl: string, sublayer: string): Promise<string | null> {
   const endpoint = await new WmsEndpoint(wmsUrl).isReady()
-  const metadataUrl = endpoint.getLayerByName(sublayer)?.metadata?.[0]?.url
-  return metadataUrl ? parseUuid(metadataUrl) : null
+  const entries = endpoint.getLayerByName(sublayer)?.metadata ?? []
+  const sorted = [...entries].sort((a, b) => Number(isIsoMetadata(b)) - Number(isIsoMetadata(a)))
+  for (const entry of sorted) {
+    const uuid = entry.url && parseUuid(entry.url)
+    if (uuid) return uuid
+  }
+  return null
 }
 
 /** WFS resources of the first dataSource whose GeoNetwork base returns any for the record. */
@@ -143,12 +153,20 @@ export function gnBaseFromEsUrl(esUrl: string): string {
   return esUrl.replace(/\/index\/features\/?$/, '')
 }
 
-/** Geonetwork MetadataURL conventions: `?uuid=`/`?id=` query param, or `#/metadata/<uuid>`. */
+/**
+ * Geonetwork MetadataURL conventions: `?uuid=`/`?id=` query param (case-insensitive, as CSW KVP
+ * is), `#/metadata/<uuid>` fragment, or the GN REST path `…/records/<uuid>`.
+ */
 export function parseUuid(metadataUrl: string): string | null {
   try {
-    const params = new URL(metadataUrl, window.location.href).searchParams
-    const id = params.get('uuid') ?? params.get('id')
-    if (id) return id
+    const url = new URL(metadataUrl, window.location.href)
+    for (const [key, value] of url.searchParams) {
+      if ((key.toLowerCase() === 'uuid' || key.toLowerCase() === 'id') && value) return value
+    }
+    const fragment = /#\/metadata\/([^?&]+)/.exec(metadataUrl)?.[1]
+    if (fragment) return fragment
+    const restPath = /\/records\/([^/?#]+)/.exec(url.pathname)?.[1]
+    if (restPath) return decodeURIComponent(restPath)
   } catch {
     // not an absolute/parseable URL — fall through to the fragment form
   }
