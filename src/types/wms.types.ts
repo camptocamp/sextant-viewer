@@ -9,7 +9,9 @@ export interface GeoNetworkIndexConnection {
   url: string
   /**
    * Feature-type values scoping queries to this layer in the shared index, via a `terms` filter on
-   * the `featureTypeId` field. One per WMS sublayer, each the URL-encoded `${wfsUrl}#${sublayer}`.
+   * the `featureTypeId` field. One per backing WFS resource, each the URL-encoded
+   * `${wfsUrl}#${featureTypes}` where `featureTypes` is the resource's comma-joined feature-type
+   * name as the indexer stored it.
    */
   featureTypeIds: string[]
   /**

@@ -37,7 +37,8 @@ export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
  *   1. WMS `GetCapabilities` → the first sublayer's `MetadataURL` → record UUID;
  *   2. metadata scan: the first dataSource whose GN base returns a record with `OGC:WFS`
  *      resource(s); each WMS sublayer is matched to the WFS resource listing it as a feature type,
- *      yielding one `featureTypeId` (`${wfsUrl}#${sublayer}`) per sublayer;
+ *      yielding one `featureTypeId` per matched resource (the indexer keys documents by the
+ *      resource's full comma-joined feature-type name, not by individual sublayer);
  *   3. index scan: the first dataSource whose ES index holds those `featureTypeIds`.
  *
  * Filter columns come from the record's `applicationProfile` when present, otherwise they are
@@ -86,20 +87,29 @@ function resourceBacksSublayer(resource: GnWfsResource, sublayer: string): boole
 
 /**
  * Match each sublayer to the WFS resource that exposes it, collecting one `featureTypeId` per
- * matched sublayer and the first profile among them (matched sublayers share a single profile).
+ * matched resource and the first profile among them (matched resources share a single profile).
+ *
+ * The Geonetwork indexer keys documents by the WFS resource's full feature-type name — the
+ * comma-joined `<cit:name>` verbatim, even when it lists several types — so the id is built from
+ * the whole resource, not per sublayer (a nameless resource falls back to the layer's own name).
  */
 function matchSublayersToResources(
   sublayers: string[],
   resources: GnWfsResource[],
 ): { featureTypeIds: string[]; profile?: GnWfsApplicationProfile } {
-  const featureTypeIds: string[] = []
+  const matched = new Set<GnWfsResource>()
   let profile: GnWfsApplicationProfile | undefined
   for (const sublayer of sublayers) {
     const resource = resources.find((r) => resourceBacksSublayer(r, sublayer))
     if (!resource) continue
-    featureTypeIds.push(encodeURIComponent(`${resource.wfsUrl}#${sublayer}`))
+    matched.add(resource)
     profile ??= resource.profile
   }
+  const featureTypeIds = [...matched].map((r) =>
+    encodeURIComponent(
+      `${r.wfsUrl}#${(r.featureTypes.length ? r.featureTypes : sublayers).join(',')}`,
+    ),
+  )
   return { featureTypeIds, profile }
 }
 
