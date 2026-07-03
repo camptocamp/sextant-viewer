@@ -28,7 +28,7 @@ async function addLayers(page: Page, layers: GeoJsonLayer[]) {
 test.describe('Layer Manager', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/demo/')
-    await page.getByRole('tab', { name: 'Liste' }).click()
+    await page.getByRole('tab', { name: 'Couches' }).click()
   })
 
   test('displays a layer after it is added', async ({ page }) => {
