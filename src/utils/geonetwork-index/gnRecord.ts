@@ -31,7 +31,7 @@ export async function fetchWfsResources(gnBase: string, uuid: string): Promise<G
   const doc = new DOMParser().parseFromString(await res.text(), 'application/xml')
 
   const out: GnWfsResource[] = []
-  for (const resource of Array.from(doc.getElementsByTagNameNS('*', 'CI_OnlineResource'))) {
+  for (const resource of distributionOnlineResources(doc)) {
     if (!localText(resource, 'protocol')?.startsWith('OGC:WFS')) continue
 
     // `linkage` text is the URL in both schemas: 19115-3 wraps a `gco:CharacterString`,
@@ -54,6 +54,20 @@ export async function fetchWfsResources(gnBase: string, uuid: string): Promise<G
   }
 
   return out
+}
+
+/**
+ * Online resources of the record's distribution section(s) only. Records also carry
+ * `CI_OnlineResource` in metadata linkage, lineage or coupled-service citations; those must not
+ * shadow the distribution's WFS. Falls back to the whole document when the record has no
+ * distribution section.
+ */
+function distributionOnlineResources(doc: Document): Element[] {
+  const sections = Array.from(doc.getElementsByTagNameNS('*', 'distributionInfo'))
+  const scopes = sections.length ? sections : [doc.documentElement]
+  return scopes.flatMap((scope) =>
+    Array.from(scope.getElementsByTagNameNS('*', 'CI_OnlineResource')),
+  )
 }
 
 /** Parse the `applicationProfile` JSON; `undefined` when absent or malformed. */

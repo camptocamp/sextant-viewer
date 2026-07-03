@@ -91,6 +91,35 @@ describe('fetchWfsResources', () => {
     expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([])
   })
 
+  it('only scans the distribution section when the record has one', async () => {
+    mockFetch(`<?xml version="1.0"?>
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+  xmlns:mrd="http://standards.iso.org/iso/19115/-3/mrd/1.0"
+  xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+  xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0">
+  <!-- coupled-service citation outside the distribution: must be ignored -->
+  <cit:CI_OnlineResource>
+    <cit:linkage><gco:CharacterString>https://other-host/wfs</gco:CharacterString></cit:linkage>
+    <cit:protocol><gco:CharacterString>OGC:WFS</gco:CharacterString></cit:protocol>
+  </cit:CI_OnlineResource>
+  <mdb:distributionInfo><mrd:MD_Distribution>
+    <cit:CI_OnlineResource>
+      <cit:linkage><gco:CharacterString>https://host/services/wfs/env</gco:CharacterString></cit:linkage>
+      <cit:protocol><gco:CharacterString>OGC:WFS</gco:CharacterString></cit:protocol>
+      <cit:name><gco:CharacterString>point</gco:CharacterString></cit:name>
+    </cit:CI_OnlineResource>
+  </mrd:MD_Distribution></mdb:distributionInfo>
+</mdb:MD_Metadata>`)
+    expect(await fetchWfsResources('/geonetwork', 'uuid-1')).toEqual([
+      {
+        wfsUrl: 'https://host/services/wfs/env',
+        name: 'point',
+        featureTypes: ['point'],
+        profile: undefined,
+      },
+    ])
+  })
+
   it('keeps the raw name verbatim while trimming the split feature types', async () => {
     mockFetch(
       recordXml(JSON.stringify(PROFILE)).replace(
