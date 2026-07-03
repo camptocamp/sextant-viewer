@@ -117,9 +117,17 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
+  // Enrichment awaits remote services (STAC, capabilities, index detection); a slower older
+  // setContext must not clobber a newer one when they overlap (e.g. session restore racing the
+  // consumer's initial context).
+  let contextRequestId = 0
+
   async function setContext(newContext: ExtendedMapContext) {
+    const requestId = ++contextRequestId
+    const enriched = await enrichContext(newContext)
+    if (requestId !== contextRequestId) return
     context.value = {
-      ...(await enrichContext(newContext)),
+      ...enriched,
       view: { ...newContext.view }, // Force view application if same as current value
     }
     context.value.layers.forEach(detectDataIndex)
