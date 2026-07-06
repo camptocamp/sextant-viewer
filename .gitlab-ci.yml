@@ -1,0 +1,50 @@
+image: node:lts-trixie
+
+stages:
+  - build
+  - test
+  - pages
+
+build:
+  stage: build
+  script:
+    - npm install
+    - npm run format:check
+    - npm run lint
+    - npm run type-check
+    - npm run build:lib -- --outDir public --base /viewer/
+    - npm run build:app -- --outDir public/app
+    # Move the demo index.html to the root of the public Pages directory
+    - mv public/demo/index.html public/index.html
+    - rmdir public/demo
+
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+
+build-maplibre:
+  stage: build
+  before_script:
+    - git fetch origin use-maplibre
+    - git checkout use-maplibre
+  script:
+    - npm install
+    - npm run build:lib -- --outDir public/maplibre --base /viewer/maplibre/
+    - mv public/maplibre/demo/index.html public/maplibre/index.html
+    - rmdir public/maplibre/demo
+
+  artifacts:
+    paths:
+      - public/maplibre
+    expire_in: 1 week
+
+pages:
+  stage: pages
+  script:
+    - echo "Publishing GitLab Pages"
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
