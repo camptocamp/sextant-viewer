@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/sextant-viewer/maplibre/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sextant Viewer</title>
+    <!-- <link rel="stylesheet" href="/src/assets/host.css" /> -->
+    <script type="module" crossorigin src="/sextant-viewer/maplibre/sxt-viewer.js"></script>
+  </head>
+  <body style="height: 100vh; padding: 10px; box-sizing: border-box; margin: 0">
+
+    <div style="width: 100%; height: 95%; display: flex; gap: 20px">
+      <sxt-viewer id="viewer" class="block" style="flex-grow: 1; height: 100%"></sxt-viewer>
+
+      <div style="width: 30%; display: flex; flex-direction: column; gap: 10px">
+        <div>
+          <span>Select example:</span>
+          <select id="example-selector"></select>
+        </div>
+        <div id="example-doc"></div>
+        <textarea
+          id="code-input"
+          spellcheck="false"
+          style="
+            flex-grow: 1;
+            font-family:
+              'Consolas',
+              'Monaco',
+              Courier New,
+              monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            padding: 10px;
+          "
+        ></textarea>
+        <button type="button" id="run-btn">Run!</button>
+      </div>
+    </div>
+  </body>
+</html>
