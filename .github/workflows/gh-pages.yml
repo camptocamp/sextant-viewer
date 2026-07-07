@@ -6,7 +6,7 @@ on:
     branches: ['main']
     tags: ['*']
   pull_request:
-    types: [opened, synchronize, ready_for_review]
+    types: [opened, synchronize, ready_for_review, closed]
   workflow_dispatch:
 
 concurrency:
@@ -16,6 +16,8 @@ concurrency:
 jobs:
   build:
     name: Build
+    # Nothing to build when a PR merely closes — the preview job only cleans up then.
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,14 +32,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build lib + demo
-        run: npm run build:lib -- --outDir pages --base /sextant-viewer/
+      # PR builds are served from /sextant-viewer/pr-preview/pr-<N>/
+      - name: Compute base path
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "BASE=/sextant-viewer/pr-preview/pr-${{ github.event.number }}/" >> "$GITHUB_ENV"
+          else
+            echo "BASE=/sextant-viewer/" >> "$GITHUB_ENV"
+          fi
 
-      # - name: Build app
-      #   run: npm run build:app -- --outDir pages/app
+      - name: Build lib + demo
+        run: npm run build:lib -- --outDir pages --base "$BASE"
 
       - name: Build docs
-        run: npm run docs:build -- --base /sextant-viewer/
+        run: npm run docs:build -- --base "$BASE"
         working-directory: docs
 
       - name: Assemble pages
@@ -84,14 +92,14 @@ jobs:
   deploy:
     name: Deploy
     needs: [build, build-maplibre]
-    if: always() && needs.build.result == 'success' && github.ref == 'refs/heads/main'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    # Main site deploys on push to main, or manually (workflow_dispatch) to
+    # refresh the live site from a branch before merging.
+    if: >-
+      always() && needs.build.result == 'success' &&
+      (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
+      contents: write
     steps:
       - name: Download main build
         uses: actions/download-artifact@v4
@@ -106,17 +114,73 @@ jobs:
           name: viewer-maplibre-build
           path: pages/maplibre
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+      # --add never deletes existing files, so a main deploy preserves live
+      # pr-preview/ folders (created by deploy-preview). The empty package.json
+      # gives gh-pages' find-cache-dir a project root to anchor to — without it
+      # (this job has no checkout) it throws on an undefined cache path.
+      - name: Deploy to GitHub Pages
+        run: |
+          echo '{}' > package.json
+          touch pages/.nojekyll
+          npx gh-pages@6 --dist pages --add --dotfiles \
+            --user "github-actions <github-actions@github.com>" \
+            --repo "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+  deploy-preview:
+    name: Deploy PR preview
+    needs: build
+    # Same-repo PRs only: fork PRs get a read-only token and can't push/comment.
+    # Runs when build succeeded (deploy) or was skipped on PR close (cleanup),
+    # but not when build failed.
+    if: >-
+      always() && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+      PREVIEW_DIR: pr-preview/pr-${{ github.event.number }}
+    steps:
+      - name: Download build
+        if: github.event.action != 'closed'
+        uses: actions/download-artifact@v4
         with:
+          name: viewer-build
           path: pages
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      # gh-pages only cleans files under --dest, so other previews and the main
+      # site are untouched. The empty package.json anchors find-cache-dir (no
+      # checkout in this job — see the deploy job for the same workaround).
+      - name: Deploy preview
+        if: github.event.action != 'closed'
+        run: |
+          echo '{}' > package.json
+          npx gh-pages@6 --dist pages --dest "$PREVIEW_DIR" \
+            --user "github-actions <github-actions@github.com>" --repo "$REPO_URL"
+
+      - name: Comment preview link
+        if: github.event.action != 'closed'
+        run: |
+          gh pr comment ${{ github.event.number }} --repo "$GITHUB_REPOSITORY" \
+            --edit-last --create-if-none \
+            --body ":rocket: Preview deployed at https://camptocamp.github.io/sextant-viewer/$PREVIEW_DIR/ (commit ${{ github.event.pull_request.head.sha }})"
+
+      - name: Remove preview
+        if: github.event.action == 'closed'
+        run: |
+          git clone --depth 1 --branch gh-pages "$REPO_URL" gh-pages-clone
+          cd gh-pages-clone
+          if git rm -r --quiet "$PREVIEW_DIR"; then
+            git -c user.name=github-actions -c user.email=github-actions@github.com \
+              commit -m "Remove preview for PR #${{ github.event.number }}"
+            git push
+            gh pr comment ${{ github.event.number }} --repo "$GITHUB_REPOSITORY" \
+              --edit-last --create-if-none --body "Preview removed (PR closed)."
+          fi
 
   publish-dist:
     name: Publish dist branch
@@ -148,9 +212,7 @@ jobs:
         run: mkdir -p out && cp dist-build/sxt-viewer.js out/
 
       - name: Push to dist branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: dist-${{ github.ref_name }}
-          publish_dir: ./out
-          force_orphan: true
+        run: |
+          npx gh-pages@6 --dist out --branch "dist-${{ github.ref_name }}" --no-history \
+            --user "github-actions <github-actions@github.com>" \
+            --repo "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
