@@ -1,33 +1,15 @@
 import { WmsEndpoint } from '@camptocamp/ogc-client'
 export { discoverFields, buildFieldFilter, fetchFieldValues, fetchCount } from './attributeIndex'
 export type { IndexField, FieldValue, DistinctFieldValues } from './attributeIndex.types'
-export { buildOgcFilter, buildWmsFilterParam } from './wms.utils'
 export { fetchWfsResources } from './gnRecord'
 import { discoverFields, fetchCount } from './attributeIndex'
 import { fetchWfsResources } from './gnRecord'
 import type { GnWfsApplicationProfile, GnWfsResource } from './gnRecord.types'
-import { buildWmsFilterParam } from './wms.utils'
 import type { IndexField } from './attributeIndex.types'
 import type { MapLayer } from '../layer.utils'
 import { splitSublayers } from '../wms.utils'
 import type { DataSource } from '@/types/data-source.types'
-import type { ExtendedMapLayerWms, GeoNetworkIndexConnection } from '@/types/wms.types'
-import type { MapContextLayer } from '@geospatial-sdk/core'
-
-/**
- * For a WMS layer, encode its active selections (`extras.filter`) as the SDK `filter` (an OGC
- * FILTER applied at GetMap) and strip the app-only `extras` before handing the layer to the SDK.
- * Other layers pass through unchanged.
- */
-export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
-  if (layer.type !== 'wms') return layer
-  const wmsExtras = layer.extras as ExtendedMapLayerWms['extras']
-  const filter = buildWmsFilterParam(layer.name, wmsExtras?.filter ?? []) ?? undefined
-  const extras = { ...layer.extras }
-  delete extras.filter
-  delete extras.dataIndex
-  return { ...layer, filter, extras }
-}
+import type { GeoNetworkIndexConnection } from '@/types/wms.types'
 
 /**
  * Detect whether a WMS layer is filterable and resolve its ES index + filterable columns.
