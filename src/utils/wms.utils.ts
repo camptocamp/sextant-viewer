@@ -40,6 +40,15 @@ export function toWmsTime(date: Date): string {
 }
 
 /**
+ * Drop the server-derived `extras.wmsDimensions` before persistence
+ */
+export function stripWmsDimensions(layer: MapLayer): MapLayer {
+  if (layer.type !== 'wms' || !layer.extras?.wmsDimensions) return layer
+  const { wmsDimensions: _wmsDimensions, ...extras } = layer.extras
+  return { ...layer, extras }
+}
+
+/**
  * Enrich a WMS layer with the dimensions the server declares (TIME, ELEVATION, …).
  * Stores all dimensions in `extras.wmsDimensions`, then seeds `dimensionValues`
  * from each dimension's server default.

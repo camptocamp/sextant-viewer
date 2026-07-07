@@ -12,7 +12,7 @@ const SESSION_STORAGE_CONTEXT_KEY = 'sxt-viewer-current-map-context'
  */
 export const usePersistentContextStore = defineStore('persistentContext', () => {
   const { initialContext, context, currentExtent } = storeToRefs(useMapStore())
-  const { setContext, setInitialContext } = useMapStore()
+  const { setContext, setInitialContext, getContext } = useMapStore()
 
   // restore from sessionStorage do not need to be stored in sessionStorage
   let ignoreNextInitialContextChange = false
@@ -46,11 +46,10 @@ export const usePersistentContextStore = defineStore('persistentContext', () => 
 
   const saveContextToStorage = useDebounceFn(
     (context: ExtendedMapContext, extent: Extent | null) => {
-      const ctx = { ...context }
-      if (extent) {
-        ctx.view = {
-          extent,
-        }
+      const ctx = {
+        ...context,
+        ...getContext(),
+        view: extent ? { ...context.view, extent } : context.view,
       }
       sessionStorage.setItem(SESSION_STORAGE_CONTEXT_KEY, JSON.stringify(ctx))
     },

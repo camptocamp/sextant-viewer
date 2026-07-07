@@ -18,7 +18,7 @@ import type { MapLayer } from '@/utils/layer.utils'
 import { isStacLayer } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
-import { enrichWmsDimensionsLayer } from '@/utils/wms.utils'
+import { enrichWmsDimensionsLayer, stripWmsDimensions } from '@/utils/wms.utils'
 import { v4 as uuidv4 } from 'uuid'
 import type { ExtendedMapContext } from '@/types/map.types'
 
@@ -177,7 +177,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   const cleanLayers = (toClean: MapLayer[]) =>
-    toClean.map(({ id: _id, version: _version, ...rest }) => rest)
+    toClean.map(({ id: _id, version: _version, ...rest }) => stripWmsDimensions(rest as MapLayer))
 
   function getContext(): ExtendedMapContext {
     return {
