@@ -51,4 +51,9 @@ describe('applyWmsFilter', () => {
     const layer = { type: 'wmts', name: 'x' } as MapContextLayer
     expect(applyWmsFilter(layer)).toBe(layer)
   })
+
+  it('never touches a consumer-supplied FILTER on a layer outside the attribute-filter feature', () => {
+    const layer = wmsLayer(undefined, { FILTER: 'consumer-crafted' })
+    expect(applyWmsFilter(layer)).toBe(layer)
+  })
 })
