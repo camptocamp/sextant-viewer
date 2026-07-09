@@ -73,10 +73,12 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      // Dev-only: reach Sextant's Geonetwork same-origin so the demo's attribute filter can query
-      // the public features index (/geonetwork/index/features). Anonymous — no cookie needed;
-      // production serves the component behind Sextant directly.
-      '/geonetwork': {
+      // Dev-only: reach Sextant same-origin, so the demo's attribute filter can query the public
+      // features index (/geonetwork/index/features) and WPS Execute POSTs are not blocked by CORS
+      // (Sextant sends CORS headers on the OPTIONS preflight but not on the Execute POST
+      // response). Anonymous — no cookie needed; production serves the component behind Sextant
+      // directly.
+      '^/(geonetwork|services)/': {
         target: 'https://sextant.ifremer.fr',
         changeOrigin: true,
         secure: true,

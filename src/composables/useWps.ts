@@ -16,11 +16,16 @@ const POLL_INTERVAL_MS = 1000
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
+// ogc-client parses service URLs with `new URL()`, which rejects relative paths. Resolving
+// against the page location lets a same-origin path be used (e.g. `/services/wps3/demo`,
+// routed through the dev proxy in vite.config.ts, or served behind Sextant in production).
+const resolveUrl = (url: string) => new URL(url, window.location.href).href
+
 export function useWps() {
   const mapStore = useMapStore()
 
   async function loadProcesses(url: string) {
-    const endpoint = await new WpsEndpoint(url).isReady()
+    const endpoint = await new WpsEndpoint(resolveUrl(url)).isReady()
     return { endpoint, processes: endpoint.getProcesses() ?? [] }
   }
 
