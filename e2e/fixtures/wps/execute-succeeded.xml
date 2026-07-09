@@ -14,7 +14,7 @@
       <ows:Identifier>OUTPUT</ows:Identifier>
       <ows:Title>defined inputs as file</ows:Title>
       <ows:Abstract>defined inputs as file</ows:Abstract>
-      <wps:Reference href="https://sextant.ifremer.fr/services/wps3/demo/jobs/618f982c-7b8b-11f1-8e20-1a94052d9532/files/output.json" mimeType="application/json"/>
+      <wps:Reference href="https://sextant.ifremer.fr/services/wps3/demo/jobs/618f982c-7b8b-11f1-8e20-1a94052d9532/files/output.json" mimeType="application/octet-stream"/>
     </wps:Output>
   </wps:ProcessOutputs>
 </wps:ExecuteResponse>

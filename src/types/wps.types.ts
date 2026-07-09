@@ -25,4 +25,21 @@ export interface WpsFormOutput {
   asReference: boolean
 }
 
+/**
+ * Classification of a single Execute output by semantic family. It is the
+ * shared source of truth between the map-add path (useWps) and the rendering
+ * (WpsExecuteResult), replacing the previous list-of-labels approach.
+ */
+export type WpsOutputResult =
+  | { kind: 'wms'; identifier: string; label: string; href: string }
+  | { kind: 'geojson'; identifier: string; label: string; url?: string; data?: string }
+  | {
+      kind: 'download'
+      identifier: string
+      label: string
+      href?: string
+      data?: string
+      mimeType?: string
+    }
+
 export type { WpsProcessInput, WpsProcessOutput, WpsInputValue, WpsOutputSelection }

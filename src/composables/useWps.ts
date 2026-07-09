@@ -7,10 +7,13 @@ import type {
   WpsInputValue,
 } from '@camptocamp/ogc-client'
 import type { MapContextLayer } from '@geospatial-sdk/core'
-import { useMapStore } from '@/stores/map.store'
-import type { WpsFormInputs, WpsFormOutput } from '@/types/wps.types'
+import { useAddLayer } from '@/composables/useAddLayer'
+import type { WpsFormInputs, WpsFormOutput, WpsOutputResult } from '@/types/wps.types'
 
-const WMS_MIMETYPE_REGEX = /ogc-wms|wms/i
+const WMS_MIMETYPE_REGEX = /ogc-wms/i
+// Faithful to Sextant: any json mime (application/json or geo+json) is treated as
+// geometry. GML/XML remains unimplemented → download. Opaque mimes (octet-stream…)
+// don't match here, so they stay downloads.
 const GEOJSON_MIMETYPE_REGEX = /json/i
 const POLL_INTERVAL_MS = 1000
 
@@ -22,7 +25,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const resolveUrl = (url: string) => new URL(url, window.location.href).href
 
 export function useWps() {
-  const mapStore = useMapStore()
+  const { addLayer } = useAddLayer()
 
   async function loadProcesses(url: string) {
     const endpoint = await new WpsEndpoint(resolveUrl(url)).isReady()
@@ -83,7 +86,7 @@ export function useWps() {
     processId: string,
     options: WpsExecuteOptions,
     onProgress?: (response: WpsExecuteResponse) => void,
-  ): Promise<{ response: WpsExecuteResponse; addedLayers: string[] }> {
+  ): Promise<{ response: WpsExecuteResponse; outputs: WpsOutputResult[] }> {
     let response = await endpoint.execute(processId, options)
     onProgress?.(response)
 
@@ -93,41 +96,67 @@ export function useWps() {
       onProgress?.(response)
     }
 
-    const addedLayers = response.status === 'succeeded' ? await addResultToMap(response) : []
-    return { response, addedLayers }
+    const outputs = response.status === 'succeeded' ? await addResultToMap(response) : []
+    return { response, outputs }
   }
 
-  async function addResultToMap(response: WpsExecuteResponse): Promise<string[]> {
-    const added: string[] = []
-    for (const output of response.outputs) {
-      const layer = await outputToLayer(output)
-      if (layer) {
-        await mapStore.addLayer(layer)
-        added.push(layer.label ?? output.identifier)
+  async function addResultToMap(response: WpsExecuteResponse): Promise<WpsOutputResult[]> {
+    const outputs = response.outputs.map(classifyOutput)
+    let zoomed = false
+    for (const output of outputs) {
+      for (const layer of await toLayers(output)) {
+        // setView is absolute, so zoom only on the first mapped layer (see plan).
+        await addLayer(layer, !zoomed)
+        zoomed = true
       }
     }
-    return added
+    return outputs
   }
 
-  async function outputToLayer(output: WpsExecuteOutputResult): Promise<MapContextLayer | null> {
-    const label = output.title || output.identifier
-    const mimeType = output.reference?.mimeType ?? output.data?.mimeType ?? ''
-    const href = output.reference?.href
-
-    if (WMS_MIMETYPE_REGEX.test(mimeType) && href) {
-      const wms = await new WmsEndpoint(href).isReady()
-      const name = wms.getFlattenedLayers().find((layer) => layer.name)?.name
-      if (!name) return null
-      return { type: 'wms', url: href, name, label }
+  async function toLayers(output: WpsOutputResult): Promise<MapContextLayer[]> {
+    if (output.kind === 'wms') {
+      // Faithful to Sextant: the href is a WMS GetCapabilities; load every named layer.
+      const wms = await new WmsEndpoint(output.href).isReady()
+      return wms
+        .getFlattenedLayers()
+        .filter((layer) => layer.name)
+        .map((layer) => ({
+          type: 'wms',
+          url: output.href,
+          name: layer.name!,
+          label: layer.title || output.label,
+        }))
     }
-
-    if (GEOJSON_MIMETYPE_REGEX.test(mimeType)) {
-      if (href) return { type: 'geojson', url: href, label }
-      if (output.data?.content) return { type: 'geojson', data: output.data.content, label }
+    if (output.kind === 'geojson') {
+      if (output.url) return [{ type: 'geojson', url: output.url, label: output.label }]
+      if (output.data) return [{ type: 'geojson', data: output.data, label: output.label }]
     }
-
-    return null
+    return []
   }
 
-  return { loadProcesses, describe, buildExecuteOptions, execute, addResultToMap }
+  return { loadProcesses, describe, buildExecuteOptions, execute, addResultToMap, classifyOutput }
+}
+
+/**
+ * Classify an Execute output by semantic family, based on its mime type. The
+ * decision is mime-driven: an opaque mime (octet-stream, CSV, binary…) is
+ * always a download, never a layer — no content sniffing in v1.
+ */
+export function classifyOutput(output: WpsExecuteOutputResult): WpsOutputResult {
+  const identifier = output.identifier
+  const label = output.title || output.identifier
+  const mimeType = output.reference?.mimeType ?? output.data?.mimeType ?? ''
+  const href = output.reference?.href
+
+  if (WMS_MIMETYPE_REGEX.test(mimeType) && href) {
+    return { kind: 'wms', identifier, label, href }
+  }
+
+  if (GEOJSON_MIMETYPE_REGEX.test(mimeType)) {
+    if (href) return { kind: 'geojson', identifier, label, url: href }
+    if (output.data?.content)
+      return { kind: 'geojson', identifier, label, data: output.data.content }
+  }
+
+  return { kind: 'download', identifier, label, href, data: output.data?.content, mimeType }
 }

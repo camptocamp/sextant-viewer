@@ -7,9 +7,11 @@ import type {
   WpsExecuteResponse,
 } from '@camptocamp/ogc-client'
 import { useWps } from '@/composables/useWps'
-import type { WpsFormInputs, WpsFormOutput } from '@/types/wps.types'
+import type { WpsFormInputs, WpsFormOutput, WpsOutputResult } from '@/types/wps.types'
 
 const { loadProcesses, describe, buildExecuteOptions, execute } = useWps()
+
+const emit = defineEmits<{ 'layer-added': [] }>()
 
 const url = ref('https://sextant.ifremer.fr/services/wps3/demo')
 const endpoint = shallowRef<WpsEndpoint | null>(null)
@@ -25,7 +27,7 @@ const describing = ref(false)
 const executing = ref(false)
 const error = ref<string | null>(null)
 const result = ref<WpsExecuteResponse | null>(null)
-const addedLayers = ref<string[]>([])
+const outputs = ref<WpsOutputResult[]>([])
 
 const processItems = computed(() =>
   processes.value.map((process) => ({
@@ -77,7 +79,7 @@ async function onExecute() {
   executing.value = true
   error.value = null
   result.value = null
-  addedLayers.value = []
+  outputs.value = []
   try {
     const options = buildExecuteOptions(selectedProcess.value, formInputs.value, formOutputs.value)
     const outcome = await execute(
@@ -87,7 +89,10 @@ async function onExecute() {
       (response) => (result.value = response),
     )
     result.value = outcome.response
-    addedLayers.value = outcome.addedLayers
+    outputs.value = outcome.outputs
+    if (outcome.outputs.some((o) => o.kind === 'wms' || o.kind === 'geojson')) {
+      emit('layer-added')
+    }
   } catch (e) {
     error.value = (e as Error).message
   } finally {
@@ -127,6 +132,6 @@ async function onExecute() {
       @execute="onExecute()"
     />
 
-    <WpsExecuteResult :result="result" :error="error" :added-layers="addedLayers" />
+    <WpsExecuteResult :result="result" :error="error" :outputs="outputs" />
   </div>
 </template>

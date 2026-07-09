@@ -1,26 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { WpsExecuteResponse, WpsExecuteOutputResult } from '@camptocamp/ogc-client'
+import type { WpsExecuteResponse } from '@camptocamp/ogc-client'
+import type { WpsOutputResult } from '@/types/wps.types'
 
 const props = defineProps<{
   result: WpsExecuteResponse | null
   error?: string | null
-  addedLayers?: string[]
+  outputs?: WpsOutputResult[]
 }>()
 
 const pending = computed(
   () => props.result && ['accepted', 'started', 'paused'].includes(props.result.status),
 )
 
-function isOnMap(output: WpsExecuteOutputResult) {
-  return (props.addedLayers ?? []).includes(output.title || output.identifier)
-}
-
-function downloadHref(output: WpsExecuteOutputResult) {
-  if (output.reference?.href) return output.reference.href
-  if (output.data?.content) {
-    const mimeType = output.data.mimeType || 'text/plain'
-    return `data:${mimeType};charset=utf-8,${encodeURIComponent(output.data.content)}`
+function downloadHref(output: Extract<WpsOutputResult, { kind: 'download' }>) {
+  if (output.href) return output.href
+  if (output.data) {
+    const mimeType = output.mimeType || 'text/plain'
+    return `data:${mimeType};charset=utf-8,${encodeURIComponent(output.data)}`
   }
   return null
 }
@@ -59,12 +56,17 @@ function downloadHref(output: WpsExecuteOutputResult) {
           title="Exécution réussie"
         />
         <div
-          v-for="output in result.outputs"
+          v-for="output in outputs"
           :key="output.identifier"
           class="flex items-center justify-between gap-2 text-sm"
         >
-          <span>{{ output.title || output.identifier }}</span>
-          <UBadge v-if="isOnMap(output)" color="success" variant="subtle" size="sm">
+          <span>{{ output.label }}</span>
+          <UBadge
+            v-if="output.kind === 'wms' || output.kind === 'geojson'"
+            color="success"
+            variant="subtle"
+            size="sm"
+          >
             Couche ajoutée à la carte
           </UBadge>
           <UButton

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WMS_Capabilities version="1.3.0" xmlns="http://www.opengis.net/wms"
+                  xmlns:xlink="http://www.w3.org/1999/xlink">
+  <Service>
+    <Name>WMS</Name>
+    <Title>Demo WMS</Title>
+  </Service>
+  <Capability>
+    <Request>
+      <GetCapabilities>
+        <Format>text/xml</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xlink:type="simple"
+                              xlink:href="https://sextant.ifremer.fr/services/wms/demo"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetCapabilities>
+      <GetMap>
+        <Format>image/png</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xlink:type="simple"
+                              xlink:href="https://sextant.ifremer.fr/services/wms/demo"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetMap>
+    </Request>
+    <Layer>
+      <Title>Demo WMS</Title>
+      <CRS>EPSG:4326</CRS>
+      <Layer queryable="1">
+        <Name>demo:points</Name>
+        <Title>Demo points</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+          <westBoundLongitude>-5</westBoundLongitude>
+          <eastBoundLongitude>10</eastBoundLongitude>
+          <southBoundLatitude>42</southBoundLatitude>
+          <northBoundLatitude>52</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326" minx="42" miny="-5" maxx="52" maxy="10"/>
+      </Layer>
+      <Layer queryable="1">
+        <Name>demo:lines</Name>
+        <Title>Demo lines</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+          <westBoundLongitude>-5</westBoundLongitude>
+          <eastBoundLongitude>10</eastBoundLongitude>
+          <southBoundLatitude>42</southBoundLatitude>
+          <northBoundLatitude>52</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326" minx="42" miny="-5" maxx="52" maxy="10"/>
+      </Layer>
+    </Layer>
+  </Capability>
+</WMS_Capabilities>
