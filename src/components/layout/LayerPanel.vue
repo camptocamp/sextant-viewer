@@ -5,6 +5,7 @@ const tabItems = [
   { slot: 'list', label: 'Couches', value: 'list' },
   { slot: 'tools', label: 'Outils', value: 'tools' },
   { slot: 'add', label: 'Ajout de données', value: 'add' },
+  { slot: 'wps', label: 'Traitements (WPS)', value: 'wps' },
 ]
 
 const activeTab = ref('list')
@@ -27,6 +28,9 @@ const activeTab = ref('list')
 
     <template #add>
       <AddDataPanel @layer-added="activeTab = 'list'" />
+    </template>
+    <template #wps>
+      <WpsPanel />
     </template>
   </UTabs>
 </template>
