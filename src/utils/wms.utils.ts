@@ -152,7 +152,7 @@ function buildFieldGroup(attribute: FilterByAttribute, values: string[]): Filter
  * Build an OL Filter from a WMS filter state.
  * Returns `null` if the filter state is empty (or holds no usable clause).
  */
-export function buildOgcFilter(filter: WmsFilterState): Filter | null {
+function buildOgcFilter(filter: WmsFilterState): Filter | null {
   const groups: Filter[] = []
   for (const attribute of filter) {
     const values = attribute.values.filter((value) => value != null && value !== '')
