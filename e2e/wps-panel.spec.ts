@@ -28,9 +28,30 @@ test.describe('WPS panel', () => {
     })
   }
 
+  const WPS_URL = 'https://sextant.ifremer.fr/services/wps3/demo'
+
+  const declareService = async (page: Page, service: { url: string; label?: string }) => {
+    await page.waitForFunction(
+      () =>
+        !!(document.getElementById('viewer') as unknown as { addWpsService?: unknown })
+          ?.addWpsService,
+    )
+    await page.evaluate(
+      (s) =>
+        (
+          document.getElementById('viewer') as unknown as {
+            addWpsService: (s: { url: string; label?: string }) => void
+          }
+        ).addWpsService(s),
+      service,
+    )
+  }
+
   const runDemoProcess = async (page: Page) => {
     await page.goto('/demo/')
     await page.getByRole('tab', { name: 'Traitements (WPS)' }).click()
+    // Nothing is preselected: type the URL freely.
+    await page.getByPlaceholder('https://...').fill(WPS_URL)
     await page.getByRole('button', { name: 'Charger' }).click()
     await page.getByText('Choisir un processus').click()
     await page.getByRole('option', { name: 'Ifremer input example' }).click()
@@ -38,6 +59,30 @@ test.describe('WPS panel', () => {
     await expect(page.getByRole('button', { name: 'Exécuter' })).toBeEnabled()
     await page.getByRole('button', { name: 'Exécuter' }).click()
   }
+
+  test('starts with an empty service field and accepts a free-text URL', async ({ page }) => {
+    await mockWps(page, fixture('execute-succeeded.xml'))
+    await page.goto('/demo/')
+    await declareService(page, { url: WPS_URL, label: 'Sextant WPS (démo)' })
+    await page.getByRole('tab', { name: 'Traitements (WPS)' }).click()
+    // Nothing preselected even though a service is declared.
+    await expect(page.getByPlaceholder('https://...')).toHaveValue('')
+    await page.getByPlaceholder('https://...').fill(WPS_URL)
+    await page.getByRole('button', { name: 'Charger' }).click()
+    await expect(page.getByText('Choisir un processus')).toBeVisible()
+  })
+
+  test('fills the URL field when a predefined service is selected', async ({ page }) => {
+    await page.goto('/demo/')
+    await declareService(page, { url: 'https://host/wps/a', label: 'Service A' })
+    await declareService(page, { url: 'https://host/wps/b', label: 'Service B' })
+    await page.getByRole('tab', { name: 'Traitements (WPS)' }).click()
+    // The predefined services are listed in a select; picking one fills the URL input.
+    await page.getByText('Services prédéfinis').click()
+    await expect(page.getByRole('option', { name: 'Service A' })).toBeVisible()
+    await page.getByRole('option', { name: 'Service B' }).click()
+    await expect(page.getByPlaceholder('https://...')).toHaveValue('https://host/wps/b')
+  })
 
   test('runs a process whose octet-stream output falls back to download', async ({ page }) => {
     await mockWps(page, fixture('execute-succeeded.xml'))

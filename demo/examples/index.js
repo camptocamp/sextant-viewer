@@ -14,6 +14,7 @@ import layerWmts from './layerWmts.js?raw'
 import layerXyz from './layerXyz.js?raw'
 import setContext from './setContext.js?raw'
 import getContext from './getContext.js?raw'
+import wpsService from './wpsService.js?raw'
 import setView from './setView.js?raw'
 import event from './event.js?raw'
 
@@ -194,5 +195,12 @@ export const EXAMPLES = [
       ${symbolDoc('interfaces', 'MapExtentChangeEvent')}
     `,
     code: event,
+  },
+  {
+    name: 'Declare a WPS service',
+    description: `
+      <h4>Declare a WPS service offered in the "Traitements (WPS)" panel.</h4>
+    `,
+    code: wpsService,
   },
 ]

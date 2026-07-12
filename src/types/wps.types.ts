@@ -15,6 +15,12 @@ export interface WpsInputOccurrence {
   bboxValue?: string // "minX,minY,maxX,maxY"
 }
 
+/** A WPS service declared on the map context, offered as a choice in the WPS panel. */
+export interface WpsService {
+  url: string
+  label?: string
+}
+
 /** Form state for a whole process: input identifier → its occurrences (≥ 1). */
 export type WpsFormInputs = Record<string, WpsInputOccurrence[]>
 

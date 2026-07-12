@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import type {
   WpsEndpoint,
   WpsProcessSummary,
@@ -7,13 +8,23 @@ import type {
   WpsExecuteResponse,
 } from '@camptocamp/ogc-client'
 import { useWps } from '@/composables/useWps'
+import { useMapStore } from '@/stores/map.store'
 import type { WpsFormInputs, WpsFormOutput, WpsOutputResult } from '@/types/wps.types'
 
 const { loadProcesses, describe, buildExecuteOptions, execute } = useWps()
 
 const emit = defineEmits<{ 'layer-added': [] }>()
 
-const url = ref('https://sextant.ifremer.fr/services/wps3/demo')
+const { wpsServices } = storeToRefs(useMapStore())
+
+// Free-text URL: nothing is preselected. The WPS services declared on the map context are
+// offered in a dropdown that fills the field on selection.
+const url = ref('')
+
+const serviceItems = computed(() =>
+  wpsServices.value.map((service) => ({ label: service.label ?? service.url, value: service.url })),
+)
+
 const endpoint = shallowRef<WpsEndpoint | null>(null)
 const processes = ref<WpsProcessSummary[]>([])
 const selectedProcessId = ref<string>()
@@ -104,10 +115,22 @@ async function onExecute() {
 <template>
   <div class="flex flex-col gap-4 p-2">
     <UFormField label="Service WPS">
-      <UFieldGroup class="w-full">
-        <UInput v-model="url" placeholder="https://..." class="flex-1" />
-        <UButton label="Charger" :loading="loading" :disabled="!url" @click="load()" />
-      </UFieldGroup>
+      <div class="flex w-full flex-col gap-2">
+        <USelect
+          v-if="serviceItems.length"
+          :model-value="undefined"
+          :items="serviceItems"
+          value-key="value"
+          placeholder="Services prédéfinis"
+          class="w-full"
+          :ui="{ content: 'z-50' }"
+          @update:model-value="url = $event"
+        />
+        <UFieldGroup class="w-full">
+          <UInput v-model="url" placeholder="https://..." class="flex-1" />
+          <UButton label="Charger" :loading="loading" :disabled="!url" @click="load()" />
+        </UFieldGroup>
+      </div>
     </UFormField>
 
     <UFormField v-if="processes.length" label="Processus">
