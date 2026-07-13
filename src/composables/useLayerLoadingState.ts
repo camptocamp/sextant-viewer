@@ -2,57 +2,74 @@ import type { CollectionEvent } from 'ol/Collection'
 import type BaseLayer from 'ol/layer/Base'
 import type Layer from 'ol/layer/Layer'
 import type Map from 'ol/Map'
-import type TileSource from 'ol/source/Tile'
+import ImageSource from 'ol/source/Image'
+import TileSource from 'ol/source/Tile'
 import { computed, onBeforeUnmount, ref, watch, type ShallowRef } from 'vue'
 
 /**
- * Tracks whether any tile-based layer on the map is currently loading tiles.
+ * Tracks whether any layer on the map is currently loading imagery.
  *
- * Works by listening to OpenLayers source events (tileloadstart / tileloadend /
- * tileloaderror) on every layer. A global pending counter is incremented on each
- * start and decremented on each end/error, so `isLoading` stays true as long as
- * at least one tile is still being fetched.
+ * Works by listening to OpenLayers source events on every layer: tile sources
+ * emit tileloadstart/end/error, image sources (single-image WMS, i.e. `useTiles:
+ * false`) emit imageloadstart/end/error. A global pending counter is incremented
+ * on each start and decremented on each end/error, so `isLoading` stays true as
+ * long as at least one request is in flight.
+ *
+ * Covering image sources is what ties attribute-filter changes to the loading
+ * bar: applying a filter updates the WMS FILTER param via `source.updateParams`,
+ * which re-requests the image and fires imageloadstart until the map redraws.
  *
  * Layers added after initial setup are automatically tracked via the map's
  * layers collection 'add' event.
  */
 export function useLayerLoadingState(mapRef: ShallowRef<Map | null>) {
-  // Number of tiles currently being fetched across all layers
-  const pendingTileCount = ref(0)
+  // Number of tile/image requests currently in flight across all layers
+  const pendingCount = ref(0)
   // Stores unsubscribe functions so we can clean up all listeners on unmount
   const cleanupFunctions: Array<() => void> = []
 
-  const isLoading = computed(() => pendingTileCount.value > 0)
+  const isLoading = computed(() => pendingCount.value > 0)
 
   /**
-   * Hooks into a single layer's tile source events.
-   * Silently skips layers that don't have a tile source (e.g. vector layers).
+   * Hooks into a single layer's source load events.
+   * Silently skips layers whose source is neither tile- nor image-based
+   * (e.g. vector layers).
    */
   function attachSourceListeners(layer: BaseLayer) {
     // BaseLayer doesn't expose getSource(); cast needed for tile/image layers
     if (typeof (layer as Layer).getSource !== 'function') return
 
-    const source = (layer as Layer).getSource() as TileSource | null
-    if (!source || typeof source.on !== 'function') return
+    const source = (layer as Layer).getSource()
+    if (!source) return
 
-    const handleTileLoadStart = () => {
-      pendingTileCount.value++
+    // Load-error events are treated like load-end to avoid the counter getting
+    // stuck when a request fails.
+    const onStart = () => {
+      pendingCount.value++
     }
-    const handleTileLoadEnd = () => {
-      if (pendingTileCount.value > 0) pendingTileCount.value--
+    const onEnd = () => {
+      if (pendingCount.value > 0) pendingCount.value--
     }
 
-    // tileloaderror is treated the same as tileloadend to avoid the counter
-    // getting stuck when a tile request fails
-    source.on('tileloadstart', handleTileLoadStart)
-    source.on('tileloadend', handleTileLoadEnd)
-    source.on('tileloaderror', handleTileLoadEnd)
-
-    cleanupFunctions.push(() => {
-      source.un('tileloadstart', handleTileLoadStart)
-      source.un('tileloadend', handleTileLoadEnd)
-      source.un('tileloaderror', handleTileLoadEnd)
-    })
+    if (source instanceof TileSource) {
+      source.on('tileloadstart', onStart)
+      source.on('tileloadend', onEnd)
+      source.on('tileloaderror', onEnd)
+      cleanupFunctions.push(() => {
+        source.un('tileloadstart', onStart)
+        source.un('tileloadend', onEnd)
+        source.un('tileloaderror', onEnd)
+      })
+    } else if (source instanceof ImageSource) {
+      source.on('imageloadstart', onStart)
+      source.on('imageloadend', onEnd)
+      source.on('imageloaderror', onEnd)
+      cleanupFunctions.push(() => {
+        source.un('imageloadstart', onStart)
+        source.un('imageloadend', onEnd)
+        source.un('imageloaderror', onEnd)
+      })
+    }
   }
 
   /**
