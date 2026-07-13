@@ -25,7 +25,7 @@ function localText(parent: Element, local: string): string | undefined {
  * JSON is malformed — detection then discovers the filter columns from the index instead.
  */
 export async function fetchWfsResources(gnBase: string, uuid: string): Promise<GnWfsResource[]> {
-  const res = await fetch(`${gnBase}/srv/api/records/${uuid}/formatters/xml`)
+  const res = await fetch(`${gnBase}/srv/api/records/${encodeURIComponent(uuid)}/formatters/xml`)
   if (!res.ok) return []
 
   const doc = new DOMParser().parseFromString(await res.text(), 'application/xml')
