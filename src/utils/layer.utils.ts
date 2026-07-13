@@ -44,6 +44,20 @@ export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
 }
 
 /**
+ * Strip the app-only attribute-filter extras (`dataIndex`, the internal ES connection, and
+ * `filter`, the active selections) so `getContext()` doesn't expose them to consumers.
+ * `dataIndex` is re-derived by detection when a context is re-applied.
+ */
+export function stripAttributeFilterExtras(layer: MapLayer): MapLayer {
+  if (layer.type !== 'wms') return layer
+  const extras = { ...(layer.extras as ExtendedMapLayerWms['extras']) }
+  if (!extras.dataIndex && !extras.filter) return layer
+  delete extras.dataIndex
+  delete extras.filter
+  return { ...layer, extras }
+}
+
+/**
  * Type guard to check if a layer is a STAC layer.
  * @param layer - Layer to check
  * @returns True if layer is MapLayerStac
