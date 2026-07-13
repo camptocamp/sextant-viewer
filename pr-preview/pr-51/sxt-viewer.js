@@ -47913,7 +47913,7 @@ async function Ioe(t, e) {
   if (!i.ok) return [];
   const r = new DOMParser().parseFromString(await i.text(), "application/xml"), n = [];
   for (const s of foe(r)) {
-    if (OI(s, "protocol") !== "OGC:WFS") continue;
+    if (!OI(s, "protocol")?.startsWith("OGC:WFS")) continue;
     const o = OI(s, "linkage");
     if (!o) continue;
     const a = OI(s, "name"), A = (a ?? "").split(",").map((l) => l.trim()).filter(Boolean);
