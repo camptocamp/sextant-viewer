@@ -15,7 +15,12 @@ import {
 } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
-import { applyWmsFilter, isLayerDataIndexed, isStacLayer } from '@/utils/layer.utils'
+import {
+  applyWmsFilter,
+  isLayerDataIndexed,
+  isStacLayer,
+  stripAttributeFilterExtras,
+} from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
 import { enrichWmsDimensionsLayer, stripWmsDimensions } from '@/utils/wms.utils'
@@ -203,7 +208,9 @@ export const useMapStore = defineStore('map', () => {
   }
 
   const cleanLayers = (toClean: MapLayer[]) =>
-    toClean.map(({ id: _id, version: _version, ...rest }) => stripWmsDimensions(rest as MapLayer))
+    toClean.map(({ id: _id, version: _version, ...rest }) =>
+      stripAttributeFilterExtras(stripWmsDimensions(rest as MapLayer)),
+    )
 
   function getContext(): ExtendedMapContext {
     return {

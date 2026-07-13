@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyWmsFilter } from './layer.utils'
+import { applyWmsFilter, stripAttributeFilterExtras } from './layer.utils'
 import type { ExtendedMapLayerWms } from '@/types/wms.types'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 
@@ -55,5 +55,31 @@ describe('applyWmsFilter', () => {
   it('never touches a consumer-supplied FILTER on a layer outside the attribute-filter feature', () => {
     const layer = wmsLayer(undefined, { FILTER: 'consumer-crafted' })
     expect(applyWmsFilter(layer)).toBe(layer)
+  })
+})
+
+describe('stripAttributeFilterExtras', () => {
+  it('drops the internal dataIndex and filter extras, keeping the rest', () => {
+    const result = stripAttributeFilterExtras(
+      wmsLayer({
+        filter: [{ attributeName: 'THEME', matchType: 'equals', values: ['a'] }],
+        dataIndex: { url: 'https://host/es', featureTypeIds: ['ft'] },
+        wmsDimensions: [],
+      } as ExtendedMapLayerWms['extras']),
+    ) as ExtendedMapLayerWms
+
+    expect(result.extras?.dataIndex).toBeUndefined()
+    expect(result.extras?.filter).toBeUndefined()
+    expect(result.extras).toHaveProperty('wmsDimensions')
+  })
+
+  it('returns the layer unchanged when it carries no attribute-filter extras', () => {
+    const layer = wmsLayer({ wmsDimensions: [] } as ExtendedMapLayerWms['extras'])
+    expect(stripAttributeFilterExtras(layer)).toBe(layer)
+  })
+
+  it('leaves non-wms layers untouched', () => {
+    const layer = { type: 'wmts', name: 'x' } as MapContextLayer
+    expect(stripAttributeFilterExtras(layer)).toBe(layer)
   })
 })
