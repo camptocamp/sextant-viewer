@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gnBaseFromEsUrl, parseUuid, profileToFields } from './index'
+import { gnBaseFromEsUrl, parseUuid, profileToFields } from './detectAttributeFilter'
 
 describe('gnBaseFromEsUrl', () => {
   it('strips the features-index suffix', () => {

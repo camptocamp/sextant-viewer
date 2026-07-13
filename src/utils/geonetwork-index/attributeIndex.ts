@@ -55,12 +55,9 @@ function filteredQuery(
  * Discover filterable columns from one sample document's `_source` (the index may expose no
  * public `_mapping`): every `ft_<COLUMN>_s` keyword field becomes a `terms` column on `<COLUMN>`.
  */
-export async function discoverFields(index: GeoNetworkIndexConnection): Promise<IndexField[]> {
-  const json = await esSearch<EsSearchResponse>(index, { size: 1, query: filteredQuery(index) })
-  const properties = json.hits?.hits?.[0]?._source ?? {}
-
+export function fieldsFromSource(source: Record<string, unknown>): IndexField[] {
   const fields: IndexField[] = []
-  for (const key of Object.keys(properties)) {
+  for (const key of Object.keys(source)) {
     // TODO: support other types of fields (value trees, date time...)
 
     const name = TERMS_FIELD_MATCH.exec(key)?.[1]
@@ -70,6 +67,22 @@ export async function discoverFields(index: GeoNetworkIndexConnection): Promise<
   }
 
   return fields
+}
+
+/**
+ * Single round-trip that both counts the index's matching documents and returns one sample
+ * `_source` — the no-profile detection path needs the count (is this index the right one?) and a
+ * sample document (to discover columns), so it fetches both at once instead of two searches.
+ */
+export async function probeIndex(
+  index: GeoNetworkIndexConnection,
+): Promise<{ total: number; sampleSource: Record<string, unknown> }> {
+  const json = await esSearch<EsSearchResponse>(index, {
+    size: 1,
+    track_total_hits: true,
+    query: filteredQuery(index),
+  })
+  return { total: readTotal(json), sampleSource: json.hits?.hits?.[0]?._source ?? {} }
 }
 
 /**
