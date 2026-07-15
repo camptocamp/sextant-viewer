@@ -18,16 +18,14 @@ export function isLayerDataIndexed(layer: MapLayer): boolean {
 
 /**
  * For a WMS layer managed by the attribute filter (`extras.dataIndex` or `extras.filter` set),
- * encode its active selections (`extras.filter`) as the WMS `FILTER` GetMap param (an OGC Filter,
- * passed through `customParams`) and strip the app-only `extras` before handing the layer to the
- * SDK. Other layers pass through unchanged — in particular a consumer-supplied
- * `customParams.FILTER` is never touched.
- *
- * `FILTER` is removed from `customParams` when no selection is active, otherwise a stale filter
- * would persist — the SDK diffs `customParams` by key, so an omitted key is not a cleared key.
+ * encode its active selections (`extras.filter`) as the layer's `filter` (the SDK forwards it
+ * verbatim to the WMS `FILTER` GetMap param and resets it when it disappears) and strip the
+ * app-only extras before handing the layer to the SDK. Other layers pass through unchanged — in
+ * particular a consumer-supplied `customParams.FILTER` is never touched.
  */
 export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
   if (layer.type !== 'wms') return layer
+
   const wmsExtras = layer.extras as ExtendedMapLayerWms['extras']
   if (!wmsExtras?.dataIndex && !wmsExtras?.filter) return layer
   const filterParam = buildWmsFilterParam(layer.name, wmsExtras.filter ?? [])
@@ -36,11 +34,7 @@ export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
   delete extras.filter
   delete extras.dataIndex
 
-  const customParams = { ...layer.customParams }
-  if (filterParam) customParams.FILTER = filterParam
-  else delete customParams.FILTER
-
-  return { ...layer, customParams, extras }
+  return { ...layer, extras, ...(filterParam && { filter: filterParam }) }
 }
 
 /**

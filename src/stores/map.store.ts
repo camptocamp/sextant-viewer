@@ -69,9 +69,9 @@ export const useMapStore = defineStore('map', () => {
           if (isStacLayer(layer)) {
             return fromStacToGeojsonLayer(layer)
           }
-          const l = applyWmsFilter(layer as MapContextLayer)
-          if (l.type === 'wms' && l.useTiles === undefined) {
-            return { ...l, useTiles: false }
+          const l = layer as MapContextLayer
+          if (l.type === 'wms') {
+            return applyWmsFilter(l.useTiles === undefined ? { ...l, useTiles: false } : l)
           }
           return l
         }),
