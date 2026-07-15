@@ -63059,6 +63059,7 @@ function FQ(t) {
     LAYERS: t.name,
     ...t.format && { FORMAT: t.format },
     ...t.style && { STYLES: t.style },
+    ...t.filter && { FILTER: t.filter },
     ...t.dimensionValues && Object.fromEntries(Object.entries(t.dimensionValues).map(([e, i]) => [
       e.toUpperCase(),
       i instanceof Date ? i.toISOString() : i
@@ -63078,7 +63079,8 @@ const sR = [
   "style",
   "hoverStyle",
   "dimensionValues",
-  "customParams"
+  "customParams",
+  "filter"
   // TODO (when available) "zIndex"
 ];
 function Wde(t, e) {
