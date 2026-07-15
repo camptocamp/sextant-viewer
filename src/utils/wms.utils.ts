@@ -52,11 +52,12 @@ export function toWmsTime(date: Date): string {
 }
 
 /**
- * Drop the server-derived `extras.wmsDimensions` before persistence
+ * Drop the server-derived extras (`wmsDimensions`, `dataIndex`) before persistence
  */
-export function stripWmsDimensions(layer: MapLayer): MapLayer {
-  if (layer.type !== 'wms' || !layer.extras?.wmsDimensions) return layer
-  const { wmsDimensions: _wmsDimensions, ...extras } = layer.extras
+export function stripDerivedExtras(layer: MapLayer): MapLayer {
+  if (layer.type !== 'wms' || !layer.extras) return layer
+  if (!layer.extras.wmsDimensions && !layer.extras.dataIndex) return layer
+  const { wmsDimensions: _wmsDimensions, dataIndex: _dataIndex, ...extras } = layer.extras
   return { ...layer, extras }
 }
 

@@ -2,7 +2,6 @@ import { watchEffect } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useMapStore, type ExtendedMapContext } from '@/stores/map.store'
 import { defineStore, storeToRefs } from 'pinia'
-import { type Extent } from '@geospatial-sdk/core'
 
 const SESSION_STORAGE_INITIAL_CONTEXT_KEY = 'sxt-viewer-current-map-initial-context'
 const SESSION_STORAGE_CONTEXT_KEY = 'sxt-viewer-current-map-context'
@@ -44,17 +43,9 @@ export const usePersistentContextStore = defineStore('persistentContext', () => 
     sessionStorage.setItem(SESSION_STORAGE_INITIAL_CONTEXT_KEY, JSON.stringify(initialContext))
   }, 500)
 
-  const saveContextToStorage = useDebounceFn(
-    (context: ExtendedMapContext, extent: Extent | null) => {
-      const ctx = {
-        ...context,
-        ...getContext(),
-        view: extent ? { ...context.view, extent } : context.view,
-      }
-      sessionStorage.setItem(SESSION_STORAGE_CONTEXT_KEY, JSON.stringify(ctx))
-    },
-    500,
-  )
+  const saveContextToStorage = useDebounceFn(() => {
+    sessionStorage.setItem(SESSION_STORAGE_CONTEXT_KEY, JSON.stringify(getContext()))
+  }, 500)
 
   // Persist initialContext changes to sessionStorage
   watchEffect(() => {
@@ -69,6 +60,8 @@ export const usePersistentContextStore = defineStore('persistentContext', () => 
     if (ignoreNextContextChange) {
       return
     }
-    saveContextToStorage(context.value, currentExtent.value)
+    // touch the sources so the effect re-runs; the debounced save re-reads them via getContext()
+    void [context.value, currentExtent.value]
+    saveContextToStorage()
   })
 })

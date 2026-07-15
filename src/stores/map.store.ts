@@ -23,7 +23,7 @@ import {
 } from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
-import { enrichWmsDimensionsLayer, stripWmsDimensions } from '@/utils/wms.utils'
+import { enrichWmsDimensionsLayer, stripDerivedExtras } from '@/utils/wms.utils'
 import { resolveAttributeFilter } from '@/utils/geonetwork-index'
 import type { DataSource } from '@/types/data-source.types'
 import { v4 as uuidv4 } from 'uuid'
@@ -209,15 +209,17 @@ export const useMapStore = defineStore('map', () => {
 
   const cleanLayers = (toClean: MapLayer[]) =>
     toClean.map(({ id: _id, version: _version, ...rest }) =>
-      stripAttributeFilterExtras(stripWmsDimensions(rest as MapLayer)),
+      stripAttributeFilterExtras(stripDerivedExtras(rest as MapLayer)),
     )
 
   function getContext(): ExtendedMapContext {
     return {
+      ...context.value,
       layers: cleanLayers(layers.value),
       backgroundLayers: cleanLayers(backgroundLayers.value),
-      view: { extent: currentExtent.value! },
-      dataSources: context.value.dataSources,
+      // The current extent once the map reported one (extent only: a stale `geometry` would win
+      // over it on re-application), the declared view before that.
+      view: currentExtent.value ? { extent: currentExtent.value } : context.value.view,
     }
   }
 
