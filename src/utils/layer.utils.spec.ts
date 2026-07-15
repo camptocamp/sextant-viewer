@@ -13,7 +13,7 @@ const wmsLayer = (extras?: ExtendedMapLayerWms['extras'], customParams?: Record<
   }) as MapContextLayer
 
 describe('applyWmsFilter', () => {
-  it('encodes active selections as the customParams FILTER and strips app-only extras', () => {
+  it('encodes active selections as the layer filter and strips app-only extras', () => {
     const result = applyWmsFilter(
       wmsLayer({
         filter: [{ attributeName: 'THEME', matchType: 'equals', values: ['a'] }],
@@ -21,21 +21,18 @@ describe('applyWmsFilter', () => {
       }),
     ) as ExtendedMapLayerWms
 
-    expect(result.customParams?.FILTER).toContain('THEME')
+    expect(result.filter).toContain('THEME')
     expect(result.extras?.filter).toBeUndefined()
     expect(result.extras?.dataIndex).toBeUndefined()
   })
 
-  it('removes a stale FILTER key when the selection is empty', () => {
-    const result = applyWmsFilter(
-      wmsLayer({ filter: [] }, { FILTER: 'stale', OTHER: 'keep' }),
-    ) as ExtendedMapLayerWms
+  it('emits no filter when the selection is empty', () => {
+    const result = applyWmsFilter(wmsLayer({ filter: [] })) as ExtendedMapLayerWms
 
-    expect(result.customParams).not.toHaveProperty('FILTER')
-    expect(result.customParams?.OTHER).toBe('keep')
+    expect(result.filter).toBeUndefined()
   })
 
-  it('preserves pre-existing customParams alongside the filter', () => {
+  it('preserves customParams untouched alongside the filter', () => {
     const result = applyWmsFilter(
       wmsLayer(
         { filter: [{ attributeName: 'T', matchType: 'equals', values: ['x'] }] },
@@ -44,7 +41,7 @@ describe('applyWmsFilter', () => {
     ) as ExtendedMapLayerWms
 
     expect(result.customParams?.OTHER).toBe('keep')
-    expect(result.customParams?.FILTER).toContain('T')
+    expect(result.filter).toContain('T')
   })
 
   it('leaves non-wms layers untouched', () => {
