@@ -63,8 +63,13 @@ async function resolveRecordUuid(wmsUrl: string, sublayer: string): Promise<stri
 /** WFS resources of the first dataSource whose GeoNetwork base returns any for the record. */
 async function firstResources(sources: DataSource[], uuid: string): Promise<GnWfsResource[]> {
   for (const ds of sources) {
-    const resources = await fetchWfsResources(gnBaseFromEsUrl(ds.url), uuid)
-    if (resources.length) return resources
+    // an unreachable source must not stop the scan — the record may live on the next one
+    try {
+      const resources = await fetchWfsResources(gnBaseFromEsUrl(ds.url), uuid)
+      if (resources.length) return resources
+    } catch (error) {
+      console.error(`Métadonnées inaccessibles sur ${ds.url}`, error)
+    }
   }
   return []
 }
@@ -125,9 +130,14 @@ async function firstIndexedSource(
 ): Promise<GeoNetworkIndexConnection | null> {
   for (const ds of sources) {
     const index: GeoNetworkIndexConnection = { url: ds.url, featureTypeIds }
-    const { total, sampleSource } = await probeIndex(index)
-    if (total === 0) continue
-    return { ...index, fields: resolveFields(sampleSource, profile) }
+    // an unreachable index must not stop the scan — the features may be indexed on the next one
+    try {
+      const { total, sampleSource } = await probeIndex(index)
+      if (total === 0) continue
+      return { ...index, fields: resolveFields(sampleSource, profile) }
+    } catch (error) {
+      console.error(`Index inaccessible sur ${ds.url}`, error)
+    }
   }
   return null
 }
