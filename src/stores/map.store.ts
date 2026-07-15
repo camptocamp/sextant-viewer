@@ -78,26 +78,42 @@ export const useMapStore = defineStore('map', () => {
     ],
   }))
 
-  async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
-    const base: MapLayer = {
+  function seedLayer(layer: MapLayer): MapLayer {
+    return {
       ...layer,
       id: layer.id || uuidv4(),
       version: layer.version ?? 0,
     }
-
-    if (isStacLayer(layer)) {
-      const enrichedLayer = await enrichStacLayer(base as MapLayerStac)
-      return enrichedLayer ?? base
-    }
-
-    return enrichWmsDimensionsLayer(base)
   }
 
-  async function enrichContext(context: ExtendedMapContext): Promise<ExtendedMapContext> {
-    return {
-      ...context,
-      layers: await Promise.all((context.layers ?? []).map(enrichLayer)),
-      backgroundLayers: await Promise.all((context.backgroundLayers ?? []).map(enrichLayer)),
+  async function enrichLayerData(layer: MapLayer): Promise<MapLayer> {
+    if (isStacLayer(layer)) {
+      const enriched = await enrichStacLayer(layer as MapLayerStac)
+      return enriched ?? layer
+    }
+
+    return enrichWmsDimensionsLayer(layer)
+  }
+
+  async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
+    return enrichLayerData(seedLayer(layer))
+  }
+
+  // Bumped by setContext so pending enrichment patches from a superseded context are dropped
+  // instead of overwriting the newer one.
+  let contextGeneration = 0
+
+  // Server-derived enrichment (WMS dimensions, STAC data) lands after the context is applied,
+  // so a slow or hung server never blocks the initial render.
+  async function patchLayerWhenEnriched(layer: MapLayer, generation: number) {
+    try {
+      const enriched = await enrichLayerData(layer)
+      if (enriched === layer || generation !== contextGeneration) return
+
+      const { id: _id, version: _version, ...updates } = enriched
+      updateLayer(layer, updates as Partial<MapLayer>)
+    } catch (error) {
+      console.error('Layer enrichment failed', layer.id, error)
     }
   }
 
@@ -115,27 +131,29 @@ export const useMapStore = defineStore('map', () => {
     })
   }
 
-  async function setInitialContext(newContext: ExtendedMapContext, apply: boolean = false) {
+  function setInitialContext(newContext: ExtendedMapContext, apply: boolean = false) {
     initialContext.value = newContext
     if (apply) {
       setContext(initialContext.value)
     }
   }
 
-  // Enrichment awaits remote services (STAC, capabilities, index detection); a slower older
-  // setContext must not clobber a newer one when they overlap (e.g. session restore racing the
-  // consumer's initial context).
-  let contextRequestId = 0
-
-  async function setContext(newContext: ExtendedMapContext) {
-    const requestId = ++contextRequestId
-    const enriched = await enrichContext(newContext)
-    if (requestId !== contextRequestId) return
-    context.value = {
-      ...enriched,
+  function setContext(newContext: ExtendedMapContext) {
+    const generation = ++contextGeneration
+    const applied: ExtendedMapContext = {
+      ...newContext,
+      layers: (newContext.layers ?? []).map(seedLayer),
+      backgroundLayers: (newContext.backgroundLayers ?? []).map(seedLayer),
       view: { ...newContext.view }, // Force view application if same as current value
     }
-    context.value.layers.forEach(detectDataIndex)
+
+    context.value = applied
+
+    for (const layer of [...applied.layers, ...(applied.backgroundLayers ?? [])]) {
+      void patchLayerWhenEnriched(layer, generation)
+    }
+
+    applied.layers.forEach(detectDataIndex)
   }
 
   function setView(newView: MapContextView) {
