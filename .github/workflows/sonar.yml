@@ -17,16 +17,21 @@ jobs:
         with:
           fetch-depth: 0 # required for accurate new-code analysis
 
+      - name: Read project version
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       - name: SonarQube scan
-        uses: SonarSource/sonarqube-scan-action@v8.2.0
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_SEXTANT_VIEWER }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
         with:
           projectBaseDir: .
+          args: -Dsonar.projectVersion=${{ steps.pkg.outputs.version }}
 
       - name: SonarQube quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
+        uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_SEXTANT_VIEWER }}
