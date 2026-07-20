@@ -53,3 +53,6 @@ docs/.vitepress/cache/
 
 # Claude
 .claude/settings.local.json
+
+# SonarQube scanner output
+.scannerwork/
