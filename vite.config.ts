@@ -12,6 +12,11 @@ import { fileURLToPath, URL } from 'node:url'
 // patches are picked up and Vite does not pre-bundle a stale/duplicate version.
 const useLinkedPackages = process.env.USE_LINKED_PACKAGES === '1'
 
+// Disable the ogc-client session cache (see main.ts). Defaults to on when developing
+// against linked packages so local ogc-client changes are always picked up; can be
+// forced independently with VITE_DISABLE_OGC_CACHE=1.
+const disableOgcCache = process.env.VITE_DISABLE_OGC_CACHE === '1' || useLinkedPackages
+
 const linkedAliases: Record<string, string> = useLinkedPackages
   ? {
       '@camptocamp/ogc-client': fileURLToPath(
@@ -107,5 +112,6 @@ export default defineConfig({
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+    'import.meta.env.VITE_DISABLE_OGC_CACHE': JSON.stringify(disableOgcCache),
   },
 })
