@@ -1,4 +1,4 @@
-import { watchEffect } from 'vue'
+import { watch, watchEffect } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useMapStore, type ExtendedMapContext } from '@/stores/map.store'
 import { defineStore, storeToRefs } from 'pinia'
@@ -55,13 +55,16 @@ export const usePersistentContextStore = defineStore('persistentContext', () => 
     saveInitialContextToStorage(initialContext.value)
   })
 
-  // Persist context changes to sessionStorage
-  watchEffect(() => {
-    if (ignoreNextContextChange) {
-      return
-    }
-    // touch the sources so the effect re-runs; the debounced save re-reads them via getContext()
-    void [context.value, currentExtent.value]
-    saveContextToStorage()
-  })
+  // Persist context changes to sessionStorage. Watching the sources explicitly (rather than a
+  // watchEffect) because the debounced save re-reads them via getContext() instead of using them.
+  watch(
+    [context, currentExtent],
+    () => {
+      if (ignoreNextContextChange) {
+        return
+      }
+      saveContextToStorage()
+    },
+    { immediate: true },
+  )
 })
