@@ -52,11 +52,12 @@ export function toWmsTime(date: Date): string {
 }
 
 /**
- * Drop the server-derived `extras.wmsDimensions` before persistence
+ * Drop the server-derived extras (`wmsDimensions`, `dataIndex`) before persistence
  */
-export function stripWmsDimensions(layer: MapLayer): MapLayer {
-  if (layer.type !== 'wms' || !layer.extras?.wmsDimensions) return layer
-  const { wmsDimensions: _wmsDimensions, ...extras } = layer.extras
+export function stripDerivedExtras(layer: MapLayer): MapLayer {
+  if (layer.type !== 'wms' || !layer.extras) return layer
+  if (!layer.extras.wmsDimensions && !layer.extras.dataIndex) return layer
+  const { wmsDimensions: _wmsDimensions, dataIndex: _dataIndex, ...extras } = layer.extras
   return { ...layer, extras }
 }
 
@@ -118,7 +119,7 @@ const WILD_CARD = '*'
 const SINGLE_CHAR = '.'
 const ESCAPE_CHAR = '!'
 
-const escapeLikeValue = (value: string) => value.replace(/[*.!]/g, (c) => `${ESCAPE_CHAR}${c}`)
+const escapeLikeValue = (value: string) => value.replaceAll(/[*.!]/g, (c) => `${ESCAPE_CHAR}${c}`)
 
 function buildComparison(attribute: FilterByAttribute, value: string): Filter | null {
   switch (attribute.matchType) {
@@ -152,7 +153,7 @@ function buildFieldGroup(attribute: FilterByAttribute, values: string[]): Filter
  * Build an OL Filter from a WMS filter state.
  * Returns `null` if the filter state is empty (or holds no usable clause).
  */
-export function buildOgcFilter(filter: WmsFilterState): Filter | null {
+function buildOgcFilter(filter: WmsFilterState): Filter | null {
   const groups: Filter[] = []
   for (const attribute of filter) {
     const values = attribute.values.filter((value) => value != null && value !== '')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildOgcFilter, buildWmsFilterParam } from './wms.utils'
+import { buildWmsFilterParam } from './wms.utils'
 import type { FilterByAttribute } from '@/types/wms.types'
 
 const region = (values: string[]): FilterByAttribute => ({
@@ -26,11 +26,11 @@ const isLike = (field: string, pattern: string) =>
   `<PropertyIsLike wildCard="*" singleChar="." escapeChar="!">` +
   `<PropertyName>${field}</PropertyName><Literal>${pattern}</Literal></PropertyIsLike>`
 
-describe('buildOgcFilter', () => {
-  it('returns null when nothing is selected', () => {
-    expect(buildOgcFilter([])).toBeNull()
-    expect(buildOgcFilter([region([])])).toBeNull()
-    expect(buildOgcFilter([region([''])])).toBeNull()
+describe('buildWmsFilterParam', () => {
+  it('returns null without selections', () => {
+    expect(buildWmsFilterParam('a,b', [])).toBeNull()
+    expect(buildWmsFilterParam('a,b', [region([])])).toBeNull()
+    expect(buildWmsFilterParam('a,b', [region([''])])).toBeNull()
   })
 
   it('skips clauses with an unknown match type instead of throwing', () => {
@@ -39,16 +39,9 @@ describe('buildOgcFilter', () => {
       matchType: 'regex',
       values: ['x'],
     } as unknown as FilterByAttribute
-    expect(buildOgcFilter([stale])).toBeNull()
     expect(buildWmsFilterParam('surval_point', [stale, region(['A'])])).toBe(
       filterXml(eq('DCSMM_SOUS_REGION', 'A')),
     )
-  })
-})
-
-describe('buildWmsFilterParam', () => {
-  it('returns null without selections', () => {
-    expect(buildWmsFilterParam('a,b', [region([])])).toBeNull()
   })
 
   it('builds a single PropertyIsEqualTo for an equals attribute', () => {

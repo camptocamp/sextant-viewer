@@ -11,33 +11,49 @@ export type MapLayer = (MapContextLayer | MapLayerStac | ExtendedMapLayerWms) & 
   error?: boolean
 }
 
+/** Narrows a layer to the typed-extras WMS shape so `extras.dataIndex` / `extras.filter` read out. */
+export function isWmsLayer(layer: MapLayer): layer is ExtendedMapLayerWms {
+  return layer.type === 'wms'
+}
+
 /** Whether a WMS layer is backed by a Geonetwork data index (its `extras.dataIndex` is set). */
-export function isLayerDataIndexed(layer: MapLayer): boolean {
-  return layer.type === 'wms' && !!(layer.extras as ExtendedMapLayerWms['extras'])?.dataIndex
+export function isLayerDataIndexed(layer: MapLayer): layer is ExtendedMapLayerWms {
+  return isWmsLayer(layer) && !!layer.extras?.dataIndex
 }
 
 /**
- * For a WMS layer, encode its active selections (`extras.filter`) as the WMS `FILTER` GetMap param
- * (an OGC Filter, passed through `customParams`) and strip the app-only `extras` before handing the
- * layer to the SDK. Other layers pass through unchanged.
- *
- * `FILTER` is removed from `customParams` when no selection is active, otherwise a stale filter
- * would persist — the SDK diffs `customParams` by key, so an omitted key is not a cleared key.
+ * For a WMS layer managed by the attribute filter (`extras.dataIndex` or `extras.filter` set),
+ * encode its active selections (`extras.filter`) as the layer's `filter` (the SDK forwards it
+ * verbatim to the WMS `FILTER` GetMap param and resets it when it disappears) and strip the
+ * app-only extras before handing the layer to the SDK. Other layers pass through unchanged — in
+ * particular a consumer-supplied `customParams.FILTER` is never touched.
  */
 export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
-  if (layer.type !== 'wms') return layer
-  const wmsExtras = layer.extras as ExtendedMapLayerWms['extras']
-  const filterParam = buildWmsFilterParam(layer.name, wmsExtras?.filter ?? [])
+  if (!isWmsLayer(layer)) return layer
+
+  const wmsExtras = layer.extras
+  if (!wmsExtras?.dataIndex && !wmsExtras?.filter) return layer
+  const filterParam = buildWmsFilterParam(layer.name, wmsExtras.filter ?? [])
 
   const extras = { ...layer.extras }
   delete extras.filter
   delete extras.dataIndex
 
-  const customParams = { ...layer.customParams }
-  if (filterParam) customParams.FILTER = filterParam
-  else delete customParams.FILTER
+  return { ...layer, extras, ...(filterParam && { filter: filterParam }) }
+}
 
-  return { ...layer, customParams, extras }
+/**
+ * Strip the app-only attribute-filter extras (`dataIndex`, the internal ES connection, and
+ * `filter`, the active selections) so `getContext()` doesn't expose them to consumers.
+ * `dataIndex` is re-derived by detection when a context is re-applied.
+ */
+export function stripAttributeFilterExtras(layer: MapLayer): MapLayer {
+  if (!isWmsLayer(layer)) return layer
+  const extras = { ...layer.extras }
+  if (!extras.dataIndex && !extras.filter) return layer
+  delete extras.dataIndex
+  delete extras.filter
+  return { ...layer, extras }
 }
 
 /**

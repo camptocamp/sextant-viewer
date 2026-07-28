@@ -15,10 +15,17 @@ import {
 } from '@geospatial-sdk/core'
 import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
-import { isStacLayer } from '@/utils/layer.utils'
+import {
+  applyWmsFilter,
+  isLayerDataIndexed,
+  isStacLayer,
+  stripAttributeFilterExtras,
+} from '@/utils/layer.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
-import { enrichWmsDimensionsLayer, stripWmsDimensions } from '@/utils/wms.utils'
+import { enrichWmsDimensionsLayer, stripDerivedExtras } from '@/utils/wms.utils'
+import { resolveAttributeFilter } from '@/utils/geonetwork-index'
+import type { DataSource } from '@/types/data-source.types'
 import { v4 as uuidv4 } from 'uuid'
 import type { ExtendedMapContext } from '@/types/map.types'
 
@@ -63,8 +70,8 @@ export const useMapStore = defineStore('map', () => {
             return fromStacToGeojsonLayer(layer)
           }
           const l = layer as MapContextLayer
-          if (l.type === 'wms' && l.useTiles === undefined) {
-            return { ...l, useTiles: false }
+          if (l.type === 'wms') {
+            return applyWmsFilter(l.useTiles === undefined ? { ...l, useTiles: false } : l)
           }
           return l
         }),
@@ -72,18 +79,18 @@ export const useMapStore = defineStore('map', () => {
   }))
 
   async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
-    const layerWithVersionAndId = {
+    const base: MapLayer = {
       ...layer,
       id: layer.id || uuidv4(),
       version: layer.version ?? 0,
     }
 
     if (isStacLayer(layer)) {
-      const enriched = await enrichStacLayer(layerWithVersionAndId as MapLayerStac)
-      return enriched ?? layerWithVersionAndId
+      const enrichedLayer = await enrichStacLayer(base as MapLayerStac)
+      return enrichedLayer ?? base
     }
 
-    return enrichWmsDimensionsLayer(layerWithVersionAndId)
+    return enrichWmsDimensionsLayer(base)
   }
 
   async function enrichContext(context: ExtendedMapContext): Promise<ExtendedMapContext> {
@@ -94,6 +101,20 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
+  /**
+   * Fire-and-forget attribute-filter detection: the GeoNetwork/ES probes only feed the optional
+   * "Filtre" tab, so they must never delay the layer's rendering. When the index resolves, the
+   * layer is patched in place — without a version bump, since the layer handed to the SDK is
+   * unchanged (applyWmsFilter strips `dataIndex`).
+   */
+  function detectDataIndex(layer: MapLayer) {
+    if (layer.type !== 'wms' || isLayerDataIndexed(layer)) return
+    resolveAttributeFilter(layer, context.value.dataSources ?? []).then((dataIndex) => {
+      const current = layer.id === undefined ? undefined : getLayerById(layer.id)
+      if (dataIndex && current) updateLayer(current, { extras: { ...current.extras, dataIndex } })
+    })
+  }
+
   async function setInitialContext(newContext: ExtendedMapContext, apply: boolean = false) {
     initialContext.value = newContext
     if (apply) {
@@ -101,11 +122,20 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
+  // Enrichment awaits remote services (STAC, capabilities, index detection); a slower older
+  // setContext must not clobber a newer one when they overlap (e.g. session restore racing the
+  // consumer's initial context).
+  let contextRequestId = 0
+
   async function setContext(newContext: ExtendedMapContext) {
+    const requestId = ++contextRequestId
+    const enriched = await enrichContext(newContext)
+    if (requestId !== contextRequestId) return
     context.value = {
-      ...(await enrichContext(newContext)),
+      ...enriched,
       view: { ...newContext.view }, // Force view application if same as current value
     }
+    context.value.layers.forEach(detectDataIndex)
   }
 
   function setView(newView: MapContextView) {
@@ -144,6 +174,7 @@ export const useMapStore = defineStore('map', () => {
       enrichedLayer as MapContextLayer,
     ) as ExtendedMapContext
 
+    detectDataIndex(enrichedLayer)
     return enrichedLayer
   }
 
@@ -177,14 +208,29 @@ export const useMapStore = defineStore('map', () => {
   }
 
   const cleanLayers = (toClean: MapLayer[]) =>
-    toClean.map(({ id: _id, version: _version, ...rest }) => stripWmsDimensions(rest as MapLayer))
+    toClean.map(({ id: _id, version: _version, ...rest }) =>
+      stripAttributeFilterExtras(stripDerivedExtras(rest)),
+    )
 
   function getContext(): ExtendedMapContext {
     return {
+      ...context.value,
       layers: cleanLayers(layers.value),
       backgroundLayers: cleanLayers(backgroundLayers.value),
-      view: { extent: currentExtent.value! },
+      // The current extent once the map reported one (extent only: a stale `geometry` would win
+      // over it on re-application), the declared view before that.
+      view: currentExtent.value ? { extent: currentExtent.value } : context.value.view,
     }
+  }
+
+  function addDataSource(dataSource: DataSource) {
+    const existing = context.value.dataSources ?? []
+    // Idempotent: the persisted context restores sources, and consumers re-register on each load.
+    if (!existing.some((ds) => ds.url === dataSource.url && ds.type === dataSource.type)) {
+      context.value = { ...context.value, dataSources: [...existing, dataSource] }
+    }
+    // A source registered after layers were added must still resolve their indexes.
+    layers.value.forEach(detectDataIndex)
   }
 
   function fromStacToGeojsonLayer(layer: MapLayerStac): MapContextLayer {
@@ -215,6 +261,7 @@ export const useMapStore = defineStore('map', () => {
     resetView,
     setMapState,
     selectBackgroundLayer,
+    addDataSource,
     addLayer,
     deleteLayer,
     changeLayerPosition,

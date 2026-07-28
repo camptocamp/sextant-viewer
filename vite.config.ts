@@ -71,6 +71,18 @@ export default defineConfig({
     tailwindcss(),
     vueDevTools(),
   ],
+  server: {
+    proxy: {
+      // Dev-only: reach Sextant's Geonetwork same-origin so the demo's attribute filter can query
+      // the public features index (/geonetwork/index/features). Anonymous — no cookie needed;
+      // production serves the component behind Sextant directly.
+      '/geonetwork': {
+        target: 'https://sextant.ifremer.fr',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
