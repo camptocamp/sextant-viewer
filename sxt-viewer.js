@@ -48680,156 +48680,27 @@ const dse = [
     zoom: 11
   }
 };
-function Tg(t) {
-  return typeof t == "object" && t !== null && t.type === "stac";
-}
-function q0(t) {
-  return t.label || "Couche sans titre";
-}
-function hse(t) {
-  return t.error ? Tg(t) ? "Erreur lors du chargement des données STAC. Vérifiez les filtres appliqués ou la connexion au serveur." : "Erreur lors du chargement de la couche." : "";
-}
-const Aw = 100;
-async function Ise(t) {
-  if (t.data || t.error) return;
-  const e = await VL(t), i = {
-    label: t.label ? t.label : e.label,
-    filters: e.filters,
-    initialFilters: e.initialFilters,
-    data: e.data,
-    pagination: e.pagination,
-    version: (t.version || 0) + 1,
-    error: e.error
-  };
-  return { ...t, ...i };
-}
-async function VL(t, e) {
-  const i = {};
-  try {
-    if (!t.label || !t.filters) {
-      const { label: s, filters: o } = await fse(t);
-      i.label = s, i.filters = o, i.initialFilters = o;
-    }
-    const r = await pse(t, e), { nextLink: n, previousLink: a } = WL(r);
-    return i.pagination = {
-      returnedItems: r.numberReturned || r.context?.returned || // accept for backwards compatibility
-      null,
-      itemsPerPage: t.pagination?.itemsPerPage || Aw,
-      currentPage: 1,
-      nextLink: n,
-      previousLink: a
-    }, i.data = r, i;
-  } catch (r) {
-    return console.error("Error enriching STAC layer:", r), i.error = !0, i;
-  }
-}
-async function KS(t, e) {
-  const i = e === "next" ? t.pagination?.nextLink : t.pagination?.previousLink;
-  if (!i)
-    throw new Error(`No ${e} page available`);
-  const r = await Bse(i), { nextLink: n, previousLink: a } = WL(r);
-  return {
-    data: r,
-    pagination: {
-      returnedItems: r.numberReturned || r.context?.returned || null,
-      itemsPerPage: t.pagination?.itemsPerPage || Aw,
-      currentPage: e === "next" ? (t.pagination?.currentPage || 1) + 1 : Math.max(1, (t.pagination?.currentPage || 1) - 1),
-      nextLink: n,
-      previousLink: a
-    }
-  };
-}
-async function fse(t) {
-  const e = await Cse(t), i = e.title || t.collectionId || "STAC Collection", r = {
-    dateRange: {
-      start: e.extent?.temporal?.interval?.[0]?.[0] ? new Date(e.extent.temporal.interval[0][0]) : null,
-      end: e.extent?.temporal?.interval?.[0]?.[1] ? new Date(e.extent.temporal.interval[0][1]) : null
-    },
-    spatialExtent: {
-      enabled: !1,
-      bbox: e.extent?.spatial?.bbox?.[0] || null
-    }
-  };
-  return { label: i, filters: r };
-}
-async function ZL(t) {
-  let e, i;
-  if (t.url && t.collectionId)
-    e = t.url, i = t.collectionId;
-  else {
-    const r = await (await Rg.fromUrl(t.url)).data;
-    if (e = r.links.find((a) => a.rel === "root")?.href || "", i = r.id, !e || !i)
-      throw new Error("Invalid STAC collection document");
-  }
-  return { endpoint: new Rg(e), collectionId: i };
-}
-async function Cse(t) {
-  const { endpoint: e, collectionId: i } = await ZL(t);
-  return await e.getCollection(i);
-}
-async function pse(t, e) {
-  const { endpoint: i, collectionId: r } = await ZL(t), n = yse(
-    e || t.filters,
-    t.pagination?.itemsPerPage
-  );
-  return await i.getCollectionItemsResponse(r, n);
-}
-async function Bse(t) {
-  const e = await fetch(t);
-  if (!e.ok)
-    throw new Error(`Failed to fetch STAC items from ${t}: ${e.statusText}`);
-  return await e.json();
-}
-function mse(t, e) {
-  if (typeof t == "string" && (t = new Date(t)), typeof e == "string" && (e = new Date(e)), !(!t && !e)) {
-    if (t && e)
-      return { start: t, end: e };
-    if (t)
-      return { start: t };
-    if (e)
-      return { end: e };
-  }
-}
-function Ese(t) {
-  if (!t || t.length !== 4)
-    return !1;
-  const e = t[0], i = t[1], r = t[2], n = t[3];
-  return !(typeof e != "number" || typeof i != "number" || typeof r != "number" || typeof n != "number" || e < -180 || e > 180 || r < -180 || r > 180 || i < -90 || i > 90 || n < -90 || n > 90 || e >= r || i >= n);
-}
-function WL(t) {
-  const e = t.links || [], i = e.find((n) => n.rel === "next")?.href || null, r = e.find((n) => n.rel === "previous")?.href || null;
-  return { nextLink: i, previousLink: r };
-}
-function yse(t, e = Aw) {
-  const i = {
-    limit: e
-  };
-  if (!t)
-    return i;
-  const r = mse(t.dateRange.start, t.dateRange.end);
-  return r && (i.datetime = r), t.spatialExtent.enabled && Ese(t.spatialExtent.bbox) && (i.bbox = t.spatialExtent.bbox), i;
-}
 function JC(t) {
   return t.type !== "wms" ? null : (t.extras?.wmsDimensions ?? []).find((i) => i.name.toLowerCase() === "time") ?? null;
 }
-function lw(t) {
+function Aw(t) {
   return t.type !== "wms" ? [] : (t.extras?.wmsDimensions ?? []).filter((i) => i.name.toLowerCase() !== "time");
 }
-function qL(t) {
+function VL(t) {
   const e = _Q(t);
   if (!e) return null;
   const i = new Date(e);
   return isNaN(i.getTime()) ? null : i;
 }
-function JL(t) {
+function ZL(t) {
   return t.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
-function bse(t) {
+function hse(t) {
   if (t.type !== "wms" || !t.extras?.wmsDimensions) return t;
   const { wmsDimensions: e, ...i } = t.extras;
   return { ...t, extras: i };
 }
-async function vse(t) {
+async function Ise(t) {
   if (t.type !== "wms" || t.extras?.wmsDimensions) return t;
   try {
     const e = new SQ(t.url);
@@ -48841,8 +48712,8 @@ async function vse(t) {
       const l = A.name.toUpperCase();
       if (!o[l])
         if (A === n) {
-          const g = qL(A);
-          g && (o[l] = JL(g));
+          const g = VL(A);
+          g && (o[l] = ZL(g));
         } else {
           const g = _Q(A);
           g && (o[l] = String(g));
@@ -48859,6 +48730,135 @@ async function vse(t) {
   } catch (e) {
     return console.error("WMS dimension enrichment failed", e), t;
   }
+}
+function Tg(t) {
+  return typeof t == "object" && t !== null && t.type === "stac";
+}
+function q0(t) {
+  return t.label || "Couche sans titre";
+}
+function fse(t) {
+  return t.error ? Tg(t) ? "Erreur lors du chargement des données STAC. Vérifiez les filtres appliqués ou la connexion au serveur." : "Erreur lors du chargement de la couche." : "";
+}
+const lw = 100;
+async function Cse(t) {
+  if (t.data || t.error) return;
+  const e = await WL(t), i = {
+    label: t.label ? t.label : e.label,
+    filters: e.filters,
+    initialFilters: e.initialFilters,
+    data: e.data,
+    pagination: e.pagination,
+    version: (t.version || 0) + 1,
+    error: e.error
+  };
+  return { ...t, ...i };
+}
+async function WL(t, e) {
+  const i = {};
+  try {
+    if (!t.label || !t.filters) {
+      const { label: s, filters: o } = await pse(t);
+      i.label = s, i.filters = o, i.initialFilters = o;
+    }
+    const r = await mse(t, e), { nextLink: n, previousLink: a } = JL(r);
+    return i.pagination = {
+      returnedItems: r.numberReturned || r.context?.returned || // accept for backwards compatibility
+      null,
+      itemsPerPage: t.pagination?.itemsPerPage || lw,
+      currentPage: 1,
+      nextLink: n,
+      previousLink: a
+    }, i.data = r, i;
+  } catch (r) {
+    return console.error("Error enriching STAC layer:", r), i.error = !0, i;
+  }
+}
+async function KS(t, e) {
+  const i = e === "next" ? t.pagination?.nextLink : t.pagination?.previousLink;
+  if (!i)
+    throw new Error(`No ${e} page available`);
+  const r = await Ese(i), { nextLink: n, previousLink: a } = JL(r);
+  return {
+    data: r,
+    pagination: {
+      returnedItems: r.numberReturned || r.context?.returned || null,
+      itemsPerPage: t.pagination?.itemsPerPage || lw,
+      currentPage: e === "next" ? (t.pagination?.currentPage || 1) + 1 : Math.max(1, (t.pagination?.currentPage || 1) - 1),
+      nextLink: n,
+      previousLink: a
+    }
+  };
+}
+async function pse(t) {
+  const e = await Bse(t), i = e.title || t.collectionId || "STAC Collection", r = {
+    dateRange: {
+      start: e.extent?.temporal?.interval?.[0]?.[0] ? new Date(e.extent.temporal.interval[0][0]) : null,
+      end: e.extent?.temporal?.interval?.[0]?.[1] ? new Date(e.extent.temporal.interval[0][1]) : null
+    },
+    spatialExtent: {
+      enabled: !1,
+      bbox: e.extent?.spatial?.bbox?.[0] || null
+    }
+  };
+  return { label: i, filters: r };
+}
+async function qL(t) {
+  let e, i;
+  if (t.url && t.collectionId)
+    e = t.url, i = t.collectionId;
+  else {
+    const r = await (await Rg.fromUrl(t.url)).data;
+    if (e = r.links.find((a) => a.rel === "root")?.href || "", i = r.id, !e || !i)
+      throw new Error("Invalid STAC collection document");
+  }
+  return { endpoint: new Rg(e), collectionId: i };
+}
+async function Bse(t) {
+  const { endpoint: e, collectionId: i } = await qL(t);
+  return await e.getCollection(i);
+}
+async function mse(t, e) {
+  const { endpoint: i, collectionId: r } = await qL(t), n = vse(
+    e || t.filters,
+    t.pagination?.itemsPerPage
+  );
+  return await i.getCollectionItemsResponse(r, n);
+}
+async function Ese(t) {
+  const e = await fetch(t);
+  if (!e.ok)
+    throw new Error(`Failed to fetch STAC items from ${t}: ${e.statusText}`);
+  return await e.json();
+}
+function yse(t, e) {
+  if (typeof t == "string" && (t = new Date(t)), typeof e == "string" && (e = new Date(e)), !(!t && !e)) {
+    if (t && e)
+      return { start: t, end: e };
+    if (t)
+      return { start: t };
+    if (e)
+      return { end: e };
+  }
+}
+function bse(t) {
+  if (!t || t.length !== 4)
+    return !1;
+  const e = t[0], i = t[1], r = t[2], n = t[3];
+  return !(typeof e != "number" || typeof i != "number" || typeof r != "number" || typeof n != "number" || e < -180 || e > 180 || r < -180 || r > 180 || i < -90 || i > 90 || n < -90 || n > 90 || e >= r || i >= n);
+}
+function JL(t) {
+  const e = t.links || [], i = e.find((n) => n.rel === "next")?.href || null, r = e.find((n) => n.rel === "previous")?.href || null;
+  return { nextLink: i, previousLink: r };
+}
+function vse(t, e = lw) {
+  const i = {
+    limit: e
+  };
+  if (!t)
+    return i;
+  const r = yse(t.dateRange.start, t.dateRange.end);
+  return r && (i.datetime = r), t.spatialExtent.enabled && bse(t.spatialExtent.bbox) && (i.bbox = t.spatialExtent.bbox), i;
 }
 const rr = [];
 for (let t = 0; t < 256; ++t)
@@ -48909,7 +48909,7 @@ const Dse = {
       id: w.id || Sse(),
       version: w.version ?? 0
     };
-    return Tg(w) ? await Ise(x) ?? x : vse(x);
+    return Tg(w) ? await Cse(x) ?? x : Ise(x);
   }
   async function g(w) {
     return {
@@ -48983,7 +48983,7 @@ const Dse = {
   function b(w) {
     return e.value.layers.find((x) => x.id === w);
   }
-  const v = (w) => w.map(({ id: x, version: _, ...S }) => bse(S));
+  const v = (w) => w.map(({ id: x, version: _, ...S }) => hse(S));
   function y() {
     return {
       layers: v(r.value),
@@ -86874,7 +86874,7 @@ const j0e = {
 function IBe() {
   const t = ir();
   async function e(n, a) {
-    const s = await VL(n, a), o = {
+    const s = await WL(n, a), o = {
       filters: a,
       data: s.data,
       pagination: s.pagination,
@@ -88567,13 +88567,13 @@ function QBe(t) {
       return isNaN(h.getTime()) ? null : h;
     },
     set: (d) => {
-      const h = wt(t), { TIME: C, ...f } = h.dimensionValues ?? {}, p = d ? { ...f, TIME: JL(d) } : Object.keys(f).length > 0 ? f : void 0;
+      const h = wt(t), { TIME: C, ...f } = h.dimensionValues ?? {}, p = d ? { ...f, TIME: ZL(d) } : Object.keys(f).length > 0 ? f : void 0;
       e.updateLayer(h, { dimensionValues: p });
     }
   });
   function n() {
     const d = i.value;
-    d && (r.value = qL(d));
+    d && (r.value = VL(d));
   }
   function a() {
     r.value = /* @__PURE__ */ new Date();
@@ -88761,7 +88761,7 @@ const wBe = { class: "mb-3" }, xBe = { class: "mb-1 text-xs text-gray-400" }, SB
 });
 function RBe(t, e) {
   const i = ir(), r = e.toUpperCase(), n = G(
-    () => lw(wt(t)).find((A) => A.name === e) ?? null
+    () => Aw(wt(t)).find((A) => A.name === e) ?? null
   ), a = G(() => {
     const A = n.value;
     return A ? A.values.flatMap((l) => l.split(",")).map((l) => l.trim()) : [];
@@ -88824,7 +88824,7 @@ const GBe = { class: "mb-3 flex flex-wrap items-center gap-2" }, FBe = { class: 
     const e = t, i = G(
       () => (
         // hide single-value dimensions (e.g. reference_time with one option) — nothing to choose
-        lw(e.layer).filter(
+        Aw(e.layer).filter(
           (r) => r.values.flatMap((n) => n.split(",")).length > 1
         )
       )
@@ -89138,7 +89138,7 @@ const GBe = { class: "mb-3 flex flex-wrap items-center gap-2" }, FBe = { class: 
         slot: "legend",
         value: "legend",
         label: "Légende"
-      }), Tg(e.layer) && A.push({ slot: "stac", value: "stac", label: "Données" }), (JC(e.layer) || lw(e.layer).length) && A.push({ slot: "dimensions", value: "dimensions", label: "Dimensions" }), A.push({ slot: "settings", value: "settings", label: "Paramètres" }), A;
+      }), Tg(e.layer) && A.push({ slot: "stac", value: "stac", label: "Données" }), (JC(e.layer) || Aw(e.layer).length) && A.push({ slot: "dimensions", value: "dimensions", label: "Dimensions" }), A.push({ slot: "settings", value: "settings", label: "Paramètres" }), A;
     }), s = G(() => a.value[0]?.value), o = /* @__PURE__ */ J(s.value);
     return Ue(
       () => e.layer.id,
@@ -90813,7 +90813,7 @@ const xme = { class: "flex-1 overflow-auto" }, Sme = /* @__PURE__ */ Z({
   setup(t, { emit: e }) {
     const i = t, r = e, { isVisible: n, toggleVisibility: a } = CB(() => i.layer), s = G(() => {
       const o = i.state;
-      return o && "creationError" in o && o.creationError ? o.creationErrorMessage : o && "loadingError" in o && o.loadingErrorMessage ? o.loadingErrorMessage : i.layer.error ? hse(i.layer) : null;
+      return o && "creationError" in o && o.creationError ? o.creationErrorMessage : o && "loadingError" in o && o.loadingErrorMessage ? o.loadingErrorMessage : i.layer.error ? fse(i.layer) : null;
     });
     return (o, A) => {
       const l = mi, g = D5, c = fB, u = ci;
