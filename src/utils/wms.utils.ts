@@ -119,7 +119,7 @@ const WILD_CARD = '*'
 const SINGLE_CHAR = '.'
 const ESCAPE_CHAR = '!'
 
-const escapeLikeValue = (value: string) => value.replace(/[*.!]/g, (c) => `${ESCAPE_CHAR}${c}`)
+const escapeLikeValue = (value: string) => value.replaceAll(/[*.!]/g, (c) => `${ESCAPE_CHAR}${c}`)
 
 function buildComparison(attribute: FilterByAttribute, value: string): Filter | null {
   switch (attribute.matchType) {

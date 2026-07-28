@@ -5,6 +5,9 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
 
+    // @vue/tsconfig pins lib to ES2020; ES2021 is needed for String#replaceAll.
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+
     "paths": {
       "@/*": ["./src/*"]
     }
