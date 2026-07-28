@@ -6,12 +6,8 @@ import {
   type DistinctFieldValues,
   type IndexField,
 } from '@/utils/geonetwork-index'
-import { isLayerDataIndexed, type MapLayer } from '@/utils/layer.utils'
-import type {
-  ExtendedMapLayerWms,
-  GeoNetworkIndexConnection,
-  WmsFilterState,
-} from '@/types/wms.types'
+import { isLayerDataIndexed, isWmsLayer, type MapLayer } from '@/utils/layer.utils'
+import type { GeoNetworkIndexConnection, WmsFilterState } from '@/types/wms.types'
 
 /** UI-friendly view of the active selections: selected values keyed by column (`esField`). */
 type ActiveFilters = Record<string, string[]>
@@ -21,11 +17,11 @@ const LOAD_ERROR =
 
 function dataIndexOf(layer: MapLayer): GeoNetworkIndexConnection | undefined {
   if (!isLayerDataIndexed(layer)) return undefined
-  return (layer.extras as ExtendedMapLayerWms['extras'])?.dataIndex
+  return layer.extras?.dataIndex
 }
 
 function filterStateOf(layer: MapLayer): WmsFilterState {
-  return (layer.extras as ExtendedMapLayerWms['extras'])?.filter ?? []
+  return (isWmsLayer(layer) && layer.extras?.filter) || []
 }
 
 /** Active selections → an ES query filter, optionally excluding one column (for faceting). */

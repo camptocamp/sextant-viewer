@@ -11,9 +11,14 @@ export type MapLayer = (MapContextLayer | MapLayerStac | ExtendedMapLayerWms) & 
   error?: boolean
 }
 
+/** Narrows a layer to the typed-extras WMS shape so `extras.dataIndex` / `extras.filter` read out. */
+export function isWmsLayer(layer: MapLayer): layer is ExtendedMapLayerWms {
+  return layer.type === 'wms'
+}
+
 /** Whether a WMS layer is backed by a Geonetwork data index (its `extras.dataIndex` is set). */
-export function isLayerDataIndexed(layer: MapLayer): boolean {
-  return layer.type === 'wms' && !!(layer.extras as ExtendedMapLayerWms['extras'])?.dataIndex
+export function isLayerDataIndexed(layer: MapLayer): layer is ExtendedMapLayerWms {
+  return isWmsLayer(layer) && !!layer.extras?.dataIndex
 }
 
 /**
@@ -24,9 +29,9 @@ export function isLayerDataIndexed(layer: MapLayer): boolean {
  * particular a consumer-supplied `customParams.FILTER` is never touched.
  */
 export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
-  if (layer.type !== 'wms') return layer
+  if (!isWmsLayer(layer)) return layer
 
-  const wmsExtras = layer.extras as ExtendedMapLayerWms['extras']
+  const wmsExtras = layer.extras
   if (!wmsExtras?.dataIndex && !wmsExtras?.filter) return layer
   const filterParam = buildWmsFilterParam(layer.name, wmsExtras.filter ?? [])
 
@@ -43,8 +48,8 @@ export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
  * `dataIndex` is re-derived by detection when a context is re-applied.
  */
 export function stripAttributeFilterExtras(layer: MapLayer): MapLayer {
-  if (layer.type !== 'wms') return layer
-  const extras = { ...(layer.extras as ExtendedMapLayerWms['extras']) }
+  if (!isWmsLayer(layer)) return layer
+  const extras = { ...layer.extras }
   if (!extras.dataIndex && !extras.filter) return layer
   delete extras.dataIndex
   delete extras.filter

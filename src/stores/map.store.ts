@@ -209,7 +209,7 @@ export const useMapStore = defineStore('map', () => {
 
   const cleanLayers = (toClean: MapLayer[]) =>
     toClean.map(({ id: _id, version: _version, ...rest }) =>
-      stripAttributeFilterExtras(stripDerivedExtras(rest as MapLayer)),
+      stripAttributeFilterExtras(stripDerivedExtras(rest)),
     )
 
   function getContext(): ExtendedMapContext {
