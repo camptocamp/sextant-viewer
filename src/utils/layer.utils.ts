@@ -1,6 +1,7 @@
 import type { MapLayerStac } from '@/types/stac.types'
 import type { ExtendedMapLayerWms } from '@/types/wms.types'
 import type { MapContextLayer } from '@geospatial-sdk/core'
+import { buildWmsFilterParam } from './wms.utils'
 
 /**
  * Union type combining standard MapContext layers with STAC and typed-extras WMS layers, so viewer
@@ -13,6 +14,30 @@ export type MapLayer = (MapContextLayer | MapLayerStac | ExtendedMapLayerWms) & 
 /** Whether a WMS layer is backed by a Geonetwork data index (its `extras.dataIndex` is set). */
 export function isLayerDataIndexed(layer: MapLayer): boolean {
   return layer.type === 'wms' && !!(layer.extras as ExtendedMapLayerWms['extras'])?.dataIndex
+}
+
+/**
+ * For a WMS layer, encode its active selections (`extras.filter`) as the WMS `FILTER` GetMap param
+ * (an OGC Filter, passed through `customParams`) and strip the app-only `extras` before handing the
+ * layer to the SDK. Other layers pass through unchanged.
+ *
+ * `FILTER` is removed from `customParams` when no selection is active, otherwise a stale filter
+ * would persist — the SDK diffs `customParams` by key, so an omitted key is not a cleared key.
+ */
+export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
+  if (layer.type !== 'wms') return layer
+  const wmsExtras = layer.extras as ExtendedMapLayerWms['extras']
+  const filterParam = buildWmsFilterParam(layer.name, wmsExtras?.filter ?? [])
+
+  const extras = { ...layer.extras }
+  delete extras.filter
+  delete extras.dataIndex
+
+  const customParams = { ...layer.customParams }
+  if (filterParam) customParams.FILTER = filterParam
+  else delete customParams.FILTER
+
+  return { ...layer, customParams, extras }
 }
 
 /**

@@ -39,13 +39,13 @@ function readTotal(response: EsSearchResponse): number {
   return typeof total === 'number' ? total : (total?.value ?? 0)
 }
 
-// Scope a search to the index's feature type and any active `filters`; a lone feature-type
-// term stays bare (no surrounding bool).
+// Scope a search to the index's feature types and any active `filters`; the lone feature-type
+// terms clause stays bare (no surrounding bool).
 function filteredQuery(
   index: GeoNetworkIndexConnection,
   filters: WmsFilterState = [],
 ): Record<string, unknown> {
-  const featureType = { term: { featureTypeId: index.featureTypeId } }
+  const featureType = { terms: { featureTypeId: index.featureTypeIds } }
   return filters.length === 0
     ? featureType
     : { bool: { filter: [featureType, ...filters.map(buildFieldFilter)] } }
@@ -55,32 +55,43 @@ function filteredQuery(
  * Discover filterable columns from one sample document's `_source` (the index may expose no
  * public `_mapping`): every `ft_<COLUMN>_s` keyword field becomes a `terms` column on `<COLUMN>`.
  */
-export async function discoverFields(index: GeoNetworkIndexConnection): Promise<IndexField[]> {
-  const json = await esSearch<EsSearchResponse>(index, { size: 1, query: filteredQuery(index) })
-  const properties = json.hits?.hits?.[0]?._source ?? {}
-
+export function fieldsFromSource(source: Record<string, unknown>): IndexField[] {
   const fields: IndexField[] = []
-  for (const key of Object.keys(properties)) {
+  for (const key of Object.keys(source)) {
     // TODO: support other types of fields (value trees, date time...)
 
     const name = TERMS_FIELD_MATCH.exec(key)?.[1]
     if (!name) continue
 
-    fields.push({ esField: name, label: name, aggField: key, type: 'terms' })
+    fields.push({ esField: name, label: name, aggField: key, type: 'terms', matchType: 'equals' })
   }
 
   return fields
 }
 
-/** ES filter clause selecting the documents whose attribute matches any of the selected values. */
+/**
+ * Single round-trip that both counts the index's matching documents and returns one sample
+ * `_source` — the no-profile detection path needs the count (is this index the right one?) and a
+ * sample document (to discover columns), so it fetches both at once instead of two searches.
+ */
+export async function probeIndex(
+  index: GeoNetworkIndexConnection,
+): Promise<{ total: number; sampleSource: Record<string, unknown> }> {
+  const json = await esSearch<EsSearchResponse>(index, {
+    size: 1,
+    track_total_hits: true,
+    query: filteredQuery(index),
+  })
+  return { total: readTotal(json), sampleSource: json.hits?.hits?.[0]?._source ?? {} }
+}
+
+/**
+ * ES filter clause selecting the documents whose attribute matches any of the selected values.
+ * Both match types filter by exact token: tokenized columns are indexed token-per-token, so
+ * `contains` only changes the WFS-side comparison (see `wmsFilter.ts`).
+ */
 export function buildFieldFilter(filter: FilterByAttribute): Record<string, unknown> {
-  switch (filter.matchType) {
-    case 'equals':
-      return { terms: { [aggFieldName(filter.attributeName)]: filter.values } }
-    // TODO: support `contains` matchType in the future
-    default:
-      throw new Error(`Unsupported matchType: ${filter.matchType}`)
-  }
+  return { terms: { [aggFieldName(filter.attributeName)]: filter.values } }
 }
 
 /**

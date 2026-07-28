@@ -1,14 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { buildFieldFilter, discoverFields, fetchCount, fetchFieldValues } from './attributeIndex'
+import {
+  buildFieldFilter,
+  fetchCount,
+  fetchFieldValues,
+  fieldsFromSource,
+  probeIndex,
+} from './attributeIndex'
 import type { IndexField } from './attributeIndex.types'
 import type { GeoNetworkIndexConnection } from '@/types/wms.types'
 
-const index: GeoNetworkIndexConnection = { url: 'https://host/es', featureTypeId: 'ft1' }
+const index: GeoNetworkIndexConnection = { url: 'https://host/es', featureTypeIds: ['ft1'] }
 const field: IndexField = {
   esField: 'THEME',
   label: 'Thème',
   aggField: 'ft_THEME_s',
   type: 'terms',
+  matchType: 'equals',
 }
 
 let originalFetch: typeof globalThis.fetch
@@ -43,10 +50,10 @@ describe('buildFieldFilter', () => {
     ).toEqual({ terms: { ft_REGION_s: ['A', 'B'] } })
   })
 
-  it('throws for unsupported match types', () => {
-    expect(() =>
-      buildFieldFilter({ attributeName: 'THEME', matchType: 'contains', values: ['x'] }),
-    ).toThrow(/contains/)
+  it('filters contains (tokenized) attributes by exact token too', () => {
+    expect(
+      buildFieldFilter({ attributeName: 'THEME', matchType: 'contains', values: ['Benthos'] }),
+    ).toEqual({ terms: { ft_THEME_s: ['Benthos'] } })
   })
 })
 
@@ -65,7 +72,7 @@ describe('fetchFieldValues', () => {
     expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
     expect(JSON.parse(init.body as string)).toEqual({
       size: 0,
-      query: { term: { featureTypeId: 'ft1' } },
+      query: { terms: { featureTypeId: ['ft1'] } },
       aggs: { values: { terms: { field: 'ft_THEME_s', size: 51 } } },
     })
   })
@@ -112,7 +119,7 @@ describe('fetchFieldValues', () => {
     ])
     expect(bodyOf(fetchMock).query).toEqual({
       bool: {
-        filter: [{ term: { featureTypeId: 'ft1' } }, { terms: { ft_REGION_s: ['Manche'] } }],
+        filter: [{ terms: { featureTypeId: ['ft1'] } }, { terms: { ft_REGION_s: ['Manche'] } }],
       },
     })
   })
@@ -131,7 +138,7 @@ describe('fetchCount', () => {
     expect(bodyOf(fetchMock)).toEqual({
       size: 0,
       track_total_hits: true,
-      query: { term: { featureTypeId: 'ft1' } },
+      query: { terms: { featureTypeId: ['ft1'] } },
     })
   })
 
@@ -151,57 +158,71 @@ describe('fetchCount', () => {
     await fetchCount(index, [{ attributeName: 'REGION', matchType: 'equals', values: ['Manche'] }])
     expect(bodyOf(fetchMock).query).toEqual({
       bool: {
-        filter: [{ term: { featureTypeId: 'ft1' } }, { terms: { ft_REGION_s: ['Manche'] } }],
+        filter: [{ terms: { featureTypeId: ['ft1'] } }, { terms: { ft_REGION_s: ['Manche'] } }],
       },
     })
   })
 })
 
-describe('discoverFields', () => {
-  it('discovers `ft_<COLUMN>_s` columns from a sample document', async () => {
-    const fetchMock = mockFetch({
-      hits: {
-        hits: [
-          {
-            _source: {
-              ft_THEME_s: 'Microbiologie',
-              ft_DCSMM_SOUS_REGION_s: 'Manche',
-              ft_DATE_dt: '2020-01-01',
-              ft_REGION_s_tree: 'a/b',
-              geom: {},
-              featureTypeId: 'https%3A%2F%2Fhost%2Fwfs%23layer',
-            },
-          },
-        ],
+describe('fieldsFromSource', () => {
+  it('discovers `ft_<COLUMN>_s` columns from a sample document', () => {
+    expect(
+      fieldsFromSource({
+        ft_THEME_s: 'Microbiologie',
+        ft_DCSMM_SOUS_REGION_s: 'Manche',
+        ft_DATE_dt: '2020-01-01',
+        ft_REGION_s_tree: 'a/b',
+        geom: {},
+        featureTypeId: 'https%3A%2F%2Fhost%2Fwfs%23layer',
+      }),
+    ).toEqual([
+      {
+        esField: 'THEME',
+        label: 'THEME',
+        aggField: 'ft_THEME_s',
+        type: 'terms',
+        matchType: 'equals',
       },
-    })
-
-    expect(await discoverFields(index)).toEqual([
-      { esField: 'THEME', label: 'THEME', aggField: 'ft_THEME_s', type: 'terms' },
       {
         esField: 'DCSMM_SOUS_REGION',
         label: 'DCSMM_SOUS_REGION',
         aggField: 'ft_DCSMM_SOUS_REGION_s',
         type: 'terms',
+        matchType: 'equals',
       },
     ])
-    // size:1 sample search against the endpoint, no `/_search` suffix.
+  })
+
+  it('returns an empty list when the sample document has no filterable column', () => {
+    expect(fieldsFromSource({ geom: {}, featureTypeId: 'x' })).toEqual([])
+  })
+})
+
+describe('probeIndex', () => {
+  it('fetches the total and a sample source in one size:1 track_total_hits search', async () => {
+    const fetchMock = mockFetch({
+      hits: {
+        total: { value: 8641 },
+        hits: [{ _source: { ft_THEME_s: 'Microbiologie', geom: {} } }],
+      },
+    })
+
+    expect(await probeIndex(index)).toEqual({
+      total: 8641,
+      sampleSource: { ft_THEME_s: 'Microbiologie', geom: {} },
+    })
+    // Single sample+count search against the endpoint, no `/_search` suffix.
     expect(urlOf(fetchMock)).toBe('https://host/es')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(bodyOf(fetchMock)).toEqual({
       size: 1,
-      query: { term: { featureTypeId: 'ft1' } },
+      track_total_hits: true,
+      query: { terms: { featureTypeId: ['ft1'] } },
     })
   })
 
-  it('returns an empty list when the sample document has no filterable column', async () => {
-    mockFetch({
-      hits: { hits: [{ _source: { geom: {}, featureTypeId: 'x' } }] },
-    })
-    expect(await discoverFields(index)).toEqual([])
-  })
-
-  it('returns an empty list when there is no sample document', async () => {
-    mockFetch({ hits: { hits: [] } })
-    expect(await discoverFields(index)).toEqual([])
+  it('returns total 0 and an empty source when the index has no matching document', async () => {
+    mockFetch({ hits: { total: { value: 0 }, hits: [] } })
+    expect(await probeIndex(index)).toEqual({ total: 0, sampleSource: {} })
   })
 })
