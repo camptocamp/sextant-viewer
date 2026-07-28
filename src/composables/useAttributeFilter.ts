@@ -146,7 +146,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   // serialized values (not the layer object) keeps unrelated layer updates — opacity, visibility —
   // from superseding an in-flight load.
   watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], ([id], [oldId]) =>
-    id !== oldId ? load() : refreshValues(nextRequest()),
+    id === oldId ? refreshValues(nextRequest()) : load(),
   )
   load()
 
