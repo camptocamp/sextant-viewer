@@ -56,18 +56,22 @@ const showTruncated = computed(() => props.truncated && !debouncedSearch.value.t
         />
 
         <div class="max-h-56 space-y-1 overflow-y-auto">
-          <label
+          <UCheckbox
             v-for="item in filteredValues"
             :key="item.value"
-            class="flex cursor-pointer items-center gap-2 text-sm"
+            :model-value="selected.includes(item.value)"
+            :ui="{
+              root: 'cursor-pointer items-center gap-2',
+              wrapper: 'min-w-0',
+              label: 'flex items-center gap-2 font-normal',
+            }"
+            @update:model-value="emit('toggle', item.value)"
           >
-            <UCheckbox
-              :model-value="selected.includes(item.value)"
-              @update:model-value="emit('toggle', item.value)"
-            />
-            <span class="grow truncate" :title="item.value">{{ item.value }}</span>
-            <span class="text-muted shrink-0 text-xs">{{ item.count }}</span>
-          </label>
+            <template #label>
+              <span class="grow truncate" :title="item.value">{{ item.value }}</span>
+              <span class="text-muted shrink-0 text-xs">{{ item.count }}</span>
+            </template>
+          </UCheckbox>
 
           <p v-if="filteredValues.length === 0" class="text-muted text-xs">Aucune valeur</p>
         </div>
