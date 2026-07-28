@@ -29,60 +29,69 @@ function run(map: Map) {
   return { isLoading, stop: () => scope.stop() }
 }
 
-describe('useLayerLoadingState', () => {
+// Single-image WMS (`useTiles: false`) is what attribute-filter re-requests go through; tile WMS
+// emits the equivalent tile* events. Both drive the same pending counter.
+const sourceKinds = [
+  {
+    kind: 'single-image',
+    layer: imageWmsLayer,
+    start: 'imageloadstart',
+    end: 'imageloadend',
+    error: 'imageloaderror',
+  },
+  {
+    kind: 'tile',
+    layer: tileWmsLayer,
+    start: 'tileloadstart',
+    end: 'tileloadend',
+    error: 'tileloaderror',
+  },
+] as const
+
+describe.each(sourceKinds)('useLayerLoadingState — $kind WMS', ({ layer, start, end, error }) => {
+  // Mounts a map holding one layer of the kind under test and exposes its source.
+  function setup() {
+    const wmsLayer = layer()
+    const { map } = mapWith([wmsLayer])
+    return { source: wmsLayer.getSource()!, ...run(map) }
+  }
+
   it('is not loading initially', () => {
-    const { map } = mapWith([imageWmsLayer()])
-    const { isLoading } = run(map)
+    const { isLoading } = setup()
     expect(isLoading.value).toBe(false)
   })
 
-  it('tracks single-image WMS load lifecycle (filter re-requests go through here)', () => {
-    const layer = imageWmsLayer()
-    const { map } = mapWith([layer])
-    const { isLoading } = run(map)
+  it('tracks the load lifecycle', () => {
+    const { source, isLoading } = setup()
 
-    layer.getSource()!.dispatchEvent('imageloadstart')
+    source.dispatchEvent(start)
     expect(isLoading.value).toBe(true)
 
-    layer.getSource()!.dispatchEvent('imageloadend')
+    source.dispatchEvent(end)
     expect(isLoading.value).toBe(false)
   })
 
-  it('clears loading on image load error', () => {
-    const layer = imageWmsLayer()
-    const { map } = mapWith([layer])
-    const { isLoading } = run(map)
+  it('clears loading on load error', () => {
+    const { source, isLoading } = setup()
 
-    layer.getSource()!.dispatchEvent('imageloadstart')
-    layer.getSource()!.dispatchEvent('imageloaderror')
-    expect(isLoading.value).toBe(false)
-  })
-
-  it('tracks tile WMS load lifecycle', () => {
-    const layer = tileWmsLayer()
-    const { map } = mapWith([layer])
-    const { isLoading } = run(map)
-
-    layer.getSource()!.dispatchEvent('tileloadstart')
-    expect(isLoading.value).toBe(true)
-    layer.getSource()!.dispatchEvent('tileloadend')
+    source.dispatchEvent(start)
+    source.dispatchEvent(error)
     expect(isLoading.value).toBe(false)
   })
 
   it('stays loading until every in-flight request settles', () => {
-    const layer = imageWmsLayer()
-    const { map } = mapWith([layer])
-    const { isLoading } = run(map)
-    const source = layer.getSource()!
+    const { source, isLoading } = setup()
 
-    source.dispatchEvent('imageloadstart')
-    source.dispatchEvent('imageloadstart')
-    source.dispatchEvent('imageloadend')
+    source.dispatchEvent(start)
+    source.dispatchEvent(start)
+    source.dispatchEvent(end)
     expect(isLoading.value).toBe(true)
-    source.dispatchEvent('imageloadend')
+    source.dispatchEvent(end)
     expect(isLoading.value).toBe(false)
   })
+})
 
+describe('useLayerLoadingState', () => {
   it('tracks layers added after setup', () => {
     const { map, collection } = mapWith([])
     const { isLoading } = run(map)
