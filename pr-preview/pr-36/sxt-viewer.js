@@ -95402,8 +95402,8 @@ function Yye(t) {
     );
   }
   async function A(c) {
-    const u = rt(t), g = u.dimensionValues?.TIME, d = g ? g instanceof Date ? _b(g) : String(g) : void 0, h = await new dv(u.url).getMinMax(u.name, c, {
-      time: d,
+    const u = rt(t), g = u.dimensionValues?.TIME, d = g instanceof Date ? _b(g) : String(g), h = await new dv(u.url).getMinMax(u.name, c, {
+      time: g ? d : void 0,
       elevation: u.dimensionValues?.ELEVATION ? String(u.dimensionValues.ELEVATION) : void 0
     });
     s.value = [h.min, h.max];
