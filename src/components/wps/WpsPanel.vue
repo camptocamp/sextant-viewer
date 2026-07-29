@@ -64,7 +64,9 @@ async function load() {
     endpoint.value = loaded.endpoint
     processes.value = loaded.processes
   } catch (e) {
-    error.value = (e as Error).message
+    const msg = `Failed to load processes from URL ${url.value}`
+    console.error(msg, e)
+    error.value = `${msg}: ${(e as Error).message}`
   } finally {
     loading.value = false
   }
@@ -79,7 +81,9 @@ watch(selectedProcessId, async (processId) => {
   try {
     selectedProcess.value = await describe(endpoint.value, processId)
   } catch (e) {
-    error.value = (e as Error).message
+    const msg = `Failed to describe process "${processId}"`
+    console.error(msg, e)
+    error.value = `${msg}: ${(e as Error).message}`
   } finally {
     describing.value = false
   }
@@ -105,7 +109,9 @@ async function onExecute() {
       emit('layer-added')
     }
   } catch (e) {
-    error.value = (e as Error).message
+    const msg = `Failed to execute process "${selectedProcess.value?.identifier}"`
+    console.error(msg, e)
+    error.value = `${msg}: ${(e as Error).message}`
   } finally {
     executing.value = false
   }
