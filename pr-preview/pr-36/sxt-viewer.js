@@ -95402,11 +95402,11 @@ function Yye(t) {
     );
   }
   async function A(c) {
-    const u = rt(t), g = await new dv(u.url).getMinMax(u.name, c, {
-      time: u.dimensionValues?.TIME ? u.dimensionValues.TIME instanceof Date ? _b(u.dimensionValues.TIME) : String(u.dimensionValues.TIME) : void 0,
+    const u = rt(t), g = u.dimensionValues?.TIME, d = g ? g instanceof Date ? _b(g) : String(g) : void 0, h = await new dv(u.url).getMinMax(u.name, c, {
+      time: d,
       elevation: u.dimensionValues?.ELEVATION ? String(u.dimensionValues.ELEVATION) : void 0
     });
-    s.value = [g.min, g.max];
+    s.value = [h.min, h.max];
   }
   const l = N(() => {
     const c = rt(t);
