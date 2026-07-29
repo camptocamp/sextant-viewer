@@ -87,7 +87,7 @@ export const useMapStore = defineStore('map', () => {
     }
 
     if (isStacLayer(enriched)) {
-      return (await enrichStacLayer(enriched as MapLayerStac)) ?? enriched
+      return (await enrichStacLayer(enriched)) ?? enriched
     }
 
     enriched = await enrichNcwmsLayer(enriched)

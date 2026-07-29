@@ -49,12 +49,10 @@ export function useNcwmsLayer(layer: MaybeRefOrGetter<MapLayer>) {
 
   async function autoColorRange(extent: [number, number, number, number]) {
     const l = toValue(layer) as MapContextLayerWms
+    const timeValue = l.dimensionValues?.TIME
+    const timeStr = timeValue instanceof Date ? toWmsTime(timeValue) : String(timeValue)
     const bounds = await new NcwmsEndpoint(l.url).getMinMax(l.name, extent, {
-      time: l.dimensionValues?.TIME
-        ? l.dimensionValues.TIME instanceof Date
-          ? toWmsTime(l.dimensionValues.TIME)
-          : String(l.dimensionValues.TIME)
-        : undefined,
+      time: timeValue ? timeStr : undefined,
       elevation: l.dimensionValues?.ELEVATION ? String(l.dimensionValues.ELEVATION) : undefined,
     })
     colorScaleRange.value = [bounds.min, bounds.max]
