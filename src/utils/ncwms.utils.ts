@@ -21,7 +21,15 @@ export async function enrichNcwmsLayer(layer: MapLayer): Promise<MapLayer> {
 
   try {
     const endpoint = new NcwmsEndpoint(layer.url)
-    const ncwmsInfo = await endpoint.getLayerDetails(layer.name)
+
+    let ncwmsInfo: NcwmsLayerDetails | null
+    try {
+      // GetMetadata is a probe: a plain WMS server legitimately rejects it
+      ncwmsInfo = await endpoint.getLayerDetails(layer.name)
+    } catch {
+      return layer
+    }
+
     if (!ncwmsInfo) return layer
     const defaultPalette = ncwmsInfo.defaultPalette ?? ncwmsInfo.palettes[0]
     const styles = buildNcwmsStyles(ncwmsInfo)
@@ -36,7 +44,7 @@ export async function enrichNcwmsLayer(layer: MapLayer): Promise<MapLayer> {
       extras: { ...layer.extras, ncwmsInfo },
     }
   } catch (err) {
-    console.error('NcWMS enrichment failed', err)
+    console.error('NcWMS enrichment failed', layer.name, err)
     return layer
   }
 }
