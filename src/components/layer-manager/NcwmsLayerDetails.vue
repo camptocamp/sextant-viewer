@@ -7,7 +7,7 @@ import type { MapLayer } from '@/utils/layer.utils'
 const props = defineProps<{ layer: MapLayer }>()
 
 const mapStore = useMapStore()
-const { ncwmsInfo, palette, logScale, colorScaleRange, autoColorRange, legendUrl } = useNcwmsLayer(
+const { ncwmsInfo, palette, logScale, colorScaleRange, autoColorRange } = useNcwmsLayer(
   () => props.layer,
 )
 
@@ -67,7 +67,5 @@ async function onAutoColorRange() {
         </UButton>
       </div>
     </UFormField>
-
-    <img v-if="legendUrl" :src="legendUrl" alt="Légende" class="self-start" />
   </div>
 </template>
