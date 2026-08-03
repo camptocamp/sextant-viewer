@@ -94548,7 +94548,7 @@ const Cye = ["src"], Eye = /* @__PURE__ */ z({
     layer: { type: Object }
   },
   setup(t) {
-    const e = t, i = N(() => !!lm(e.layer)), { legendUrl: r } = yU(() => e.layer), n = /* @__PURE__ */ W(null);
+    const e = t, i = N(() => !!lm(e.layer)), { ncwmsLegendUrl: r } = yU(() => e.layer), n = /* @__PURE__ */ W(null);
     let a = null;
     async function s(o) {
       if (a = o, !!n.value) {
