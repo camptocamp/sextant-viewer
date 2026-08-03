@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useNcwmsLayer } from '@/composables/useNcwmsLayer'
 import { useMapStore } from '@/stores/map.store'
 import type { MapLayer } from '@/utils/layer.utils'
@@ -7,6 +7,7 @@ import type { MapLayer } from '@/utils/layer.utils'
 const props = defineProps<{ layer: MapLayer }>()
 
 const mapStore = useMapStore()
+const toast = useToast()
 const { ncwmsInfo, palette, logScale, colorScaleRange, autoColorRange } = useNcwmsLayer(
   () => props.layer,
 )
@@ -15,9 +16,24 @@ const paletteOptions = computed(() =>
   (ncwmsInfo.value?.palettes ?? []).map((p: string) => ({ label: p, value: p })),
 )
 
+const autoColorRangeLoading = ref(false)
+
 async function onAutoColorRange() {
   if (!mapStore.currentExtent) return
-  await autoColorRange(mapStore.currentExtent as [number, number, number, number])
+  autoColorRangeLoading.value = true
+  try {
+    await autoColorRange(mapStore.currentExtent as [number, number, number, number])
+  } catch (err) {
+    console.error('NcWMS auto color range failed', props.layer, err)
+    toast.add({
+      title: 'Impossible de calculer la plage de couleur',
+      description: "Aucune donnée dans l'emprise actuelle, ou service indisponible.",
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+    })
+  } finally {
+    autoColorRangeLoading.value = false
+  }
 }
 </script>
 
@@ -60,6 +76,7 @@ async function onAutoColorRange() {
           color="neutral"
           variant="soft"
           icon="i-lucide-sparkles"
+          :loading="autoColorRangeLoading"
           :disabled="!mapStore.currentExtent"
           @click="onAutoColorRange"
         >
