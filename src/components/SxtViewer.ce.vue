@@ -3,7 +3,6 @@ import LayoutGrid from '@/components/layout/LayoutGrid.vue'
 import { type ExtendedMapContext, useMapStore } from '@/stores/map.store.ts'
 import { usePersistentContextStore } from '@/stores/persistentContext.store.ts'
 import type { MapContextView } from '@geospatial-sdk/core'
-import type { DataSource } from '@/types/data-source.types'
 import { listen } from '@geospatial-sdk/openlayers'
 import { onMounted, ref } from 'vue'
 import type MapViewer from './map/MapViewer.vue'
@@ -48,6 +47,8 @@ const { addLayer } = useAddLayer()
  * Définit le contexte initial et déclenche l'enrichissement des couches.
  * À utiliser au premier chargement ou pour les couches nécessitant une initialisation
  * asynchrone (ex. collections STAC).
+ * Le contexte peut déclarer des `dataSources` (p. ex. un index ElasticSearch de Geonetwork),
+ * sondées pour détecter les couches WMS filtrables par attributs.
  * @param context - Le contexte initial de la carte.
  */
 const setInitialContext = (context: ExtendedMapContext): void => {
@@ -55,7 +56,8 @@ const setInitialContext = (context: ExtendedMapContext): void => {
 }
 
 /**
- * Remplace l'intégralité du contexte de carte (couches, couches de fond, vue).
+ * Remplace l'intégralité du contexte de carte (couches, couches de fond, vue, sources de données).
+ * Le remplacement est total : ce que le contexte n'inclut pas est supprimé.
  * Ne supporte pas les couches nécessitant un enrichissement asynchrone (ex. STAC) ;
  * utiliser `setInitialContext` dans ce cas.
  * @param context - Le nouveau contexte à appliquer.
@@ -78,17 +80,7 @@ const setView = (view: MapContextView): void => {
   mapStore.setView(view)
 }
 
-/**
- * Déclare une source de données (p. ex. un index ElasticSearch de Geonetwork) sondée pour détecter
- * les couches WMS filtrables par attributs.
- * @param dataSource - Source de données à enregistrer.
- */
-const addDataSource = (dataSource: DataSource): void => {
-  mapStore.addDataSource(dataSource)
-}
-
 defineExpose({
-  addDataSource,
   addLayer,
   getContext,
   setContext,

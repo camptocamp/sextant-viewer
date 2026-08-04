@@ -25,7 +25,6 @@ import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
 import { enrichWmsDimensionsLayer, stripDerivedExtras } from '@/utils/wms.utils'
 import { resolveAttributeFilter } from '@/utils/geonetwork-index'
-import type { DataSource } from '@/types/data-source.types'
 import { enrichNcwmsLayer } from '@/utils/ncwms.utils'
 import { v4 as uuidv4 } from 'uuid'
 import type { ExtendedMapContext } from '@/types/map.types'
@@ -224,16 +223,6 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  function addDataSource(dataSource: DataSource) {
-    const existing = context.value.dataSources ?? []
-    // Idempotent: the persisted context restores sources, and consumers re-register on each load.
-    if (!existing.some((ds) => ds.url === dataSource.url && ds.type === dataSource.type)) {
-      context.value = { ...context.value, dataSources: [...existing, dataSource] }
-    }
-    // A source registered after layers were added must still resolve their indexes.
-    layers.value.forEach(detectDataIndex)
-  }
-
   function fromStacToGeojsonLayer(layer: MapLayerStac): MapContextLayer {
     return {
       type: 'geojson',
@@ -262,7 +251,6 @@ export const useMapStore = defineStore('map', () => {
     resetView,
     setMapState,
     selectBackgroundLayer,
-    addDataSource,
     addLayer,
     deleteLayer,
     changeLayerPosition,
