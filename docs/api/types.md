@@ -18,6 +18,18 @@ interface ExtendedMapContext {
   layers: MapLayer[]           // couches de données (WMS, WFS, GeoJSON, STAC…)
   backgroundLayers: MapLayer[] // couches de fond (fond de carte)
   view: MapContextView         // étendue courante ou centre+zoom
+  dataSources?: DataSource[]   // index sondés pour le filtrage attributaire
+}
+```
+
+## DataSource
+
+Source de données déclarée dans le contexte, sondée pour détecter si les données d'une couche WMS sont indexées et donc filtrables par attributs.
+
+```typescript
+interface DataSource {
+  url: string              // ex. 'https://sextant.ifremer.fr/geonetwork/index/features'
+  type: 'geonetwork-index'
 }
 ```
 

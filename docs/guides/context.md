@@ -13,6 +13,7 @@ interface ExtendedMapContext {
   layers: MapLayer[]              // couches de données
   backgroundLayers: MapLayer[]    // couches de fond (fond de carte)
   view: MapContextView            // étendue ou centre+zoom
+  dataSources?: DataSource[]      // index sondés pour le filtrage attributaire
 }
 ```
 
@@ -33,6 +34,22 @@ La vue peut être définie de trois façons :
 
 Options communes : `maxZoom?: number`, `maxExtent?: [minX, minY, maxX, maxY]`.
 
+### `dataSources`
+
+Index Geonetwork sondés pour détecter les couches WMS filtrables par attributs. Pour chaque couche WMS du contexte, le composant remonte à sa fiche de métadonnées Geonetwork : si la ressource WFS associée porte un profil de filtrage, un onglet **Filtre** est proposé dans le détail de la couche.
+
+```js
+{
+  dataSources: [
+    { url: 'https://sextant.ifremer.fr/geonetwork/index/features', type: 'geonetwork-index' },
+  ],
+  layers: [{ type: 'wms', url: 'https://...', name: 'ma-couche' }],
+  view: { center: [-4.56, 48.36], zoom: 8 },
+}
+```
+
+La détection est asynchrone et non bloquante : la couche s'affiche immédiatement, l'onglet **Filtre** apparaît si et quand l'index répond.
+
 ## `setInitialContext` vs `setContext`
 
 | | `setInitialContext` | `setContext` |
@@ -51,6 +68,8 @@ await viewer.setInitialContext({
 // Remplacement complet (sans couches STAC)
 await viewer.setContext(nouveauContexte)
 ```
+
+Le remplacement est total : ce que le contexte n'inclut pas est supprimé — un contexte sans `dataSources` efface celles déjà déclarées.
 
 ## `getContext`
 
