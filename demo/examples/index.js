@@ -77,9 +77,10 @@ export const EXAMPLES = [
     description: `
       <h4>Filter a WMS layer by its attributes.</h4>
       <p>
-        Declare a Geonetwork index <code>dataSource</code>. The viewer reads the layer's Geonetwork
-        metadata record: when its WFS resource carries an attribute-filter profile, it offers a
-        <em>Filtre</em> tab to restrict the layer by attribute values via the WMS GetMap FILTER.
+        Declare a Geonetwork index in the context's <code>dataSources</code>. The viewer reads the
+        layer's Geonetwork metadata record: when its WFS resource carries an attribute-filter
+        profile, it offers a <em>Filtre</em> tab to restrict the layer by attribute values via the
+        WMS GetMap FILTER.
       </p>
     `,
     code: layerWmsAttributeFilter,

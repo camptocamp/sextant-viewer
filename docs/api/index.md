@@ -18,3 +18,4 @@ aside: false
 | [MapLayer](./types#maplayer) | Union de tous les types de couches supportés |
 | [MapLayerStac](./types#maplayerstac) | Type de couche STAC |
 | [MapContextView](./types#mapcontextview) | Vue par centre+zoom, emprise ou géométrie |
+| [DataSource](./types#datasource) | Index sondé pour le filtrage attributaire |
