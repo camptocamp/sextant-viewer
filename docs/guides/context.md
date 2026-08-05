@@ -43,8 +43,16 @@ Index Geonetwork sondés pour détecter les couches WMS filtrables par attributs
   dataSources: [
     { url: 'https://sextant.ifremer.fr/geonetwork/index/features', type: 'geonetwork-index' },
   ],
-  layers: [{ type: 'wms', url: 'https://...', name: 'ma-couche' }],
-  view: { center: [-4.56, 48.36], zoom: 8 },
+  layers: [
+    {
+      type: 'wms',
+      url: 'https://sextant.ifremer.fr/services/wms/environnement_marin',
+      name: 'surval_parametre_point',
+      label: 'Surval — données par paramètre',
+      visibility: true,
+    },
+  ],
+  view: { center: [-4.56243, 48.36143], zoom: 8 },
 }
 ```
 
