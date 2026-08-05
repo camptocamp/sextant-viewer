@@ -7,11 +7,11 @@ const viewer = document.getElementById('viewer')
 // serves Sextant same-origin. Cross-origin Execute POSTs would otherwise be blocked, as
 // Sextant sends CORS headers on the OPTIONS preflight but not on the Execute POST response.
 viewer.addWpsService({
-  url: '/services/wps3/demo',
+  url: 'https://sextant.ifremer.fr/services/wps3/demo',
   label: 'Sextant WPS (démo)',
 })
 
 viewer.addWpsService({
-  url: '/services/wps3/surval',
+  url: 'https://sextant.ifremer.fr/services/wps3/surval',
   label: 'Sextant WPS (Surval)',
 })
