@@ -26,6 +26,7 @@ import { enrichStacLayer } from '@/utils/stac.utils'
 import { enrichWmsDimensionsLayer, stripDerivedExtras } from '@/utils/wms.utils'
 import { resolveAttributeFilter } from '@/utils/geonetwork-index'
 import type { DataSource } from '@/types/data-source.types'
+import { enrichNcwmsLayer } from '@/utils/ncwms.utils'
 import { v4 as uuidv4 } from 'uuid'
 import type { ExtendedMapContext } from '@/types/map.types'
 
@@ -79,18 +80,18 @@ export const useMapStore = defineStore('map', () => {
   }))
 
   async function enrichLayer(layer: MapLayer): Promise<MapLayer> {
-    const base: MapLayer = {
+    let enriched: MapLayer = {
       ...layer,
       id: layer.id || uuidv4(),
       version: layer.version ?? 0,
     }
 
-    if (isStacLayer(layer)) {
-      const enrichedLayer = await enrichStacLayer(base as MapLayerStac)
-      return enrichedLayer ?? base
+    if (isStacLayer(enriched)) {
+      return (await enrichStacLayer(enriched)) ?? enriched
     }
 
-    return enrichWmsDimensionsLayer(base)
+    enriched = await enrichNcwmsLayer(enriched)
+    return enrichWmsDimensionsLayer(enriched)
   }
 
   async function enrichContext(context: ExtendedMapContext): Promise<ExtendedMapContext> {

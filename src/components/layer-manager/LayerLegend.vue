@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { createLegendFromLayer } from '@geospatial-sdk/legend'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 import type { MapLayer } from '@/utils/layer.utils'
+import { getNcwmsInfo } from '@/utils/ncwms.utils'
+import { useNcwmsLayer } from '@/composables/useNcwmsLayer'
 
 const props = defineProps<{
   layer: MapLayer
 }>()
+
+const isNcwms = computed(() => !!getNcwmsInfo(props.layer))
+const { legendUrl: ncwmsLegendUrl } = useNcwmsLayer(() => props.layer)
 
 const container = ref<HTMLDivElement | null>(null)
 
@@ -32,13 +37,18 @@ async function loadLegend(layer: MapLayer) {
   }
 }
 
-onMounted(() => loadLegend(props.layer))
+onMounted(() => {
+  if (!isNcwms.value) loadLegend(props.layer)
+})
 watch(
-  () => props.layer.id,
-  () => loadLegend(props.layer),
+  () => [props.layer.id, isNcwms.value],
+  () => {
+    if (!isNcwms.value) loadLegend(props.layer)
+  },
 )
 </script>
 
 <template>
-  <div ref="container" />
+  <img v-if="isNcwms" :src="ncwmsLegendUrl" alt="Légende" class="self-start" />
+  <div v-else ref="container" />
 </template>
