@@ -2,6 +2,7 @@
 import { computed, watch } from 'vue'
 import type { WpsProcessFull, WpsProcessInput, WpsProcessOutput } from '@camptocamp/ogc-client'
 import type { WpsFormInputs, WpsFormOutput, WpsInputOccurrence } from '@/types/wps.types'
+import WpsInputField from './WpsInputField.vue'
 
 const props = defineProps<{
   process: WpsProcessFull
@@ -162,7 +163,9 @@ function removeOccurrence(identifier: string, index: number) {
           :model-value="outputMimeTypeFor(processOutput.identifier)"
           :items="outputFormats(processOutput)"
           class="w-full"
-          @update:model-value="(value) => setOutputMimeType(processOutput.identifier, value)"
+          @update:model-value="
+            (value: string) => setOutputMimeType(processOutput.identifier, value)
+          "
         />
       </UFormField>
     </div>
