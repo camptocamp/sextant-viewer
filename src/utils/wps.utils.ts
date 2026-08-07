@@ -1,0 +1,208 @@
+import { WpsEndpoint, WmsEndpoint } from '@camptocamp/ogc-client'
+import type {
+  WpsProcessFull,
+  WpsProcessInput,
+  WpsExecuteOptions,
+  WpsExecuteResponse,
+  WpsExecuteOutputResult,
+  WpsInputValue,
+} from '@camptocamp/ogc-client'
+import type { MapContextLayer } from '@geospatial-sdk/core'
+import type {
+  WpsFormInputs,
+  WpsFormOutput,
+  WpsInputOccurrence,
+  WpsOutputResult,
+} from '@/types/wps.types'
+
+const WMS_MIMETYPE_REGEX = /ogc-wms/i
+// Faithful to Sextant: any json mime (application/json or geo+json) is treated as
+// geometry. GML/XML remains unimplemented → download. Opaque mimes (octet-stream…)
+// don't match here, so they stay downloads.
+const GEOJSON_MIMETYPE_REGEX = /json/i
+const POLL_INTERVAL_MS = 1000
+// Anything else ('succeeded', 'failed', 'dismissed') is terminal and stops the polling.
+const PENDING_STATUSES = ['accepted', 'started', 'paused']
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// ogc-client parses service URLs with `new URL()`, which rejects relative paths. Resolving
+// against the page location lets a same-origin path be used (e.g. `/services/wps3/demo`,
+// routed through the dev proxy in vite.config.ts, or served behind Sextant in production).
+const resolveUrl = (url: string) => new URL(url, globalThis.location.href).href
+
+/**
+ * Read a service's process list from its capabilities.
+ * The endpoint is returned alongside because it is the handle every later call needs
+ * (describe, execute): it caches the parsed capabilities, so the caller keeps it rather
+ * than rebuilding one per request.
+ */
+export async function loadProcesses(url: string) {
+  const endpoint = await new WpsEndpoint(resolveUrl(url)).isReady()
+  return { endpoint, processes: endpoint.getProcesses() ?? [] }
+}
+
+/**
+ * Fetch the full description of a process — its inputs, their types and their cardinality.
+ * Capabilities only carry summaries, so this DescribeProcess round-trip is what the form
+ * needs before it can render any field.
+ */
+export function describeProcess(endpoint: WpsEndpoint, processId: string) {
+  return endpoint.describeProcess(processId)
+}
+
+type Bbox = [number, number, number, number]
+
+/**
+ * Parse the "minX,minY,maxX,maxY" string typed in the form, or null if it is not four
+ * usable numbers.
+ * Deliberately CRS-agnostic: the process picks the CRS (`boundingBoxData.defaultCrs`), so
+ * coordinate ranges cannot be checked here — 500000 is out of bounds in EPSG:4326 and
+ * ordinary in EPSG:3857. Geographic validation belongs to whoever knows the CRS.
+ */
+export function parseBbox(value: string): Bbox | null {
+  // A blank coordinate must be rejected, not read as Number('') === 0.
+  const parts = value.split(',').map((n) => n.trim())
+  const bbox = parts.map(Number)
+  return parts.length === 4 && parts.every(Boolean) && !bbox.some(Number.isNaN)
+    ? (bbox as Bbox)
+    : null
+}
+
+/**
+ * Turn one form occurrence into the value to send for that input.
+ * The occurrence holds one field per input type and only the matching one is read, so a
+ * literal value typed into a complex input is ignored rather than mis-sent. Returns null
+ * when the occurrence is empty or unusable, which is how the caller drops it: an untouched
+ * field must not reach the server as an empty value.
+ */
+export function toInputValue(
+  input: WpsProcessInput,
+  occurrence: WpsInputOccurrence,
+): WpsInputValue | null {
+  if (input.type === 'literal' && occurrence.literalValue) {
+    return { identifier: input.identifier, literalValue: occurrence.literalValue }
+  }
+  if (input.type === 'complex' && occurrence.complexContent) {
+    return {
+      identifier: input.identifier,
+      complexValue: {
+        mimeType: input.complexData?.default.mimeType ?? 'application/json',
+        content: occurrence.complexContent,
+      },
+    }
+  }
+  if (input.type === 'boundingbox' && occurrence.bboxValue) {
+    const bbox = parseBbox(occurrence.bboxValue)
+    if (!bbox) return null
+    return {
+      identifier: input.identifier,
+      boundingBoxValue: { crs: input.boundingBoxData?.defaultCrs, bbox },
+    }
+  }
+  return null
+}
+
+/**
+ * Assemble the Execute request from the process description and the form state.
+ * Iterating over `process.inputs` rather than the form keys makes the process the authority
+ * on input order, and silently drops form entries the process does not declare. The async
+ * flags mirror what the process advertises: asking for a stored, status-polled response on a
+ * server that supports neither is a rejected request.
+ */
+export function buildExecuteOptions(
+  process: WpsProcessFull,
+  formInputs: WpsFormInputs,
+  formOutputs: WpsFormOutput[],
+): WpsExecuteOptions {
+  const inputs = process.inputs.flatMap((input) =>
+    (formInputs[input.identifier] ?? [])
+      .map((occurrence) => toInputValue(input, occurrence))
+      .filter((value): value is WpsInputValue => value !== null),
+  )
+
+  return {
+    inputs,
+    outputs: formOutputs.map((output) => ({
+      identifier: output.identifier,
+      mimeType: output.mimeType,
+      asReference: output.asReference,
+    })),
+    storeExecuteResponse: process.storeSupported,
+    status: process.statusSupported,
+  }
+}
+
+/**
+ * Classify an Execute output by semantic family, based on its mime type. The
+ * decision is mime-driven: an opaque mime (octet-stream, CSV, binary…) is
+ * always a download, never a layer — no content sniffing in v1.
+ */
+export function classifyOutput(output: WpsExecuteOutputResult): WpsOutputResult {
+  const identifier = output.identifier
+  const label = output.title || output.identifier
+  const mimeType = output.reference?.mimeType ?? output.data?.mimeType ?? ''
+  const href = output.reference?.href
+
+  if (WMS_MIMETYPE_REGEX.test(mimeType) && href) {
+    return { kind: 'wms', identifier, label, href }
+  }
+
+  if (GEOJSON_MIMETYPE_REGEX.test(mimeType)) {
+    if (href) return { kind: 'geojson', identifier, label, url: href, mimeType }
+    if (output.data?.content)
+      return { kind: 'geojson', identifier, label, data: output.data.content, mimeType }
+  }
+
+  return { kind: 'download', identifier, label, href, data: output.data?.content, mimeType }
+}
+
+/**
+ * Build the map layers an output stands for — none for a 'download' output, which is offered
+ * as a file instead. A single WMS output expands to several layers, hence the array.
+ */
+export async function toLayers(output: WpsOutputResult): Promise<MapContextLayer[]> {
+  if (output.kind === 'wms') {
+    // Faithful to Sextant: the href is a WMS GetCapabilities; load every named layer.
+    const wms = await new WmsEndpoint(output.href).isReady()
+    return wms
+      .getFlattenedLayers()
+      .filter((layer) => layer.name)
+      .map((layer) => ({
+        type: 'wms',
+        url: output.href,
+        name: layer.name!,
+        label: layer.title || output.label,
+      }))
+  }
+  if (output.kind === 'geojson') {
+    if (output.url) return [{ type: 'geojson', url: output.url, label: output.label }]
+    if (output.data) return [{ type: 'geojson', data: output.data, label: output.label }]
+  }
+  return []
+}
+
+/**
+ * Run an Execute request to completion, polling the status location while the process is
+ * still pending. A synchronous process answers on the first call and the loop never runs;
+ * `onProgress` fires on every response so the panel can show the status as it evolves.
+ * Adding the outputs to the map is the caller's job (see useWps), which keeps this free of
+ * any map side effect — and testable without one.
+ */
+export async function executeProcess(
+  endpoint: WpsEndpoint,
+  processId: string,
+  options: WpsExecuteOptions,
+  onProgress?: (response: WpsExecuteResponse) => void,
+): Promise<WpsExecuteResponse> {
+  let response = await endpoint.execute(processId, options)
+  onProgress?.(response)
+
+  while (response.statusLocation && PENDING_STATUSES.includes(response.status)) {
+    await delay(POLL_INTERVAL_MS)
+    response = await endpoint.getStatus(response.statusLocation)
+    onProgress?.(response)
+  }
+
+  return response
+}

@@ -4,8 +4,8 @@ import type {
   WpsProcessFull,
   WpsProcessInput,
 } from '@camptocamp/ogc-client'
-import type { WpsFormInputs, WpsFormOutput } from '@/types/wps.types'
-import { buildExecuteOptions, classifyOutput } from './useWps'
+import type { WpsFormInputs, WpsFormOutput, WpsInputOccurrence } from '@/types/wps.types'
+import { buildExecuteOptions, classifyOutput, parseBbox, toInputValue } from './wps.utils'
 
 const reference = (mimeType: string): WpsExecuteOutputResult => ({
   identifier: 'OUTPUT',
@@ -79,6 +79,152 @@ describe('classifyOutput', () => {
   it('uses identifier as label when title is absent', () => {
     const result = classifyOutput({ identifier: 'OUTPUT', reference: { href: 'h', mimeType: '' } })
     expect(result.label).toBe('OUTPUT')
+  })
+})
+
+describe('parseBbox', () => {
+  it('parses four comma-separated coordinates', () => {
+    expect(parseBbox('1,2,3,4')).toEqual([1, 2, 3, 4])
+  })
+
+  it('trims the whitespace around each coordinate', () => {
+    expect(parseBbox(' 1 , 2 ,3 , 4 ')).toEqual([1, 2, 3, 4])
+  })
+
+  it('accepts negative and decimal coordinates', () => {
+    expect(parseBbox('-5.5,-1,0,2.25')).toEqual([-5.5, -1, 0, 2.25])
+  })
+
+  it.each([
+    ['too few coordinates', '1,2,3'],
+    ['too many coordinates', '1,2,3,4,5'],
+    ['a non-numeric coordinate', '1,2,3,abc'],
+    ['a missing coordinate', '1,2,,4'],
+    ['a blank coordinate', '1,2, ,4'],
+    ['an empty string', ''],
+  ])('rejects %s', (_case, value) => {
+    expect(parseBbox(value)).toBeNull()
+  })
+
+  it('keeps a zero coordinate', () => {
+    expect(parseBbox('0,2,3,4')).toEqual([0, 2, 3, 4])
+  })
+})
+
+describe('toInputValue', () => {
+  const occurrence = (partial: WpsInputOccurrence) => partial
+
+  describe('literal inputs', () => {
+    it('maps the literal value', () => {
+      const result = toInputValue(
+        input({ identifier: 'DIST', type: 'literal' }),
+        occurrence({ literalValue: '10' }),
+      )
+      expect(result).toEqual({ identifier: 'DIST', literalValue: '10' })
+    })
+
+    it('keeps a value that is falsy as a number but not as a string', () => {
+      const result = toInputValue(
+        input({ identifier: 'DIST', type: 'literal' }),
+        occurrence({ literalValue: '0' }),
+      )
+      expect(result).toEqual({ identifier: 'DIST', literalValue: '0' })
+    })
+
+    it('returns null for an empty value', () => {
+      const result = toInputValue(
+        input({ identifier: 'DIST', type: 'literal' }),
+        occurrence({ literalValue: '' }),
+      )
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('complex inputs', () => {
+    it('uses the mime type declared as the input default', () => {
+      const result = toInputValue(
+        input({
+          identifier: 'GEOM',
+          type: 'complex',
+          complexData: { default: { mimeType: 'application/gml+xml' }, supported: [] },
+        }),
+        occurrence({ complexContent: '<gml:Point/>' }),
+      )
+      expect(result).toEqual({
+        identifier: 'GEOM',
+        complexValue: { mimeType: 'application/gml+xml', content: '<gml:Point/>' },
+      })
+    })
+
+    it('falls back to application/json when the input declares no format', () => {
+      const result = toInputValue(
+        input({ identifier: 'GEOM', type: 'complex' }),
+        occurrence({ complexContent: '{}' }),
+      )
+      expect(result).toEqual({
+        identifier: 'GEOM',
+        complexValue: { mimeType: 'application/json', content: '{}' },
+      })
+    })
+
+    it('returns null for empty content', () => {
+      const result = toInputValue(
+        input({ identifier: 'GEOM', type: 'complex' }),
+        occurrence({ complexContent: '' }),
+      )
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('bounding box inputs', () => {
+    const bboxInput = input({
+      identifier: 'BBOX',
+      type: 'boundingbox',
+      boundingBoxData: { defaultCrs: 'EPSG:4326', supportedCrs: ['EPSG:4326'] },
+    })
+
+    it('carries the parsed bbox and the default CRS', () => {
+      const result = toInputValue(bboxInput, occurrence({ bboxValue: '1,2,3,4' }))
+      expect(result).toEqual({
+        identifier: 'BBOX',
+        boundingBoxValue: { crs: 'EPSG:4326', bbox: [1, 2, 3, 4] },
+      })
+    })
+
+    it('leaves the CRS undefined when the input declares none', () => {
+      const result = toInputValue(
+        input({ identifier: 'BBOX', type: 'boundingbox' }),
+        occurrence({ bboxValue: '1,2,3,4' }),
+      )
+      expect(result).toEqual({
+        identifier: 'BBOX',
+        boundingBoxValue: { crs: undefined, bbox: [1, 2, 3, 4] },
+      })
+    })
+
+    it('returns null when the bbox cannot be parsed', () => {
+      expect(toInputValue(bboxInput, occurrence({ bboxValue: '1,2,3' }))).toBeNull()
+    })
+
+    it('returns null for an empty bbox', () => {
+      expect(toInputValue(bboxInput, occurrence({ bboxValue: '' }))).toBeNull()
+    })
+  })
+
+  it('returns null for an occurrence holding no value at all', () => {
+    expect(toInputValue(input({ identifier: 'DIST', type: 'literal' }), occurrence({}))).toBeNull()
+  })
+
+  it.each([
+    ['literal', occurrence({ complexContent: '{}' })],
+    ['complex', occurrence({ literalValue: '10' })],
+    ['boundingbox', occurrence({ literalValue: '10' })],
+  ])('returns null when the occurrence field does not match a %s input', (type, value) => {
+    const result = toInputValue(
+      input({ identifier: 'IN', type: type as WpsProcessInput['type'] }),
+      value,
+    )
+    expect(result).toBeNull()
   })
 })
 

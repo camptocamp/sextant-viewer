@@ -10,8 +10,9 @@ import type {
 import { useWps } from '@/composables/useWps'
 import { useMapStore } from '@/stores/map.store'
 import type { WpsFormInputs, WpsFormOutput, WpsOutputResult } from '@/types/wps.types'
+import { buildExecuteOptions, describeProcess, loadProcesses } from '@/utils/wps.utils'
 
-const { loadProcesses, describe, buildExecuteOptions, execute } = useWps()
+const { execute } = useWps()
 
 const emit = defineEmits<{ 'layer-added': [] }>()
 
@@ -79,7 +80,7 @@ watch(selectedProcessId, async (processId) => {
   if (!endpoint.value || !processId) return
   describing.value = true
   try {
-    selectedProcess.value = await describe(endpoint.value, processId)
+    selectedProcess.value = await describeProcess(endpoint.value, processId)
   } catch (e) {
     const msg = `Failed to describe process "${processId}"`
     console.error(msg, e)
