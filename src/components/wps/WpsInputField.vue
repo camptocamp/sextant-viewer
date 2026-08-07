@@ -2,7 +2,13 @@
 import { computed } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import type { WpsProcessInput, WpsInputOccurrence } from '@/types/wps.types'
-import { isBooleanInput, parseBbox, parseBooleanLiteral } from '@/utils/wps.utils'
+import {
+  isBooleanInput,
+  isNativeTemporalValue,
+  parseBbox,
+  parseBooleanLiteral,
+  temporalInputType,
+} from '@/utils/wps.utils'
 
 const props = defineProps<{
   input: WpsProcessInput
@@ -12,15 +18,25 @@ const model = defineModel<WpsInputOccurrence>({ required: true })
 
 const mapStore = useMapStore()
 
-const isNumber = computed(() =>
-  /float|double|int|long|decimal|number/i.test(props.input.literalData?.dataType ?? ''),
-)
-
 const allowedValues = computed(() => props.input.literalData?.allowedValues ?? [])
 
 const literalValue = computed({
   get: () => model.value.literalValue ?? '',
   set: (value: string) => (model.value = { ...model.value, literalValue: value }),
+})
+
+const isNumber = computed(() =>
+  /float|double|int|long|decimal|number/i.test(props.input.literalData?.dataType ?? ''),
+)
+
+const fieldType = computed(() => {
+  const temporal = temporalInputType(props.input)
+  // A server default the native widget cannot display (a trailing 'Z' or a UTC offset, which
+  // datetime-local refuses) would leave the field blank on screen while the value stays in the
+  // form state and still gets sent. Falling back to text keeps what is shown and what is sent
+  // the same thing.
+  if (temporal && isNativeTemporalValue(temporal, literalValue.value)) return temporal
+  return isNumber.value ? 'number' : 'text'
 })
 
 const isBoolean = computed(() => isBooleanInput(props.input))
@@ -106,7 +122,7 @@ function useMapExtent() {
         class="w-full"
         :ui="{ content: 'z-50' }"
       />
-      <UInput v-else v-model="literalValue" :type="isNumber ? 'number' : 'text'" class="w-full" />
+      <UInput v-else v-model="literalValue" :type="fieldType" class="w-full" />
     </template>
 
     <template v-else-if="input.type === 'boundingbox'">

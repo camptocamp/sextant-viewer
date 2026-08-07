@@ -92,6 +92,77 @@ export function parseBooleanLiteral(value: string | undefined): boolean | undefi
   return undefined
 }
 
+export type WpsTemporalInputType = 'date' | 'datetime-local' | 'time'
+
+/**
+ * The three temporal literals, keyed by the local name of their `<ows:DataType>`.
+ * `lexical` is both what the native widget can display and what XML Schema accepts;
+ * `missingSeconds` matches the shorter form the widget produces at its default step, which
+ * xs:time and xs:dateTime reject — seconds are mandatory in their lexical space.
+ */
+const TEMPORAL_LITERALS = {
+  date: {
+    inputType: 'date',
+    lexical: /^\d{4}-\d{2}-\d{2}$/,
+    missingSeconds: null,
+  },
+  datetime: {
+    inputType: 'datetime-local',
+    lexical: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/,
+    missingSeconds: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/,
+  },
+  time: {
+    inputType: 'time',
+    lexical: /^\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/,
+    missingSeconds: /^\d{2}:\d{2}$/,
+  },
+} as const satisfies Record<
+  string,
+  { inputType: WpsTemporalInputType; lexical: RegExp; missingSeconds: RegExp | null }
+>
+
+// Matching on the local name rather than the whole string is what keeps 'dateTime' from being
+// read as a time: a substring test would match both. It also covers the prefixed ('xs:date') and
+// URL ('…xmlschema-2/#dateTime') spellings servers use for the same type.
+const localName = (dataType: string) =>
+  dataType
+    .trim()
+    .toLowerCase()
+    .match(/[^:/#]+$/)?.[0] ?? ''
+
+function temporalLiteral(input: WpsProcessInput) {
+  if (input.type !== 'literal') return null
+  const key = localName(input.literalData?.dataType ?? '')
+  return key in TEMPORAL_LITERALS ? TEMPORAL_LITERALS[key as keyof typeof TEMPORAL_LITERALS] : null
+}
+
+/**
+ * The native input type a temporal literal deserves, or null for anything else — a plain
+ * text field is a poor way to ask for an ISO date the user has to spell out from memory.
+ */
+export function temporalInputType(input: WpsProcessInput): WpsTemporalInputType | null {
+  return temporalLiteral(input)?.inputType ?? null
+}
+
+/**
+ * Whether the native widget of that type can display this value. An empty string can: an
+ * unfilled field is not a malformed one.
+ */
+export function isNativeTemporalValue(type: WpsTemporalInputType, value: string): boolean {
+  const literal = Object.values(TEMPORAL_LITERALS).find((entry) => entry.inputType === type)
+  return !value || !!literal?.lexical.test(value)
+}
+
+/**
+ * Complete the seconds the native widget leaves out, so the value matches the lexical space of
+ * its type. Anything else — a date, an already complete value, a non-temporal input — is
+ * returned untouched, which lets `toInputValue` call this unconditionally.
+ */
+export function normalizeTemporalLiteral(input: WpsProcessInput, value: string): string {
+  const literal = temporalLiteral(input)
+  return literal?.missingSeconds?.test(value) ? `${value}:00` : value
+}
+
 type Bbox = [number, number, number, number]
 
 /**
@@ -132,7 +203,10 @@ export function toInputValue(
   occurrence: WpsInputOccurrence,
 ): WpsInputValue | null {
   if (input.type === 'literal' && occurrence.literalValue) {
-    return { identifier: input.identifier, literalValue: occurrence.literalValue }
+    return {
+      identifier: input.identifier,
+      literalValue: normalizeTemporalLiteral(input, occurrence.literalValue),
+    }
   }
   if (input.type === 'complex' && occurrence.complexContent) {
     return {

@@ -188,6 +188,38 @@ test.describe('WPS panel', () => {
     expect(errors).toEqual([])
   })
 
+  test('offers a native picker for date, dateTime and time inputs', async ({ page }) => {
+    await mockWps(page, fixture('execute-succeeded.xml'))
+    await openDemoProcessForm(page)
+
+    const execute = page.getByRole('button', { name: 'Exécuter' })
+
+    // The three temporal inputs of the demo process each get their own widget instead of the
+    // free-text field every other literal falls back to.
+    const date = page.locator('input[type="date"]')
+    const dateTime = page.locator('input[type="datetime-local"]')
+    const time = page.locator('input[type="time"]')
+    await expect(date).toHaveCount(1)
+    await expect(dateTime).toHaveCount(1)
+    await expect(time).toHaveCount(1)
+
+    await date.fill('2026-08-07')
+    await time.fill('14:30')
+
+    const [request] = await Promise.all([
+      page.waitForRequest((candidate) => candidate.method() === 'POST'),
+      execute.click(),
+    ])
+    const body = request.postData() ?? ''
+
+    expect(body).toContain('<ows:Identifier>DATE</ows:Identifier>')
+    expect(body).toContain('<wps:LiteralData>2026-08-07</wps:LiteralData>')
+    // 'HH:mm' is what the widget yields, and it is not a valid xs:time: the seconds are added
+    // on the way out, so a strict server still gets a value it accepts.
+    expect(body).toContain('<ows:Identifier>TIME</ows:Identifier>')
+    expect(body).toContain('<wps:LiteralData>14:30:00</wps:LiteralData>')
+  })
+
   test('states the cardinality of a repeatable input', async ({ page }) => {
     await mockWps(
       page,

@@ -10,9 +10,12 @@ import {
   cardinalityLabel,
   classifyOutput,
   isBooleanInput,
+  isNativeTemporalValue,
+  normalizeTemporalLiteral,
   occurrenceHasContent,
   parseBooleanLiteral,
   parseBbox,
+  temporalInputType,
   toInputValue,
 } from './wps.utils'
 
@@ -177,6 +180,99 @@ describe('parseBooleanLiteral', () => {
   })
 })
 
+describe('temporalInputType', () => {
+  const literal = (dataType?: string) =>
+    input({ identifier: 'WHEN', type: 'literal', literalData: { dataType } })
+
+  it.each([
+    ['date', 'date'],
+    ['xs:date', 'date'],
+    ['Date', 'date'],
+    ['dateTime', 'datetime-local'],
+    ['xs:dateTime', 'datetime-local'],
+    ['DATETIME', 'datetime-local'],
+    ['http://www.w3.org/TR/xmlschema-2/#dateTime', 'datetime-local'],
+    ['urn:ogc:def:dataType:OGC:1.1:dateTime', 'datetime-local'],
+    ['time', 'time'],
+    ['xs:time', 'time'],
+  ])('maps the %s data type to a %s field', (dataType, expected) => {
+    expect(temporalInputType(literal(dataType))).toBe(expected)
+  })
+
+  // The whole reason detection matches the local name instead of a substring: 'dateTime'
+  // contains 'time', and a naive test would offer an hour picker for a full timestamp.
+  it('does not read dateTime as a time', () => {
+    expect(temporalInputType(literal('dateTime'))).not.toBe('time')
+  })
+
+  it.each([
+    ['a string', literal('string')],
+    ['a number', literal('double')],
+    ['a duration', literal('xs:duration')],
+    ['an undeclared data type', literal(undefined)],
+    ['a non-literal input', input({ identifier: 'EXTENT', type: 'boundingbox' })],
+  ])('offers no temporal field for %s', (_case, value) => {
+    expect(temporalInputType(value)).toBeNull()
+  })
+})
+
+describe('isNativeTemporalValue', () => {
+  // An unfilled field is not a malformed one — it must keep its picker.
+  it('accepts an empty value for every type', () => {
+    expect(isNativeTemporalValue('date', '')).toBe(true)
+    expect(isNativeTemporalValue('datetime-local', '')).toBe(true)
+    expect(isNativeTemporalValue('time', '')).toBe(true)
+  })
+
+  it.each([
+    ['date', '2026-08-07'],
+    ['datetime-local', '2026-08-07T14:30'],
+    ['datetime-local', '2026-08-07T14:30:45'],
+    ['time', '14:30'],
+    ['time', '14:30:45.5'],
+  ] as const)('accepts %s for a %s field', (type, value) => {
+    expect(isNativeTemporalValue(type, value)).toBe(true)
+  })
+
+  // A zone-qualified default is the realistic case: datetime-local refuses it, so the field
+  // must fall back to text rather than silently show nothing.
+  it.each([
+    ['datetime-local', '2026-08-07T00:00:00Z'],
+    ['datetime-local', '2026-08-07T00:00:00+02:00'],
+    ['date', '07/08/2026'],
+    ['date', '2026-08-07T14:30'],
+    ['time', '2 heures'],
+  ] as const)('rejects %s for a %s field', (type, value) => {
+    expect(isNativeTemporalValue(type, value)).toBe(false)
+  })
+})
+
+describe('normalizeTemporalLiteral', () => {
+  const literal = (dataType: string) =>
+    input({ identifier: 'WHEN', type: 'literal', literalData: { dataType } })
+
+  // xs:time and xs:dateTime both require seconds, which the native widget omits at its
+  // default step — a strict server rejects the shorter form.
+  it('completes the seconds a time field leaves out', () => {
+    expect(normalizeTemporalLiteral(literal('time'), '14:30')).toBe('14:30:00')
+  })
+
+  it('completes the seconds a datetime field leaves out', () => {
+    expect(normalizeTemporalLiteral(literal('dateTime'), '2026-08-07T14:30')).toBe(
+      '2026-08-07T14:30:00',
+    )
+  })
+
+  it.each([
+    ['an already complete time', literal('time'), '14:30:45'],
+    ['a date, which has no seconds to complete', literal('date'), '2026-08-07'],
+    ['a zone-qualified value it cannot read', literal('dateTime'), '2026-08-07T14:30Z'],
+    ['a non-temporal input whose value looks like a time', literal('string'), '14:30'],
+  ])('leaves %s untouched', (_case, value, literalValue) => {
+    expect(normalizeTemporalLiteral(value, literalValue)).toBe(literalValue)
+  })
+})
+
 describe('cardinalityLabel', () => {
   const cardinality = (minOccurs: number, maxOccurs: number) =>
     cardinalityLabel(input({ identifier: 'IN', type: 'literal', minOccurs, maxOccurs }))
@@ -214,6 +310,24 @@ describe('toInputValue', () => {
         occurrence({ literalValue: '10' }),
       )
       expect(result).toEqual({ identifier: 'DIST', literalValue: '10' })
+    })
+
+    // The native picker yields 'HH:mm', which is not a valid xs:time — the request builder is
+    // where that gets fixed, so validation and the sent value never disagree.
+    it('completes the seconds of a temporal literal', () => {
+      const result = toInputValue(
+        input({ identifier: 'TIME', type: 'literal', literalData: { dataType: 'time' } }),
+        occurrence({ literalValue: '14:30' }),
+      )
+      expect(result).toEqual({ identifier: 'TIME', literalValue: '14:30:00' })
+    })
+
+    it('sends a date literal as typed', () => {
+      const result = toInputValue(
+        input({ identifier: 'DATE', type: 'literal', literalData: { dataType: 'date' } }),
+        occurrence({ literalValue: '2026-08-07' }),
+      )
+      expect(result).toEqual({ identifier: 'DATE', literalValue: '2026-08-07' })
     })
 
     it('keeps a value that is falsy as a number but not as a string', () => {
