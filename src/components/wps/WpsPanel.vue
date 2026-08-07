@@ -19,7 +19,7 @@ const emit = defineEmits<{ 'layer-added': [] }>()
 const { wpsServices } = storeToRefs(useMapStore())
 
 // Free-text URL: nothing is preselected. The WPS services declared on the map context are
-// offered in a dropdown that fills the field on selection.
+// offered in a dropdown that fills the field and loads the capabilities on selection.
 const url = ref('')
 
 const serviceItems = computed(() =>
@@ -71,6 +71,11 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+function onServiceSelect(serviceUrl: string) {
+  url.value = serviceUrl
+  load()
 }
 
 watch(selectedProcessId, async (processId) => {
@@ -132,7 +137,7 @@ async function onExecute() {
         placeholder="Services prédéfinis"
         class="w-full"
         :ui="{ content: 'z-50' }"
-        @update:model-value="url = $event"
+        @update:model-value="onServiceSelect($event)"
       />
       <UFieldGroup class="w-full">
         <UInput
