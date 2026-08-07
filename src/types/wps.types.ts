@@ -1,4 +1,4 @@
-import type {
+export type {
   WpsProcessInput,
   WpsProcessOutput,
   WpsInputValue,
@@ -54,5 +54,3 @@ export type WpsOutputResult =
       data?: string
       mimeType?: string
     }
-
-export type { WpsProcessInput, WpsProcessOutput, WpsInputValue, WpsOutputSelection }
