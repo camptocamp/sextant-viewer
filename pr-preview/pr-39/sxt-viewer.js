@@ -93608,43 +93608,43 @@ const N0e = {
       n.value = { ...n.value, [B]: y };
     }
     return (B, v) => {
-      const y = nye, w = ei, b = PE, x = kg;
+      const y = ei, w = PE, b = kg;
       return S(), se("div", aye, [
         v[2] || (v[2] = Ne("h4", { class: "text-sm font-semibold" }, "Paramètres d'entrée", -1)),
-        (S(!0), se(Pe, null, Mt(t.process.inputs, (k) => (S(), P(b, {
-          key: k.identifier,
-          label: k.title || k.identifier,
-          required: k.minOccurs > 0,
-          help: k.abstract
+        (S(!0), se(Pe, null, Mt(t.process.inputs, (x) => (S(), P(w, {
+          key: x.identifier,
+          label: x.title || x.identifier,
+          required: x.minOccurs > 0,
+          help: x.abstract
         }, {
           default: T(() => [
             Ne("div", sye, [
-              (S(!0), se(Pe, null, Mt(n.value[k.identifier], (_, N) => (S(), se("div", {
-                key: N,
+              (S(!0), se(Pe, null, Mt(n.value[x.identifier], (k, _) => (S(), se("div", {
+                key: _,
                 class: "flex items-start gap-2"
               }, [
-                X(y, {
-                  input: k,
-                  "model-value": _,
+                X(nye, {
+                  input: x,
+                  "model-value": k,
                   class: "flex-1",
-                  "onUpdate:modelValue": (G) => m(k.identifier, N, G)
+                  "onUpdate:modelValue": (N) => m(x.identifier, _, N)
                 }, null, 8, ["input", "model-value", "onUpdate:modelValue"]),
-                C(k) ? (S(), P(w, {
+                C(x) ? (S(), P(y, {
                   key: 0,
                   icon: "i-heroicons-minus",
                   color: "neutral",
                   variant: "ghost",
-                  onClick: (G) => E(k.identifier, N)
+                  onClick: (N) => E(x.identifier, _)
                 }, null, 8, ["onClick"])) : ge("", !0)
               ]))), 128)),
-              I(k) ? (S(), P(w, {
+              I(x) ? (S(), P(y, {
                 key: 0,
                 size: "xs",
                 variant: "soft",
                 color: "neutral",
                 icon: "i-heroicons-plus",
                 label: "Ajouter une valeur",
-                onClick: (_) => Q(k)
+                onClick: (k) => Q(x)
               }, null, 8, ["onClick"])) : ge("", !0)
             ])
           ]),
@@ -93652,27 +93652,27 @@ const N0e = {
         }, 1032, ["label", "required", "help"]))), 128)),
         g.value.length ? (S(), se("div", oye, [
           v[1] || (v[1] = Ne("h4", { class: "text-sm font-semibold" }, "Format des sorties", -1)),
-          (S(!0), se(Pe, null, Mt(g.value, (k) => (S(), P(b, {
-            key: k.identifier,
-            label: k.title || k.identifier
+          (S(!0), se(Pe, null, Mt(g.value, (x) => (S(), P(w, {
+            key: x.identifier,
+            label: x.title || x.identifier
           }, {
             default: T(() => [
-              X(x, {
-                "model-value": d(k.identifier),
-                items: l(k),
+              X(b, {
+                "model-value": d(x.identifier),
+                items: l(x),
                 class: "w-full",
-                "onUpdate:modelValue": (_) => h(k.identifier, _)
+                "onUpdate:modelValue": (k) => h(x.identifier, k)
               }, null, 8, ["model-value", "items", "onUpdate:modelValue"])
             ]),
             _: 2
           }, 1032, ["label"]))), 128))
         ])) : ge("", !0),
-        X(w, {
+        X(y, {
           label: "Exécuter",
           icon: "i-heroicons-play",
           loading: t.executing,
           disabled: !p.value || t.executing,
-          onClick: v[0] || (v[0] = (k) => r("execute"))
+          onClick: v[0] || (v[0] = (x) => r("execute"))
         }, null, 8, ["loading", "disabled"])
       ]);
     };
@@ -93727,7 +93727,7 @@ function rx() {
     return r && a.value && s(), n;
   } };
 }
-const lye = /ogc-wms/i, cye = /json/i, uye = 1e3, gye = ["accepted", "started", "paused"], dye = (t) => new Promise((e) => setTimeout(e, t)), hye = (t) => new URL(t, globalThis.location.href).href;
+const lye = /ogc-wms/i, cye = /json/i, uye = 1e3, gye = /* @__PURE__ */ new Set(["accepted", "started", "paused"]), dye = (t) => new Promise((e) => setTimeout(e, t)), hye = (t) => new URL(t, globalThis.location.href).href;
 async function fye(t) {
   const e = await new Ate(hye(t)).isReady();
   return { endpoint: e, processes: e.getProcesses() ?? [] };
@@ -93800,7 +93800,7 @@ async function yye(t) {
 }
 async function Bye(t, e, i, r) {
   let n = await t.execute(e, i);
-  for (r?.(n); n.statusLocation && gye.includes(n.status); )
+  for (r?.(n); n.statusLocation && gye.has(n.status); )
     await dye(uye), n = await t.getStatus(n.statusLocation), r?.(n);
   return n;
 }
