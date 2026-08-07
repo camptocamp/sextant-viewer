@@ -1,12 +1,37 @@
 import { describe, expect, it } from 'vitest'
-import type { WpsExecuteOutputResult } from '@camptocamp/ogc-client'
-import { classifyOutput } from './useWps'
+import type {
+  WpsExecuteOutputResult,
+  WpsProcessFull,
+  WpsProcessInput,
+} from '@camptocamp/ogc-client'
+import type { WpsFormInputs, WpsFormOutput } from '@/types/wps.types'
+import { buildExecuteOptions, classifyOutput } from './useWps'
 
 const reference = (mimeType: string): WpsExecuteOutputResult => ({
   identifier: 'OUTPUT',
   title: 'An output',
   reference: { href: 'https://host/out', mimeType },
 })
+
+const input = (partial: Partial<WpsProcessInput> & Pick<WpsProcessInput, 'identifier' | 'type'>) =>
+  ({ minOccurs: 1, maxOccurs: 1, ...partial }) as WpsProcessInput
+
+const process = (inputs: WpsProcessInput[], partial: Partial<WpsProcessFull> = {}) =>
+  ({
+    identifier: 'buffer',
+    statusSupported: false,
+    storeSupported: false,
+    inputs,
+    outputs: [],
+    ...partial,
+  }) as WpsProcessFull
+
+const build = (
+  inputs: WpsProcessInput[],
+  formInputs: WpsFormInputs,
+  formOutputs: WpsFormOutput[] = [],
+  partial: Partial<WpsProcessFull> = {},
+) => buildExecuteOptions(process(inputs, partial), formInputs, formOutputs)
 
 describe('classifyOutput', () => {
   it('classifies a WMS reference as a wms layer', () => {
@@ -54,5 +79,137 @@ describe('classifyOutput', () => {
   it('uses identifier as label when title is absent', () => {
     const result = classifyOutput({ identifier: 'OUTPUT', reference: { href: 'h', mimeType: '' } })
     expect(result.label).toBe('OUTPUT')
+  })
+})
+
+describe('buildExecuteOptions', () => {
+  describe('literal inputs', () => {
+    it('maps an occurrence to a literal value', () => {
+      const options = build([input({ identifier: 'DIST', type: 'literal' })], {
+        DIST: [{ literalValue: '10' }],
+      })
+      expect(options.inputs).toEqual([{ identifier: 'DIST', literalValue: '10' }])
+    })
+
+    it('emits one entry per occurrence of a repeatable input', () => {
+      const options = build([input({ identifier: 'DIST', type: 'literal', maxOccurs: 3 })], {
+        DIST: [{ literalValue: '10' }, { literalValue: '20' }],
+      })
+      expect(options.inputs).toEqual([
+        { identifier: 'DIST', literalValue: '10' },
+        { identifier: 'DIST', literalValue: '20' },
+      ])
+    })
+
+    it('skips occurrences left empty by the form', () => {
+      const options = build([input({ identifier: 'DIST', type: 'literal', maxOccurs: 2 })], {
+        DIST: [{ literalValue: '' }, { literalValue: '10' }],
+      })
+      expect(options.inputs).toEqual([{ identifier: 'DIST', literalValue: '10' }])
+    })
+
+    it('skips an input the form never filled', () => {
+      const options = build([input({ identifier: 'DIST', type: 'literal' })], {})
+      expect(options.inputs).toEqual([])
+    })
+  })
+
+  describe('complex inputs', () => {
+    it('uses the mime type declared as the input default', () => {
+      const options = build(
+        [
+          input({
+            identifier: 'GEOM',
+            type: 'complex',
+            complexData: { default: { mimeType: 'application/gml+xml' }, supported: [] },
+          }),
+        ],
+        { GEOM: [{ complexContent: '<gml:Point/>' }] },
+      )
+      expect(options.inputs).toEqual([
+        {
+          identifier: 'GEOM',
+          complexValue: { mimeType: 'application/gml+xml', content: '<gml:Point/>' },
+        },
+      ])
+    })
+
+    it('falls back to application/json when the process declares no format', () => {
+      const options = build([input({ identifier: 'GEOM', type: 'complex' })], {
+        GEOM: [{ complexContent: '{}' }],
+      })
+      expect(options.inputs[0]?.complexValue?.mimeType).toBe('application/json')
+    })
+  })
+
+  describe('bounding box inputs', () => {
+    const bboxInput = input({
+      identifier: 'BBOX',
+      type: 'boundingbox',
+      boundingBoxData: { defaultCrs: 'EPSG:4326', supportedCrs: ['EPSG:4326'] },
+    })
+
+    it('parses the comma-separated string and carries the default CRS', () => {
+      const options = build([bboxInput], { BBOX: [{ bboxValue: '1,2,3,4' }] })
+      expect(options.inputs).toEqual([
+        { identifier: 'BBOX', boundingBoxValue: { crs: 'EPSG:4326', bbox: [1, 2, 3, 4] } },
+      ])
+    })
+
+    it('tolerates spaces around the coordinates', () => {
+      const options = build([bboxInput], { BBOX: [{ bboxValue: ' 1 , 2 , 3 , 4 ' }] })
+      expect(options.inputs[0]?.boundingBoxValue?.bbox).toEqual([1, 2, 3, 4])
+    })
+
+    it('drops a bbox that has the wrong number of coordinates', () => {
+      const options = build([bboxInput], { BBOX: [{ bboxValue: '1,2,3' }] })
+      expect(options.inputs).toEqual([])
+    })
+
+    it('drops a bbox holding a non-numeric coordinate', () => {
+      const options = build([bboxInput], { BBOX: [{ bboxValue: '1,2,3,abc' }] })
+      expect(options.inputs).toEqual([])
+    })
+  })
+
+  it('ignores an occurrence whose value does not match the input type', () => {
+    const options = build([input({ identifier: 'DIST', type: 'literal' })], {
+      DIST: [{ complexContent: '{}' }],
+    })
+    expect(options.inputs).toEqual([])
+  })
+
+  it('follows the process input order, not the form key order', () => {
+    const options = build(
+      [
+        input({ identifier: 'A', type: 'literal' }),
+        input({ identifier: 'B', type: 'literal' }),
+        input({ identifier: 'C', type: 'literal' }),
+      ],
+      { C: [{ literalValue: '3' }], A: [{ literalValue: '1' }], B: [{ literalValue: '2' }] },
+    )
+    expect(options.inputs.map((i) => i.identifier)).toEqual(['A', 'B', 'C'])
+  })
+
+  it('passes the selected outputs through unchanged', () => {
+    const options = build([], {}, [
+      { identifier: 'RESULT', mimeType: 'application/geo+json', asReference: true },
+      { identifier: 'REPORT', asReference: false },
+    ])
+    expect(options.outputs).toEqual([
+      { identifier: 'RESULT', mimeType: 'application/geo+json', asReference: true },
+      { identifier: 'REPORT', mimeType: undefined, asReference: false },
+    ])
+  })
+
+  it('mirrors the async capabilities advertised by the process', () => {
+    expect(build([], {}, [], { storeSupported: true, statusSupported: true })).toMatchObject({
+      storeExecuteResponse: true,
+      status: true,
+    })
+    expect(build([], {}, [], { storeSupported: false, statusSupported: false })).toMatchObject({
+      storeExecuteResponse: false,
+      status: false,
+    })
   })
 })
