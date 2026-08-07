@@ -197,9 +197,17 @@ export const EXAMPLES = [
     code: event,
   },
   {
-    name: 'Declare a WPS service',
+    name: 'Declare WPS services',
     description: `
-      <h4>Declare a WPS service offered in the "Traitements (WPS)" panel.</h4>
+      <h4>Declare the WPS services offered in the "Traitements (WPS)" panel.</h4>
+      <p>
+        Pass them as <code>wpsServices</code> in the map context: they are offered as suggestions
+        in the panel, and the user can still type any other WPS URL in the same field.
+      </p>
+      <p>
+        Note: in dev and in this demo, running a process fails with a CORS error on the Execute
+        request.
+      </p>
     `,
     code: wpsService,
   },
