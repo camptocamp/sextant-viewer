@@ -27,6 +27,15 @@ describe('classifyOutput', () => {
     expect(result).toMatchObject({ kind: 'geojson', data: '{"type":"FeatureCollection"}' })
   })
 
+  it('carries the mimeType on a geojson output, so it can also be downloaded', () => {
+    const result = classifyOutput(reference('application/geo+json'))
+    expect(result).toMatchObject({
+      kind: 'geojson',
+      url: 'https://host/out',
+      mimeType: 'application/geo+json',
+    })
+  })
+
   it('classifies generic application/json as geometry (faithful to Sextant)', () => {
     const result = classifyOutput(reference('application/json'))
     expect(result).toMatchObject({ kind: 'geojson', url: 'https://host/out' })

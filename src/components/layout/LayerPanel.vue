@@ -15,6 +15,7 @@ const activeTab = ref('list')
   <UTabs
     v-model="activeTab"
     :items="tabItems"
+    :unmount-on-hide="false"
     :ui="{ root: 'flex min-h-0 flex-col', content: 'mt-3 min-h-0 flex-1 overflow-auto' }"
     class="sxt-panel"
   >

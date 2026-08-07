@@ -153,9 +153,9 @@ export function classifyOutput(output: WpsExecuteOutputResult): WpsOutputResult 
   }
 
   if (GEOJSON_MIMETYPE_REGEX.test(mimeType)) {
-    if (href) return { kind: 'geojson', identifier, label, url: href }
+    if (href) return { kind: 'geojson', identifier, label, url: href, mimeType }
     if (output.data?.content)
-      return { kind: 'geojson', identifier, label, data: output.data.content }
+      return { kind: 'geojson', identifier, label, data: output.data.content, mimeType }
   }
 
   return { kind: 'download', identifier, label, href, data: output.data?.content, mimeType }

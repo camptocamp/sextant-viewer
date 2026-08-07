@@ -38,7 +38,14 @@ export interface WpsFormOutput {
  */
 export type WpsOutputResult =
   | { kind: 'wms'; identifier: string; label: string; href: string }
-  | { kind: 'geojson'; identifier: string; label: string; url?: string; data?: string }
+  | {
+      kind: 'geojson'
+      identifier: string
+      label: string
+      url?: string
+      data?: string
+      mimeType?: string
+    }
   | {
       kind: 'download'
       identifier: string

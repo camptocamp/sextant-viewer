@@ -13,8 +13,9 @@ const pending = computed(
   () => props.result && ['accepted', 'started', 'paused'].includes(props.result.status),
 )
 
-function downloadHref(output: Extract<WpsOutputResult, { kind: 'download' }>) {
-  if (output.href) return output.href
+function downloadHref(output: Extract<WpsOutputResult, { kind: 'geojson' | 'download' }>) {
+  const href = output.kind === 'geojson' ? output.url : output.href
+  if (href) return href
   if (output.data) {
     const mimeType = output.mimeType || 'text/plain'
     return `data:${mimeType};charset=utf-8,${encodeURIComponent(output.data)}`
@@ -70,7 +71,7 @@ function downloadHref(output: Extract<WpsOutputResult, { kind: 'download' }>) {
             Couche ajoutée à la carte
           </UBadge>
           <UButton
-            v-else-if="downloadHref(output)"
+            v-if="output.kind !== 'wms' && downloadHref(output)"
             :to="downloadHref(output)!"
             target="_blank"
             size="xs"
