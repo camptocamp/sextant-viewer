@@ -43,7 +43,7 @@ test.describe('Layer Manager', () => {
       },
     ])
 
-    await expect(page.getByText('Couche GeoJSON')).toBeVisible()
+    await expect(page.locator('.layer-list').getByText('Couche GeoJSON')).toBeVisible()
   })
 
   test('lists multiple layers with last-in-array at top', async ({ page }) => {

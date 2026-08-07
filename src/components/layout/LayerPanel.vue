@@ -5,7 +5,7 @@ const tabItems = [
   { slot: 'list', label: 'Couches', value: 'list' },
   { slot: 'tools', label: 'Outils', value: 'tools' },
   { slot: 'add', label: 'Ajout de données', value: 'add' },
-  { slot: 'wps', label: 'Traitements (WPS)', value: 'wps' },
+  { slot: 'wps', label: 'Traitements', value: 'wps' },
 ]
 
 const activeTab = ref('list')

@@ -140,15 +140,6 @@ export const useMapStore = defineStore('map', () => {
     context.value.layers.forEach(detectDataIndex)
   }
 
-  function setWpsServices(services: WpsService[]) {
-    context.value = { ...context.value, wpsServices: services }
-  }
-
-  function addWpsService(service: WpsService) {
-    if (wpsServices.value.some((s) => s.url === service.url)) return
-    context.value = { ...context.value, wpsServices: [...wpsServices.value, service] }
-  }
-
   function setView(newView: MapContextView) {
     context.value = {
       ...context.value,
@@ -259,8 +250,6 @@ export const useMapStore = defineStore('map', () => {
     wpsServices,
     setInitialContext,
     setContext,
-    setWpsServices,
-    addWpsService,
     setView,
     resetView,
     setMapState,
