@@ -5,7 +5,14 @@ import type {
   WpsProcessInput,
 } from '@camptocamp/ogc-client'
 import type { WpsFormInputs, WpsFormOutput, WpsInputOccurrence } from '@/types/wps.types'
-import { buildExecuteOptions, classifyOutput, parseBbox, toInputValue } from './wps.utils'
+import {
+  buildExecuteOptions,
+  cardinalityLabel,
+  classifyOutput,
+  occurrenceHasContent,
+  parseBbox,
+  toInputValue,
+} from './wps.utils'
 
 const reference = (mimeType: string): WpsExecuteOutputResult => ({
   identifier: 'OUTPUT',
@@ -108,6 +115,54 @@ describe('parseBbox', () => {
 
   it('keeps a zero coordinate', () => {
     expect(parseBbox('0,2,3,4')).toEqual([0, 2, 3, 4])
+  })
+})
+
+describe('occurrenceHasContent', () => {
+  it.each([
+    ['a literal value', { literalValue: '10' }],
+    ['complex content', { complexContent: '{}' }],
+    ['a bbox string', { bboxValue: '1,2,3,4' }],
+  ])('reports %s as content', (_case, occurrence) => {
+    expect(occurrenceHasContent(occurrence)).toBe(true)
+  })
+
+  it('reports a malformed bbox as content, so the form can flag it rather than drop it', () => {
+    expect(occurrenceHasContent({ bboxValue: '1,2,3' })).toBe(true)
+  })
+
+  it.each([
+    ['an untouched occurrence', {}],
+    ['a blanked field', { literalValue: '' }],
+  ])('reports %s as empty', (_case, occurrence) => {
+    expect(occurrenceHasContent(occurrence)).toBe(false)
+  })
+})
+
+describe('cardinalityLabel', () => {
+  const cardinality = (minOccurs: number, maxOccurs: number) =>
+    cardinalityLabel(input({ identifier: 'IN', type: 'literal', minOccurs, maxOccurs }))
+
+  it('says nothing about an input accepting exactly one value', () => {
+    expect(cardinality(1, 1)).toBeNull()
+    expect(cardinality(0, 1)).toBeNull()
+  })
+
+  it('gives only the upper bound for an optional repeatable input', () => {
+    expect(cardinality(0, 3)).toBe("jusqu'à 3 valeurs")
+  })
+
+  it('gives both bounds for a required repeatable input', () => {
+    expect(cardinality(2, 5)).toBe('de 2 à 5 valeurs')
+  })
+
+  it('gives only the lower bound for an unbounded input', () => {
+    expect(cardinality(1, Infinity)).toBe('1 valeur minimum')
+    expect(cardinality(3, Infinity)).toBe('3 valeurs minimum')
+  })
+
+  it('states no bound for an optional unbounded input', () => {
+    expect(cardinality(0, Infinity)).toBe('plusieurs valeurs possibles')
   })
 })
 

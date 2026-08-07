@@ -2,6 +2,7 @@
 import { computed, watch } from 'vue'
 import type { WpsProcessFull, WpsProcessInput, WpsProcessOutput } from '@camptocamp/ogc-client'
 import type { WpsFormInputs, WpsFormOutput, WpsInputOccurrence } from '@/types/wps.types'
+import { cardinalityLabel, occurrenceHasContent, toInputValue } from '@/utils/wps.utils'
 import WpsInputField from './WpsInputField.vue'
 
 const props = defineProps<{
@@ -21,10 +22,6 @@ function newOccurrence(input: WpsProcessInput): WpsInputOccurrence {
     return { literalValue: input.literalData.defaultValue }
   }
   return {}
-}
-
-function occurrenceIsEmpty(occurrence: WpsInputOccurrence) {
-  return !occurrence.literalValue && !occurrence.complexContent && !occurrence.bboxValue
 }
 
 function outputFormats(processOutput: WpsProcessOutput) {
@@ -76,14 +73,24 @@ function setOutputMimeType(identifier: string, mimeType?: string) {
   )
 }
 
+// Validating through `toInputValue` keeps this predictive of buildExecuteOptions, which is what
+// actually decides whether a value reaches the server.
 const isValid = computed(() =>
   props.process.inputs.every((input) => {
-    const filled = (inputs.value[input.identifier] ?? []).filter(
-      (occurrence) => !occurrenceIsEmpty(occurrence),
-    ).length
-    return filled >= input.minOccurs
+    const occurrences = inputs.value[input.identifier] ?? []
+    const values = occurrences.map((occurrence) => toInputValue(input, occurrence))
+    // A filled field the request builder would drop is a typo, not an omission — refuse it even
+    // when the input is optional and minOccurs is already satisfied by definition.
+    const hasUnusable = occurrences.some(
+      (occurrence, index) => values[index] === null && occurrenceHasContent(occurrence),
+    )
+    return !hasUnusable && values.filter((value) => value !== null).length >= input.minOccurs
   }),
 )
+
+function helpFor(input: WpsProcessInput) {
+  return [input.abstract, cardinalityLabel(input)].filter(Boolean).join(' — ')
+}
 
 function canAdd(input: WpsProcessInput) {
   return (inputs.value[input.identifier]?.length ?? 0) < input.maxOccurs
@@ -118,7 +125,7 @@ function removeOccurrence(identifier: string, index: number) {
       :key="input.identifier"
       :label="input.title || input.identifier"
       :required="input.minOccurs > 0"
-      :help="input.abstract"
+      :help="helpFor(input)"
     >
       <div class="space-y-2">
         <div

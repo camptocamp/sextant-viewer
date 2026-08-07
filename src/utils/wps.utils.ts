@@ -51,6 +51,25 @@ export function describeProcess(endpoint: WpsEndpoint, processId: string) {
   return endpoint.describeProcess(processId)
 }
 
+/**
+ * Describe an input's cardinality, or null when it accepts exactly one value — the "required"
+ * marker already says everything there is to say, and a hint would be noise.
+ * `maxOccurs` is Infinity for a `maxOccurs="unbounded"` input, which is how ogc-client parses it.
+ */
+export function cardinalityLabel(input: WpsProcessInput): string | null {
+  const { minOccurs, maxOccurs } = input
+  if (maxOccurs === 1) return null
+  if (minOccurs === 0) {
+    return Number.isFinite(maxOccurs)
+      ? `jusqu'à ${maxOccurs} valeurs`
+      : 'plusieurs valeurs possibles'
+  }
+  if (!Number.isFinite(maxOccurs)) {
+    return `${minOccurs} valeur${minOccurs > 1 ? 's' : ''} minimum`
+  }
+  return `de ${minOccurs} à ${maxOccurs} valeurs`
+}
+
 type Bbox = [number, number, number, number]
 
 /**
@@ -67,6 +86,16 @@ export function parseBbox(value: string): Bbox | null {
   return parts.length === 4 && parts.every(Boolean) && !bbox.some(Number.isNaN)
     ? (bbox as Bbox)
     : null
+}
+
+/**
+ * Whether the user typed anything into an occurrence, whatever its usability.
+ * Distinct from `toInputValue() !== null`, and deliberately so: "was this field touched" and
+ * "does this field yield a value" are different questions, and a touched field the request
+ * builder would drop is a typo to report rather than an omission to ignore.
+ */
+export function occurrenceHasContent(occurrence: WpsInputOccurrence): boolean {
+  return !!(occurrence.literalValue || occurrence.complexContent || occurrence.bboxValue)
 }
 
 /**
