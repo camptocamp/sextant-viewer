@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import type { WpsProcessInput, WpsInputOccurrence } from '@/types/wps.types'
-import { parseBbox } from '@/utils/wps.utils'
+import { isBooleanInput, parseBbox, parseBooleanLiteral } from '@/utils/wps.utils'
 
 const props = defineProps<{
   input: WpsProcessInput
@@ -21,6 +21,41 @@ const allowedValues = computed(() => props.input.literalData?.allowedValues ?? [
 const literalValue = computed({
   get: () => model.value.literalValue ?? '',
   set: (value: string) => (model.value = { ...model.value, literalValue: value }),
+})
+
+const isBoolean = computed(() => isBooleanInput(props.input))
+
+// An optional boolean must stay omittable: a checkbox has no "unset" state, so it would show
+// "Non" while the request drops the input and the process applies its own default — which may
+// well be true. The three-way select says what will actually be sent.
+const isOptionalBoolean = computed(() => isBoolean.value && props.input.minOccurs === 0)
+
+// Reka UI reserves the empty string for "no selection" and refuses it on a <SelectItem>, so the
+// unset entry carries a sentinel and the bound value falls back to '' — which shows the
+// placeholder, whose text is that same entry.
+const UNSET = 'unset'
+
+const BOOLEAN_ITEMS = [
+  { label: 'Non renseigné', value: UNSET },
+  { label: 'Oui', value: 'true' },
+  { label: 'Non', value: 'false' },
+]
+
+const booleanValue = computed(() => parseBooleanLiteral(model.value.literalValue) ?? false)
+
+// UCheckbox emits `boolean | 'indeterminate'`; only a real boolean is a value to store.
+function setBoolean(value: boolean | 'indeterminate') {
+  if (typeof value === 'boolean') literalValue.value = String(value)
+}
+
+// Reading through parseBooleanLiteral normalises what the server declared: a 'True' or '1'
+// defaultValue must select "Oui", not fall back to "Non renseigné".
+const tristateValue = computed({
+  get: () => {
+    const parsed = parseBooleanLiteral(model.value.literalValue)
+    return parsed === undefined ? '' : String(parsed)
+  },
+  set: (value: string) => (literalValue.value = value === UNSET ? '' : value),
 })
 
 const complexContent = computed({
@@ -49,7 +84,23 @@ function useMapExtent() {
   <div>
     <template v-if="input.type === 'literal'">
       <USelect
-        v-if="allowedValues.length"
+        v-if="isOptionalBoolean"
+        v-model="tristateValue"
+        :items="BOOLEAN_ITEMS"
+        value-key="value"
+        placeholder="Non renseigné"
+        class="w-full"
+        :ui="{ content: 'z-50' }"
+      />
+      <!-- Before allowedValues: a server enumerating ['true','false'] still deserves a checkbox. -->
+      <UCheckbox
+        v-else-if="isBoolean"
+        :model-value="booleanValue"
+        :label="booleanValue ? 'Oui' : 'Non'"
+        @update:model-value="setBoolean"
+      />
+      <USelect
+        v-else-if="allowedValues.length"
         v-model="literalValue"
         :items="allowedValues"
         class="w-full"

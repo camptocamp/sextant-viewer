@@ -70,6 +70,28 @@ export function cardinalityLabel(input: WpsProcessInput): string | null {
   return `de ${minOccurs} à ${maxOccurs} valeurs`
 }
 
+// ogc-client reads the text of <ows:DataType>, not its ows:reference attribute: the value is the
+// short name ('boolean', 'xs:boolean'), never the schema URL.
+const BOOLEAN_DATATYPE_REGEX = /boolean/i
+
+/** Whether an input takes a boolean literal, and so deserves a checkbox rather than a text field. */
+export function isBooleanInput(input: WpsProcessInput): boolean {
+  return input.type === 'literal' && BOOLEAN_DATATYPE_REGEX.test(input.literalData?.dataType ?? '')
+}
+
+/**
+ * Read a WPS boolean literal, or undefined when there is none — which is the form's "unset"
+ * state, not a false value.
+ * XML Schema accepts 'true'/'false' as well as '1'/'0', and servers are inconsistent about case:
+ * normalising here keeps the form from displaying "Non" for a 'True' defaultValue.
+ */
+export function parseBooleanLiteral(value: string | undefined): boolean | undefined {
+  const normalized = value?.trim().toLowerCase()
+  if (normalized === 'true' || normalized === '1') return true
+  if (normalized === 'false' || normalized === '0') return false
+  return undefined
+}
+
 type Bbox = [number, number, number, number]
 
 /**

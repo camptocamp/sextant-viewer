@@ -141,6 +141,53 @@ test.describe('WPS panel', () => {
     await expect(execute).toBeEnabled()
   })
 
+  test('sends an optional boolean only once it is set', async ({ page }) => {
+    await mockWps(page, fixture('execute-succeeded.xml'))
+
+    // The unset entry is what the select renders wrong most easily (Reka UI refuses an empty
+    // string on an item), and a broken item still leaves the placeholder on screen — so watch
+    // the console rather than trust the text.
+    const errors: string[] = []
+    page.on('console', (message) => message.type() === 'error' && errors.push(message.text()))
+    page.on('pageerror', (error) => errors.push(error.message))
+
+    await openDemoProcessForm(page)
+
+    const bool = page.getByRole('combobox', { name: 'A boolean value' })
+    const execute = page.getByRole('button', { name: 'Exécuter' })
+
+    const executeBody = async () => {
+      const [request] = await Promise.all([
+        page.waitForRequest((candidate) => candidate.method() === 'POST'),
+        execute.click(),
+      ])
+      return request.postData() ?? ''
+    }
+
+    // BOOL is optional (minOccurs=0), so it offers an explicit "unset" rather than a checkbox
+    // that would read as "Non" while the request says nothing about it.
+    await expect(bool).toHaveText('Non renseigné')
+    await expect(execute).toBeEnabled()
+    expect(await executeBody()).not.toContain('BOOL')
+    await expect(page.getByText('Exécution réussie')).toBeVisible()
+
+    await bool.click()
+    await page.getByRole('option', { name: 'Oui' }).click()
+    await expect(bool).toHaveText('Oui')
+
+    const body = await executeBody()
+    expect(body).toContain('<ows:Identifier>BOOL</ows:Identifier>')
+    expect(body).toContain('<wps:LiteralData>true</wps:LiteralData>')
+
+    // Setting a value must be reversible: back to unset, the input leaves the request again.
+    await bool.click()
+    await page.getByRole('option', { name: 'Non renseigné' }).click()
+    await expect(bool).toHaveText('Non renseigné')
+    expect(await executeBody()).not.toContain('BOOL')
+
+    expect(errors).toEqual([])
+  })
+
   test('states the cardinality of a repeatable input', async ({ page }) => {
     await mockWps(
       page,

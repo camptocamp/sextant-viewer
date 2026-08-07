@@ -9,7 +9,9 @@ import {
   buildExecuteOptions,
   cardinalityLabel,
   classifyOutput,
+  isBooleanInput,
   occurrenceHasContent,
+  parseBooleanLiteral,
   parseBbox,
   toInputValue,
 } from './wps.utils'
@@ -136,6 +138,42 @@ describe('occurrenceHasContent', () => {
     ['a blanked field', { literalValue: '' }],
   ])('reports %s as empty', (_case, occurrence) => {
     expect(occurrenceHasContent(occurrence)).toBe(false)
+  })
+})
+
+describe('isBooleanInput', () => {
+  const literal = (dataType?: string) =>
+    input({ identifier: 'BOOL', type: 'literal', literalData: { dataType } })
+
+  it.each([['boolean'], ['xs:boolean'], ['Boolean']])('recognises the %s data type', (dataType) => {
+    expect(isBooleanInput(literal(dataType))).toBe(true)
+  })
+
+  it.each([
+    ['another data type', literal('string')],
+    ['an undeclared data type', literal(undefined)],
+    ['a non-literal input', input({ identifier: 'EXTENT', type: 'boundingbox' })],
+  ])('rejects %s', (_case, value) => {
+    expect(isBooleanInput(value)).toBe(false)
+  })
+})
+
+describe('parseBooleanLiteral', () => {
+  it.each([['true'], ['TRUE'], [' true '], ['1']])('reads %s as true', (value) => {
+    expect(parseBooleanLiteral(value)).toBe(true)
+  })
+
+  it.each([['false'], ['False'], ['0']])('reads %s as false', (value) => {
+    expect(parseBooleanLiteral(value)).toBe(false)
+  })
+
+  // Unset is not false: it is what lets an optional boolean stay out of the request.
+  it.each([
+    ['an absent value', undefined],
+    ['an empty string', ''],
+    ['an unparsable value', 'peut-être'],
+  ])('reads %s as unset', (_case, value) => {
+    expect(parseBooleanLiteral(value)).toBeUndefined()
   })
 })
 
@@ -311,6 +349,29 @@ describe('buildExecuteOptions', () => {
 
     it('skips an input the form never filled', () => {
       const options = build([input({ identifier: 'DIST', type: 'literal' })], {})
+      expect(options.inputs).toEqual([])
+    })
+
+    it('sends an unchecked required boolean rather than dropping it', () => {
+      const options = build(
+        [input({ identifier: 'BOOL', type: 'literal', literalData: { dataType: 'boolean' } })],
+        { BOOL: [{ literalValue: 'false' }] },
+      )
+      expect(options.inputs).toEqual([{ identifier: 'BOOL', literalValue: 'false' }])
+    })
+
+    it('omits an optional boolean left unset, so the process applies its own default', () => {
+      const options = build(
+        [
+          input({
+            identifier: 'BOOL',
+            type: 'literal',
+            minOccurs: 0,
+            literalData: { dataType: 'boolean' },
+          }),
+        ],
+        { BOOL: [{}] },
+      )
       expect(options.inputs).toEqual([])
     })
   })

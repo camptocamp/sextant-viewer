@@ -2,7 +2,13 @@
 import { computed, watch } from 'vue'
 import type { WpsProcessFull, WpsProcessInput, WpsProcessOutput } from '@camptocamp/ogc-client'
 import type { WpsFormInputs, WpsFormOutput, WpsInputOccurrence } from '@/types/wps.types'
-import { cardinalityLabel, occurrenceHasContent, toInputValue } from '@/utils/wps.utils'
+import {
+  cardinalityLabel,
+  isBooleanInput,
+  occurrenceHasContent,
+  parseBooleanLiteral,
+  toInputValue,
+} from '@/utils/wps.utils'
 import WpsInputField from './WpsInputField.vue'
 
 const props = defineProps<{
@@ -18,10 +24,17 @@ const outputs = defineModel<WpsFormOutput[]>('outputs', { required: true })
 const WMS_MIMETYPE_REGEX = /ogc-wms|wms/i
 
 function newOccurrence(input: WpsProcessInput): WpsInputOccurrence {
-  if (input.type === 'literal' && input.literalData?.defaultValue) {
-    return { literalValue: input.literalData.defaultValue }
+  if (input.type !== 'literal') return {}
+  const defaultValue = input.literalData?.defaultValue
+  if (isBooleanInput(input)) {
+    const initial = parseBooleanLiteral(defaultValue)
+    if (initial !== undefined) return { literalValue: String(initial) }
+    // A checkbox has no empty state, so a required boolean starts explicitly false — otherwise
+    // the form shows an unchecked box while `isValid` counts the occurrence as missing. An
+    // optional one starts unset, which its tri-state select displays as such.
+    return input.minOccurs > 0 ? { literalValue: 'false' } : {}
   }
-  return {}
+  return defaultValue ? { literalValue: defaultValue } : {}
 }
 
 function outputFormats(processOutput: WpsProcessOutput) {
