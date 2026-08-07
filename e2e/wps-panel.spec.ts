@@ -51,9 +51,9 @@ test.describe('WPS panel', () => {
     await page.goto('/demo/')
     await page.getByRole('tab', { name: 'Traitements (WPS)' }).click()
     // Nothing is preselected: type the URL freely.
-    await page.getByPlaceholder('https://...').fill(WPS_URL)
+    await page.getByLabel('URL du service WPS').fill(WPS_URL)
     await page.getByRole('button', { name: 'Charger' }).click()
-    await page.getByText('Choisir un processus').click()
+    await page.getByText('Choisir un traitement').click()
     await page.getByRole('option', { name: 'Ifremer input example' }).click()
     await expect(page.getByText('A text string')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Exécuter' })).toBeEnabled()
@@ -66,10 +66,10 @@ test.describe('WPS panel', () => {
     await declareService(page, { url: WPS_URL, label: 'Sextant WPS (démo)' })
     await page.getByRole('tab', { name: 'Traitements (WPS)' }).click()
     // Nothing preselected even though a service is declared.
-    await expect(page.getByPlaceholder('https://...')).toHaveValue('')
-    await page.getByPlaceholder('https://...').fill(WPS_URL)
+    await expect(page.getByLabel('URL du service WPS')).toHaveValue('')
+    await page.getByLabel('URL du service WPS').fill(WPS_URL)
     await page.getByRole('button', { name: 'Charger' }).click()
-    await expect(page.getByText('Choisir un processus')).toBeVisible()
+    await expect(page.getByText('Choisir un traitement')).toBeVisible()
   })
 
   test('fills the URL field when a predefined service is selected', async ({ page }) => {
@@ -81,7 +81,7 @@ test.describe('WPS panel', () => {
     await page.getByText('Services prédéfinis').click()
     await expect(page.getByRole('option', { name: 'Service A' })).toBeVisible()
     await page.getByRole('option', { name: 'Service B' }).click()
-    await expect(page.getByPlaceholder('https://...')).toHaveValue('https://host/wps/b')
+    await expect(page.getByLabel('URL du service WPS')).toHaveValue('https://host/wps/b')
   })
 
   test('runs a process whose octet-stream output falls back to download', async ({ page }) => {

@@ -25,7 +25,7 @@ function downloadHref(output: Extract<WpsOutputResult, { kind: 'geojson' | 'down
 </script>
 
 <template>
-  <div v-if="error || result" class="space-y-2">
+  <div v-if="error || result" class="space-y-4">
     <UAlert
       v-if="error"
       color="error"
@@ -56,29 +56,29 @@ function downloadHref(output: Extract<WpsOutputResult, { kind: 'geojson' | 'down
           icon="i-heroicons-check-circle"
           title="Exécution réussie"
         />
-        <div
-          v-for="output in outputs"
-          :key="output.identifier"
-          class="flex items-center justify-between gap-2 text-sm"
-        >
-          <span>{{ output.label }}</span>
-          <UBadge
-            v-if="output.kind === 'wms' || output.kind === 'geojson'"
-            color="success"
-            variant="subtle"
-            size="sm"
-          >
-            Couche ajoutée à la carte
-          </UBadge>
-          <UButton
-            v-if="output.kind !== 'wms' && downloadHref(output)"
-            :to="downloadHref(output)!"
-            target="_blank"
-            size="xs"
-            variant="soft"
-            icon="i-heroicons-arrow-down-tray"
-            label="Télécharger"
-          />
+        <div v-if="outputs?.length" class="space-y-2">
+          <h4 class="text-sm font-semibold">Résultats</h4>
+          <UFormField v-for="output in outputs" :key="output.identifier" :label="output.label">
+            <div class="flex flex-wrap items-center gap-2">
+              <UBadge
+                v-if="output.kind === 'wms' || output.kind === 'geojson'"
+                color="success"
+                variant="subtle"
+                size="sm"
+              >
+                Couche ajoutée à la carte
+              </UBadge>
+              <UButton
+                v-if="output.kind !== 'wms' && downloadHref(output)"
+                :to="downloadHref(output)!"
+                target="_blank"
+                size="xs"
+                variant="soft"
+                icon="i-heroicons-arrow-down-tray"
+                label="Télécharger"
+              />
+            </div>
+          </UFormField>
         </div>
       </template>
     </template>

@@ -120,46 +120,54 @@ async function onExecute() {
 
 <template>
   <div class="flex flex-col gap-4 p-2">
-    <UFormField label="Service WPS">
-      <div class="flex w-full flex-col gap-2">
-        <USelect
-          v-if="serviceItems.length"
-          :model-value="undefined"
-          :items="serviceItems"
-          value-key="value"
-          placeholder="Services prédéfinis"
-          class="w-full"
-          :ui="{ content: 'z-50' }"
-          @update:model-value="url = $event"
+    <section class="flex flex-col gap-2">
+      <h3 class="text-sm font-semibold">Service WPS</h3>
+      <USelect
+        v-if="serviceItems.length"
+        :model-value="undefined"
+        :items="serviceItems"
+        value-key="value"
+        aria-label="Services WPS prédéfinis"
+        placeholder="Services prédéfinis"
+        class="w-full"
+        :ui="{ content: 'z-50' }"
+        @update:model-value="url = $event"
+      />
+      <UFieldGroup class="w-full">
+        <UInput
+          v-model="url"
+          aria-label="URL du service WPS"
+          placeholder="https://..."
+          class="flex-1"
         />
-        <UFieldGroup class="w-full">
-          <UInput v-model="url" placeholder="https://..." class="flex-1" />
-          <UButton label="Charger" :loading="loading" :disabled="!url" @click="load()" />
-        </UFieldGroup>
-      </div>
-    </UFormField>
+        <UButton label="Charger" :loading="loading" :disabled="!url" @click="load()" />
+      </UFieldGroup>
+    </section>
 
-    <UFormField v-if="processes.length" label="Processus">
+    <section v-if="processes.length" class="flex flex-col gap-2">
+      <h3 class="text-sm font-semibold">Traitement</h3>
       <USelect
         v-model="selectedProcessId"
         :items="processItems"
-        placeholder="Choisir un processus"
+        aria-label="Traitement"
+        placeholder="Choisir un traitement"
         class="w-full"
       />
-    </UFormField>
+    </section>
 
     <div v-if="describing" class="text-sm text-gray-500 dark:text-gray-400">
       Chargement de la description…
     </div>
 
-    <WpsProcessForm
-      v-if="selectedProcess"
-      v-model:inputs="formInputs"
-      v-model:outputs="formOutputs"
-      :process="selectedProcess"
-      :executing="executing"
-      @execute="onExecute()"
-    />
+    <section v-if="selectedProcess" class="flex flex-col gap-2">
+      <WpsProcessForm
+        v-model:inputs="formInputs"
+        v-model:outputs="formOutputs"
+        :process="selectedProcess"
+        :executing="executing"
+        @execute="onExecute()"
+      />
+    </section>
 
     <WpsExecuteResult :result="result" :error="error" :outputs="outputs" />
   </div>

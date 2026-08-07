@@ -111,6 +111,7 @@ function removeOccurrence(identifier: string, index: number) {
 
 <template>
   <div class="space-y-4">
+    <h4 class="text-sm font-semibold">Paramètres d'entrée</h4>
     <UFormField
       v-for="input in process.inputs"
       :key="input.identifier"
