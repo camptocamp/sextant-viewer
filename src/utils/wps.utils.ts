@@ -22,7 +22,7 @@ const WMS_MIMETYPE_REGEX = /ogc-wms/i
 const GEOJSON_MIMETYPE_REGEX = /json/i
 const POLL_INTERVAL_MS = 1000
 // Anything else ('succeeded', 'failed', 'dismissed') is terminal and stops the polling.
-const PENDING_STATUSES = ['accepted', 'started', 'paused']
+const PENDING_STATUSES = new Set(['accepted', 'started', 'paused'])
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -198,7 +198,7 @@ export async function executeProcess(
   let response = await endpoint.execute(processId, options)
   onProgress?.(response)
 
-  while (response.statusLocation && PENDING_STATUSES.includes(response.status)) {
+  while (response.statusLocation && PENDING_STATUSES.has(response.status)) {
     await delay(POLL_INTERVAL_MS)
     response = await endpoint.getStatus(response.statusLocation)
     onProgress?.(response)
