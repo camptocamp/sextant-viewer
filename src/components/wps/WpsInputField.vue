@@ -53,6 +53,7 @@ function useMapExtent() {
         v-model="literalValue"
         :items="allowedValues"
         class="w-full"
+        :ui="{ content: 'z-50' }"
       />
       <UInput v-else v-model="literalValue" :type="isNumber ? 'number' : 'text'" class="w-full" />
     </template>

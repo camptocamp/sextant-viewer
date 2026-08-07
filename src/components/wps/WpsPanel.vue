@@ -153,6 +153,7 @@ async function onExecute() {
         aria-label="Traitement"
         placeholder="Choisir un traitement"
         class="w-full"
+        :ui="{ content: 'z-50' }"
       />
     </section>
 
