@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
+import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import type { WpsProcessFull, WpsProcessInput, WpsProcessOutput } from '@camptocamp/ogc-client'
 import type { WpsFormInputs, WpsFormOutput, WpsInputOccurrence } from '@/types/wps.types'
 import {
