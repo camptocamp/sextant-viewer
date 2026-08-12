@@ -21,6 +21,50 @@ export interface WpsService {
   label?: string
 }
 
+/**
+ * `applicationProfile` of an `OGC:WPS` online resource: declarative customisation of the form.
+ *
+ * Deliberately partial: the legacy profile also carries `outputs[].displayGraphOptions` (the
+ * "profile graph" mode, out of scope). Undeclared keys survive `JSON.parse` and are just ignored.
+ */
+export interface WpsApplicationProfile {
+  inputs?: WpsProfileInput[]
+  outputs?: WpsProfileOutput[]
+}
+
+export interface WpsProfileInput {
+  identifier: string
+  defaultValue?: string
+  hidden?: boolean
+  disabled?: boolean
+  /** Attribute-filter column feeding this input; `.from` / `.to` suffixes read one end of a range. */
+  linkedWfsFilter?: string
+  /** Join the selected values into a single one (instead of one occurrence per value). */
+  tokenizeWfsFilterValues?: boolean
+  /** Delimiter of the join above; `,` by default. */
+  wfsFilterValuesDelimiter?: string
+}
+
+export interface WpsProfileOutput {
+  identifier: string
+  /** Mime type offered by default. A WMS format of that output still wins (legacy order). */
+  defaultMimeType?: string
+}
+
+/**
+ * A WPS process a layer's metadata record declares: the service, the process, and the profile
+ * wiring its inputs onto the layer's attribute filter.
+ */
+export interface LayerWpsProcess {
+  /** WPS service URL, from the resource's `linkage`. */
+  url: string
+  /** Process identifier, from the resource's `<cit:name>`. */
+  processId: string
+  /** Human-readable label, from the resource's `<cit:description>`. */
+  label?: string
+  profile?: WpsApplicationProfile
+}
+
 /** Form state for a whole process: input identifier → its occurrences (≥ 1). */
 export type WpsFormInputs = Record<string, WpsInputOccurrence[]>
 
@@ -39,12 +83,9 @@ export interface WpsFormOutput {
 export type WpsOutputMapStatus = 'pending' | 'added' | 'failed'
 
 /**
- * Classification of a single Execute output by semantic family. It is the
- * shared source of truth between the map-add path (useWps) and the rendering
- * (WpsExecuteResult), replacing the previous list-of-labels approach.
+ * Classification of a single Execute output by semantic family.
  *
- * `mapStatus` and `mapError` are written by the add-to-map chain alone, and stay absent on an
- * output that stands for no layer — deciding that is the chain's job, not the rendering's.
+ * `mapStatus` and `mapError` stay absent on an output that stands for no layer.
  */
 export type WpsOutputResult = (
   | { kind: 'wms'; identifier: string; label: string; href: string }

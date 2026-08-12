@@ -17,6 +17,7 @@ import { DEFAULT_MAP_CONTEXT } from '@/utils/map-config'
 import type { MapLayer } from '@/utils/layer.utils'
 import {
   applyWmsFilter,
+  hasLayerWps,
   isLayerDataIndexed,
   isStacLayer,
   stripAttributeFilterExtras,
@@ -24,7 +25,7 @@ import {
 import type { MapLayerStac } from '@/types/stac.types'
 import { enrichStacLayer } from '@/utils/stac.utils'
 import { enrichWmsDimensionsLayer, stripDerivedExtras } from '@/utils/wms.utils'
-import { resolveAttributeFilter } from '@/utils/geonetwork-index'
+import { resolveAttributeFilter, resolveWpsProcesses } from '@/utils/geonetwork-index'
 import { enrichNcwmsLayer } from '@/utils/ncwms.utils'
 import { v4 as uuidv4 } from 'uuid'
 import type { ExtendedMapContext } from '@/types/map.types'
@@ -104,16 +105,27 @@ export const useMapStore = defineStore('map', () => {
   }
 
   /**
-   * Fire-and-forget attribute-filter detection: the GeoNetwork/ES probes only feed the optional
-   * "Filtre" tab, so they must never delay the layer's rendering. When the index resolves, the
-   * layer is patched in place — without a version bump, since the layer handed to the SDK is
-   * unchanged (applyWmsFilter strips `dataIndex`).
+   * Fire-and-forget detections of the layer's optional capabilities: the GeoNetwork/ES probes only
+   * feed optional tabs ("Filtre", "Traitements"), so they must never delay the layer's rendering.
+   * Each patches the layer in place once it resolves — without a version bump, since the layer
+   * handed to the SDK is unchanged (applyWmsFilter strips both keys). Re-reading the layer inside
+   * the callback is what lets the two land in either order without clobbering each other.
    */
   function detectDataIndex(layer: MapLayer) {
     if (layer.type !== 'wms' || isLayerDataIndexed(layer)) return
     resolveAttributeFilter(layer, context.value.dataSources ?? []).then((dataIndex) => {
       const current = layer.id === undefined ? undefined : getLayerById(layer.id)
       if (dataIndex && current) updateLayer(current, { extras: { ...current.extras, dataIndex } })
+    })
+  }
+
+  function detectWpsProcesses(layer: MapLayer) {
+    if (layer.type !== 'wms' || hasLayerWps(layer)) return
+    resolveWpsProcesses(layer).then((wpsProcesses) => {
+      const current = layer.id === undefined ? undefined : getLayerById(layer.id)
+      if (wpsProcesses && current) {
+        updateLayer(current, { extras: { ...current.extras, wpsProcesses } })
+      }
     })
   }
 
@@ -138,6 +150,7 @@ export const useMapStore = defineStore('map', () => {
       view: { ...newContext.view }, // Force view application if same as current value
     }
     context.value.layers.forEach(detectDataIndex)
+    context.value.layers.forEach(detectWpsProcesses)
   }
 
   function setView(newView: MapContextView) {
@@ -177,6 +190,7 @@ export const useMapStore = defineStore('map', () => {
     ) as ExtendedMapContext
 
     detectDataIndex(enrichedLayer)
+    detectWpsProcesses(enrichedLayer)
     return enrichedLayer
   }
 

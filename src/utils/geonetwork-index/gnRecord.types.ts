@@ -1,5 +1,19 @@
 // Types for the Geonetwork record (see `gnRecord.ts`).
 
+import type { LayerWpsProcess } from '@/types/wps.types'
+
+/**
+ * An `OGC:WPS` online resource of a record: one process, on one service, with its profile.
+ * Same shape as what ends up on the layer, so the two are one type.
+ */
+export type GnWpsResource = LayerWpsProcess
+
+/** Exploitable online resources of a record, split by protocol. */
+export interface RecordResources {
+  wfs: GnWfsResource[]
+  wps: GnWpsResource[]
+}
+
 /** Parsed `applicationProfile` JSON from the WFS online resource. */
 export interface GnWfsApplicationProfile {
   /**

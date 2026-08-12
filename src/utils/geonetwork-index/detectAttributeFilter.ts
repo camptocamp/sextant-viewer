@@ -1,6 +1,6 @@
-import { WmsEndpoint, type MetadataURL } from '@camptocamp/ogc-client'
 import { fieldsFromSource, probeIndex } from './attributeIndex'
-import { fetchWfsResources } from './gnRecord'
+import { fetchRecordResources } from './gnRecord'
+import { resolveRecordRef } from './recordRef'
 import type { GnWfsApplicationProfile, GnWfsResource } from './gnRecord.types'
 import type { IndexField } from './attributeIndex.types'
 import type { MapLayer } from '../layer.utils'
@@ -33,7 +33,7 @@ async function detectAttributeFilter(
   if (sources.length === 0) return null
 
   const sublayers = splitSublayers(layer.name)
-  const uuid = await resolveRecordUuid(layer.url, sublayers[0] ?? layer.name)
+  const uuid = (await resolveRecordRef(layer.url, sublayers[0] ?? layer.name))?.uuid
   if (!uuid) return null
 
   const resources = await firstResources(sources, uuid)
@@ -43,30 +43,13 @@ async function detectAttributeFilter(
   return firstIndexedSource(sources, featureTypeIds, profile)
 }
 
-/** ISO/CSW metadata entries carry the record; HTML landing pages often come first in capabilities. */
-function isIsoMetadata(entry: MetadataURL): boolean {
-  return /19115|TC211/i.test(entry.type ?? '') || /xml/i.test(entry.format ?? '')
-}
-
-/** WMS `GetCapabilities` → the sublayer's `MetadataURL` entries → record UUID. */
-async function resolveRecordUuid(wmsUrl: string, sublayer: string): Promise<string | null> {
-  const endpoint = await new WmsEndpoint(wmsUrl).isReady()
-  const entries = endpoint.getLayerByName(sublayer)?.metadata ?? []
-  const sorted = [...entries].sort((a, b) => Number(isIsoMetadata(b)) - Number(isIsoMetadata(a)))
-  for (const entry of sorted) {
-    const uuid = entry.url && parseUuid(entry.url)
-    if (uuid) return uuid
-  }
-  return null
-}
-
 /** WFS resources of the first dataSource whose GeoNetwork base returns any for the record. */
 async function firstResources(sources: DataSource[], uuid: string): Promise<GnWfsResource[]> {
   for (const ds of sources) {
     // an unreachable source must not stop the scan — the record may live on the next one
     try {
-      const resources = await fetchWfsResources(gnBaseFromEsUrl(ds.url), uuid)
-      if (resources.length) return resources
+      const { wfs } = await fetchRecordResources(gnBaseFromEsUrl(ds.url), uuid)
+      if (wfs.length) return wfs
     } catch (error) {
       console.error(`Métadonnées inaccessibles sur ${ds.url}`, error)
     }
@@ -178,26 +161,6 @@ export async function resolveAttributeFilter(
 /** Strip the Geonetwork features-index suffix to get the Geonetwork base, e.g. `/geonetwork`. */
 export function gnBaseFromEsUrl(esUrl: string): string {
   return esUrl.replace(/\/index\/features\/?$/, '')
-}
-
-/**
- * Geonetwork MetadataURL conventions: `?uuid=`/`?id=` query param (case-insensitive, as CSW KVP
- * is), `#/metadata/<uuid>` fragment, or the GN REST path `…/records/<uuid>`.
- */
-export function parseUuid(metadataUrl: string): string | null {
-  try {
-    const url = new URL(metadataUrl, window.location.href)
-    for (const [key, value] of url.searchParams) {
-      if ((key.toLowerCase() === 'uuid' || key.toLowerCase() === 'id') && value) return value
-    }
-    const fragment = /#\/metadata\/([^?&]+)/.exec(metadataUrl)?.[1]
-    if (fragment) return fragment
-    const restPath = /\/records\/([^/?#]+)/.exec(url.pathname)?.[1]
-    if (restPath) return decodeURIComponent(restPath)
-  } catch {
-    // not an absolute/parseable URL — fall through to the fragment form
-  }
-  return /#\/metadata\/([^?&]+)/.exec(metadataUrl)?.[1] ?? null
 }
 
 /**

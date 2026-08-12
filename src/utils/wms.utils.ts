@@ -52,12 +52,18 @@ export function toWmsTime(date: Date): string {
 }
 
 /**
- * Drop the server-derived extras (`wmsDimensions`, `dataIndex`) before persistence
+ * Drop the server-derived extras (`wmsDimensions`, `dataIndex`, `wpsProcesses`) before persistence
  */
 export function stripDerivedExtras(layer: MapLayer): MapLayer {
   if (layer.type !== 'wms' || !layer.extras) return layer
-  if (!layer.extras.wmsDimensions && !layer.extras.dataIndex) return layer
-  const { wmsDimensions: _wmsDimensions, dataIndex: _dataIndex, ...extras } = layer.extras
+  const { wmsDimensions, dataIndex, wpsProcesses } = layer.extras
+  if (!wmsDimensions && !dataIndex && !wpsProcesses) return layer
+  const {
+    wmsDimensions: _wmsDimensions,
+    dataIndex: _dataIndex,
+    wpsProcesses: _wpsProcesses,
+    ...extras
+  } = layer.extras
   return { ...layer, extras }
 }
 
@@ -169,6 +175,19 @@ function buildOgcFilter(filter: WmsFilterState): Filter | null {
 /** Serialise an OGC Filter to its `<Filter>…</Filter>` XML string. */
 function serializeFilter(filter: Filter): string {
   return new XMLSerializer().serializeToString(writeFilter(filter, FILTER_VERSION))
+}
+
+/**
+ * The layer's active selections, keyed by column (`esField` / `attributeName`) — the shape both the
+ * filter UI and the WPS profile address them by (`linkedWfsFilter` names the same column).
+ */
+export function activeFiltersOf(layer: MapLayer): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  // `layer.type` and a cast rather than `isWmsLayer`: layer.utils imports this module, so importing
+  // a value back from it would close a runtime cycle (same reason as `getWmsTimeDimension` above).
+  const filter = (layer.type === 'wms' && (layer.extras?.filter as WmsFilterState)) || []
+  for (const { attributeName, values } of filter) out[attributeName] = values
+  return out
 }
 
 /**

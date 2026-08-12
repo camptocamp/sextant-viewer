@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useLayerActions } from '@/composables/useLayerActions'
-import { getLayerLabel, isLayerDataIndexed, isStacLayer } from '@/utils/layer.utils'
+import { getLayerLabel, hasLayerWps, isLayerDataIndexed, isStacLayer } from '@/utils/layer.utils'
 import { hasLegendSupport } from '@geospatial-sdk/legend'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 import type { MapLayer } from '@/utils/layer.utils'
@@ -13,6 +13,7 @@ import WmsDimensionsDetails from '@/components/layer-manager/WmsDimensionsDetail
 import LayerLegend from '@/components/layer-manager/LayerLegend.vue'
 import LayerSettings from '@/components/layer-manager/LayerSettings.vue'
 import AttributeFilterPanel from '@/components/attribute-filter/AttributeFilterPanel.vue'
+import LayerWpsPanel from '@/components/wps/LayerWpsPanel.vue'
 import NcwmsLayerDetails from '@/components/layer-manager/NcwmsLayerDetails.vue'
 import { getNcwmsInfo } from '@/utils/ncwms.utils'
 
@@ -39,6 +40,9 @@ const tabItems = computed(() => {
   }
   if (isLayerDataIndexed(props.layer)) {
     items.push({ slot: 'filter', value: 'filter', label: 'Filtre' })
+  }
+  if (hasLayerWps(props.layer)) {
+    items.push({ slot: 'wps', value: 'wps', label: 'Traitements' })
   }
   items.push({ slot: 'settings', value: 'settings', label: 'Paramètres' })
   return items
@@ -98,6 +102,10 @@ watch(
 
       <template #filter>
         <AttributeFilterPanel :layer="layer" />
+      </template>
+
+      <template #wps>
+        <LayerWpsPanel :layer="layer" />
       </template>
 
       <template #settings>

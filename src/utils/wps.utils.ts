@@ -341,8 +341,6 @@ export async function toLayers(output: WpsOutputResult): Promise<MapContextLayer
  * Run an Execute request to completion, polling the status location while the process is
  * still pending. A synchronous process answers on the first call and the loop never runs;
  * `onProgress` fires on every response so the panel can show the status as it evolves.
- * Adding the outputs to the map is the caller's job (see useWps), which keeps this free of
- * any map side effect — and testable without one.
  *
  * A service that never reports a terminal status would be polled forever, so the wait is
  * capped; `signal` drops a run whose result the caller no longer has any use for.

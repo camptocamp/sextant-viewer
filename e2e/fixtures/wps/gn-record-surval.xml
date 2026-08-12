@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ISO 19115-3 record shaped like Surval's: one WFS resource whose applicationProfile declares the
+  filterable columns, and one WPS resource whose applicationProfile wires the process inputs onto
+  those columns. The WPS process id and output identifier match the fixtures of the demo service
+  (describeprocess-demo-inputs.xml), so no second process description is needed.
+-->
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+  xmlns:mrd="http://standards.iso.org/iso/19115/-3/mrd/1.0"
+  xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+  xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0">
+  <mdb:distributionInfo>
+    <mrd:MD_Distribution>
+      <cit:CI_OnlineResource>
+        <cit:linkage><gco:CharacterString>https://sextant.ifremer.fr/services/wms/surval</gco:CharacterString></cit:linkage>
+        <cit:protocol><gco:CharacterString>OGC:WMS</gco:CharacterString></cit:protocol>
+        <cit:name><gco:CharacterString>surval</gco:CharacterString></cit:name>
+      </cit:CI_OnlineResource>
+
+      <cit:CI_OnlineResource>
+        <cit:linkage><gco:CharacterString>https://sextant.ifremer.fr/services/wfs/surval</gco:CharacterString></cit:linkage>
+        <cit:protocol><gco:CharacterString>OGC:WFS</gco:CharacterString></cit:protocol>
+        <cit:name><gco:CharacterString>surval</gco:CharacterString></cit:name>
+        <cit:applicationProfile><gco:CharacterString>{"fields":[{"name":"THEME","label":{"fr":"Thème"}}],"tokenizedFields":{"THEME":";"}}</gco:CharacterString></cit:applicationProfile>
+      </cit:CI_OnlineResource>
+
+      <cit:CI_OnlineResource>
+        <cit:linkage><gco:CharacterString>https://sextant.ifremer.fr/services/wps3/demo</gco:CharacterString></cit:linkage>
+        <cit:protocol><gco:CharacterString>OGC:WPS</gco:CharacterString></cit:protocol>
+        <cit:name><gco:CharacterString>script:demo-inputs</gco:CharacterString></cit:name>
+        <cit:description><gco:CharacterString>Extraction des données d'observation</gco:CharacterString></cit:description>
+        <cit:applicationProfile><gco:CharacterString>{"inputs":[{"identifier":"STRING","linkedWfsFilter":"THEME","hidden":true,"tokenizeWfsFilterValues":true,"wfsFilterValuesDelimiter":";"},{"identifier":"INT","defaultValue":"42","hidden":true}],"outputs":[{"identifier":"OUTPUT","defaultMimeType":"application/zip"}]}</gco:CharacterString></cit:applicationProfile>
+      </cit:CI_OnlineResource>
+    </mrd:MD_Distribution>
+  </mdb:distributionInfo>
+</mdb:MD_Metadata>
