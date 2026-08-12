@@ -107,7 +107,7 @@ export function parseBooleanLiteral(value: string | undefined): boolean | undefi
 export type WpsTemporalInputType = 'date' | 'datetime-local' | 'time'
 
 /**
- * The three temporal literals, keyed by the local name of their `<ows:DataType>`.
+ * The three temporal literals, keyed by their `<ows:DataType>` reduced by `temporalKey`.
  * `lexical` is both what the native widget can display and what XML Schema accepts;
  * `missingSeconds` matches the shorter form the widget produces at its default step, which
  * xs:time and xs:dateTime reject — seconds are mandatory in their lexical space.
@@ -133,17 +133,24 @@ const TEMPORAL_LITERALS = {
   { inputType: WpsTemporalInputType; lexical: RegExp; missingSeconds: RegExp | null }
 >
 
-// Matching on the local name rather than the whole string is what keeps 'dateTime' from being
-// read as a time: a substring test would match both. It also covers the prefixed ('xs:date') and
-// URL ('…xmlschema-2/#dateTime') spellings servers use for the same type.
-const LOCAL_NAME_REGEX = /[^:/#]+$/
+const DATATYPE_SEPARATORS = [':', '/', '#']
 
-const localName = (dataType: string) =>
-  LOCAL_NAME_REGEX.exec(dataType.trim().toLowerCase())?.[0] ?? ''
+/**
+ * The `TEMPORAL_LITERALS` key a declared `<ows:DataType>` maps to: its last segment, lowercased.
+ * Servers spell the same type several ways — 'dateTime', 'xs:dateTime',
+ * 'http://…/xmlschema-2/#dateTime', 'urn:ogc:def:dataType:OGC:1.1:dateTime' — and comparing that
+ * segment as a whole is what keeps 'dateTime' from being read as a time: searching the string
+ * for 'time' would match both.
+ */
+const temporalKey = (dataType: string) => {
+  const normalized = dataType.trim().toLowerCase()
+  const lastSeparator = Math.max(...DATATYPE_SEPARATORS.map((s) => normalized.lastIndexOf(s)))
+  return normalized.slice(lastSeparator + 1)
+}
 
 function temporalLiteral(input: WpsProcessInput) {
   if (input.type !== 'literal') return null
-  const key = localName(input.literalData?.dataType ?? '')
+  const key = temporalKey(input.literalData?.dataType ?? '')
   return key in TEMPORAL_LITERALS ? TEMPORAL_LITERALS[key as keyof typeof TEMPORAL_LITERALS] : null
 }
 
