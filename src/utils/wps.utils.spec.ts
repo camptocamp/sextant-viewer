@@ -569,12 +569,22 @@ describe('buildExecuteOptions', () => {
 
   it('passes the selected outputs through unchanged', () => {
     const options = build([], {}, [
-      { identifier: 'RESULT', mimeType: 'application/geo+json', asReference: true },
-      { identifier: 'REPORT', asReference: false },
+      { identifier: 'RESULT', selected: true, mimeType: 'application/geo+json', asReference: true },
+      { identifier: 'REPORT', selected: true, asReference: false },
     ])
     expect(options.outputs).toEqual([
       { identifier: 'RESULT', mimeType: 'application/geo+json', asReference: true },
       { identifier: 'REPORT', mimeType: undefined, asReference: false },
+    ])
+  })
+
+  it('drops the outputs the user unticked', () => {
+    const options = build([], {}, [
+      { identifier: 'RESULT', selected: true, mimeType: 'application/geo+json', asReference: true },
+      { identifier: 'REPORT', selected: false, mimeType: 'text/plain', asReference: false },
+    ])
+    expect(options.outputs).toEqual([
+      { identifier: 'RESULT', mimeType: 'application/geo+json', asReference: true },
     ])
   })
 

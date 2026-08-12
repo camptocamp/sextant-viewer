@@ -221,11 +221,7 @@ test.describe('WPS panel', () => {
   })
 
   test('states the cardinality of a repeatable input', async ({ page }) => {
-    await mockWps(
-      page,
-      fixture('execute-succeeded.xml'),
-      'describeprocess-repeatable-inputs.xml',
-    )
+    await mockWps(page, fixture('execute-succeeded.xml'), 'describeprocess-repeatable-inputs.xml')
     await openDemoProcessForm(page)
 
     // No real Sextant service declares a repeatable input, hence the derived fixture:
@@ -241,6 +237,42 @@ test.describe('WPS panel', () => {
     await addButtons.first().click()
     await addButtons.first().click()
     await expect(page.getByText('de 1 à 3 valeurs')).toBeVisible()
+  })
+
+  test('lists every output, format included, and requests only the ticked ones', async ({
+    page,
+  }) => {
+    await mockWps(page, fixture('execute-succeeded.xml'), 'describeprocess-multiple-outputs.xml')
+    await openDemoProcessForm(page)
+
+    const file = page.getByRole('checkbox', { name: 'defined inputs as file' })
+    const report = page.getByRole('checkbox', { name: 'execution report' })
+    const execute = page.getByRole('button', { name: 'Exécuter' })
+
+    // Every output is listed and asked for by default — including the single-format one, whose
+    // format is stated rather than hidden behind an absent select.
+    await expect(file).toBeChecked()
+    await expect(report).toBeChecked()
+    await expect(page.getByText('Format : application/octet-stream')).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Format de execution report' })).toBeVisible()
+
+    const executeBody = async () => {
+      const [request] = await Promise.all([
+        page.waitForRequest((candidate) => candidate.method() === 'POST'),
+        execute.click(),
+      ])
+      return request.postData() ?? ''
+    }
+
+    await report.click()
+    const body = await executeBody()
+    expect(body).toContain('<ows:Identifier>OUTPUT</ows:Identifier>')
+    expect(body).not.toContain('<ows:Identifier>REPORT</ows:Identifier>')
+
+    // Nothing left to produce is not a runnable request.
+    await file.click()
+    await expect(page.getByText('Sélectionnez au moins une sortie.')).toBeVisible()
+    await expect(execute).toBeDisabled()
   })
 
   test('adds a WMS output as a layer and switches to the Couches tab', async ({ page }) => {

@@ -49,6 +49,7 @@ function defaultFormOutput(processOutput: WpsProcessOutput): WpsFormOutput {
     formats[0]
   return {
     identifier: processOutput.identifier,
+    selected: true,
     mimeType,
     asReference: mimeType ? WMS_MIMETYPE_REGEX.test(mimeType) : false,
   }
@@ -66,25 +67,28 @@ function initForm(process: WpsProcessFull) {
 
 watch(() => props.process, initForm, { immediate: true })
 
-const outputsWithChoice = computed(() =>
-  props.process.outputs.filter((output) => outputFormats(output).length > 1),
-)
+function formOutputFor(identifier: string) {
+  return outputs.value.find((output) => output.identifier === identifier)
+}
 
-function outputMimeTypeFor(identifier: string) {
-  return outputs.value.find((output) => output.identifier === identifier)?.mimeType
+function updateOutput(identifier: string, changes: Partial<WpsFormOutput>) {
+  outputs.value = outputs.value.map((output) =>
+    output.identifier === identifier ? { ...output, ...changes } : output,
+  )
 }
 
 function setOutputMimeType(identifier: string, mimeType?: string) {
-  outputs.value = outputs.value.map((output) =>
-    output.identifier === identifier
-      ? {
-          ...output,
-          mimeType,
-          asReference: mimeType ? WMS_MIMETYPE_REGEX.test(mimeType) : false,
-        }
-      : output,
-  )
+  updateOutput(identifier, {
+    mimeType,
+    asReference: mimeType ? WMS_MIMETYPE_REGEX.test(mimeType) : false,
+  })
 }
+
+// A process that declares no output at all leaves nothing to select, so the requirement only
+// applies once there is something to tick.
+const hasSelectedOutput = computed(
+  () => !props.process.outputs.length || outputs.value.some((output) => output.selected),
+)
 
 // Validating through `toInputValue` keeps this predictive of buildExecuteOptions, which is what
 // actually decides whether a value reaches the server.
@@ -172,29 +176,45 @@ function removeOccurrence(identifier: string, index: number) {
       </div>
     </UFormField>
 
-    <div v-if="outputsWithChoice.length" class="space-y-2">
-      <h4 class="text-sm font-semibold">Format des sorties</h4>
-      <UFormField
-        v-for="processOutput in outputsWithChoice"
+    <div v-if="process.outputs.length" class="space-y-2">
+      <h4 class="text-sm font-semibold">Sorties</h4>
+      <div
+        v-for="processOutput in process.outputs"
         :key="processOutput.identifier"
-        :label="processOutput.title || processOutput.identifier"
+        class="space-y-1"
       >
+        <UCheckbox
+          :model-value="!!formOutputFor(processOutput.identifier)?.selected"
+          :label="processOutput.title || processOutput.identifier"
+          :description="processOutput.abstract"
+          @update:model-value="
+            (value) => updateOutput(processOutput.identifier, { selected: value === true })
+          "
+        />
         <USelect
-          :model-value="outputMimeTypeFor(processOutput.identifier)"
+          v-if="outputFormats(processOutput).length > 1"
+          :model-value="formOutputFor(processOutput.identifier)?.mimeType"
           :items="outputFormats(processOutput)"
-          class="w-full"
+          :disabled="!formOutputFor(processOutput.identifier)?.selected"
+          :aria-label="`Format de ${processOutput.title || processOutput.identifier}`"
+          class="ms-6 w-[calc(100%-1.5rem)]"
+          :ui="{ content: 'z-50' }"
           @update:model-value="
             (value: string) => setOutputMimeType(processOutput.identifier, value)
           "
         />
-      </UFormField>
+        <p v-else-if="outputFormats(processOutput).length === 1" class="text-dimmed ms-6 text-xs">
+          Format : {{ outputFormats(processOutput)[0] }}
+        </p>
+      </div>
+      <p v-if="!hasSelectedOutput" class="text-error text-xs">Sélectionnez au moins une sortie.</p>
     </div>
 
     <UButton
       label="Exécuter"
       icon="i-heroicons-play"
       :loading="executing"
-      :disabled="!isValid || executing"
+      :disabled="!isValid || !hasSelectedOutput || executing"
       @click="emit('execute')"
     />
   </div>

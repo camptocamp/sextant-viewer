@@ -24,9 +24,14 @@ export interface WpsService {
 /** Form state for a whole process: input identifier → its occurrences (≥ 1). */
 export type WpsFormInputs = Record<string, WpsInputOccurrence[]>
 
-/** Selected output format for a single output. */
+/**
+ * Form state for a single output: whether it is asked for, and in which format.
+ * Every output of the process gets an entry, selected or not, so the form can list them all —
+ * an output silently requested is as misleading as one silently dropped.
+ */
 export interface WpsFormOutput {
   identifier: string
+  selected: boolean
   mimeType?: string
   asReference: boolean
 }

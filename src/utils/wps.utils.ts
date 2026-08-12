@@ -231,9 +231,10 @@ export function toInputValue(
 /**
  * Assemble the Execute request from the process description and the form state.
  * Iterating over `process.inputs` rather than the form keys makes the process the authority
- * on input order, and silently drops form entries the process does not declare. The async
- * flags mirror what the process advertises: asking for a stored, status-polled response on a
- * server that supports neither is a rejected request.
+ * on input order, and silently drops form entries the process does not declare. Only the
+ * outputs the user kept selected are requested. The async flags mirror what the process
+ * advertises: asking for a stored, status-polled response on a server that supports neither
+ * is a rejected request.
  */
 export function buildExecuteOptions(
   process: WpsProcessFull,
@@ -248,11 +249,13 @@ export function buildExecuteOptions(
 
   return {
     inputs,
-    outputs: formOutputs.map((output) => ({
-      identifier: output.identifier,
-      mimeType: output.mimeType,
-      asReference: output.asReference,
-    })),
+    outputs: formOutputs
+      .filter((output) => output.selected)
+      .map((output) => ({
+        identifier: output.identifier,
+        mimeType: output.mimeType,
+        asReference: output.asReference,
+      })),
     storeExecuteResponse: process.storeSupported,
     status: process.statusSupported,
   }
