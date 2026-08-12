@@ -93378,7 +93378,10 @@ const BQ = {
     lexical: /^\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/,
     missingSeconds: /^\d{2}:\d{2}$/
   }
-}, mye = /[^:/#]+$/, Eye = (t) => mye.exec(t.trim().toLowerCase())?.[0] ?? "";
+}, mye = [":", "/", "#"], Eye = (t) => {
+  const e = t.trim().toLowerCase(), i = Math.max(...mye.map((r) => e.lastIndexOf(r)));
+  return e.slice(i + 1);
+};
 function MU(t) {
   if (t.type !== "literal") return null;
   const e = Eye(t.literalData?.dataType ?? "");
