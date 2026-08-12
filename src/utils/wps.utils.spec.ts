@@ -163,7 +163,7 @@ describe('isBooleanInput', () => {
 
   it.each([
     ['another data type', literal('string')],
-    ['an undeclared data type', literal(undefined)],
+    ['an undeclared data type', literal()],
     ['a non-literal input', input({ identifier: 'EXTENT', type: 'boundingbox' })],
   ])('rejects %s', (_case, value) => {
     expect(isBooleanInput(value)).toBe(false)
@@ -218,7 +218,7 @@ describe('temporalInputType', () => {
     ['a string', literal('string')],
     ['a number', literal('double')],
     ['a duration', literal('xs:duration')],
-    ['an undeclared data type', literal(undefined)],
+    ['an undeclared data type', literal()],
     ['a non-literal input', input({ identifier: 'EXTENT', type: 'boundingbox' })],
   ])('offers no temporal field for %s', (_case, value) => {
     expect(temporalInputType(value)).toBeNull()
