@@ -31,7 +31,7 @@ const activeTab = ref('list')
       <AddDataPanel @layer-added="activeTab = 'list'" />
     </template>
     <template #wps>
-      <WpsPanel @layer-added="activeTab = 'list'" />
+      <WpsPanel />
     </template>
   </UTabs>
 </template>

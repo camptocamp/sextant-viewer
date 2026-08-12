@@ -264,22 +264,31 @@ export function buildExecuteOptions(
 /**
  * Classify an Execute output by semantic family, based on its mime type. The
  * decision is mime-driven: an opaque mime (octet-stream, CSV, binary…) is
- * always a download, never a layer — no content sniffing in v1.
+ * always a download, never a layer — no content sniffing in v1. The families that do stand for
+ * a layer start out pending on the map.
  */
 export function classifyOutput(output: WpsExecuteOutputResult): WpsOutputResult {
   const identifier = output.identifier
   const label = output.title || output.identifier
   const mimeType = output.reference?.mimeType ?? output.data?.mimeType ?? ''
   const href = output.reference?.href
+  const mapStatus = 'pending' as const
 
   if (WMS_MIMETYPE_REGEX.test(mimeType) && href) {
-    return { kind: 'wms', identifier, label, href }
+    return { kind: 'wms', identifier, label, href, mapStatus }
   }
 
   if (GEOJSON_MIMETYPE_REGEX.test(mimeType)) {
-    if (href) return { kind: 'geojson', identifier, label, url: href, mimeType }
+    if (href) return { kind: 'geojson', identifier, label, url: href, mimeType, mapStatus }
     if (output.data?.content)
-      return { kind: 'geojson', identifier, label, data: output.data.content, mimeType }
+      return {
+        kind: 'geojson',
+        identifier,
+        label,
+        data: output.data.content,
+        mimeType,
+        mapStatus,
+      }
   }
 
   return { kind: 'download', identifier, label, href, data: output.data?.content, mimeType }

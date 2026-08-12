@@ -1,34 +1,37 @@
-import type { WpsEndpoint, WpsExecuteOptions, WpsExecuteResponse } from '@camptocamp/ogc-client'
 import { useAddLayer } from '@/composables/useAddLayer'
 import type { WpsOutputResult } from '@/types/wps.types'
-import { classifyOutput, executeProcess, toLayers } from '@/utils/wps.utils'
+import { toLayers } from '@/utils/wps.utils'
 
 export function useWps() {
   const { addLayer } = useAddLayer()
 
-  async function addResultToMap(response: WpsExecuteResponse): Promise<WpsOutputResult[]> {
-    const outputs = response.outputs.map(classifyOutput)
+  /**
+   * Put every output standing for a layer on the map, handing back a replacement for each one
+   * once its status is settled. A failure is carried by the output itself rather than thrown:
+   * the process did succeed, so its results are worth keeping on screen.
+   */
+  async function addOutputsToMap(
+    outputs: WpsOutputResult[],
+    onUpdate: (previous: WpsOutputResult, updated: WpsOutputResult) => void,
+  ): Promise<void> {
     let zoomed = false
     for (const output of outputs) {
-      for (const layer of await toLayers(output)) {
-        // setView is absolute, so zoom only on the first mapped layer (see plan).
-        await addLayer(layer, !zoomed)
-        zoomed = true
+      if (output.mapStatus !== 'pending') continue
+      try {
+        const layers = await toLayers(output)
+        if (!layers.length) throw new Error('aucune couche nommée')
+        for (const layer of layers) {
+          // setView is absolute, so zoom only on the first mapped layer (see plan).
+          await addLayer(layer, !zoomed)
+          zoomed = true
+        }
+        onUpdate(output, { ...output, mapStatus: 'added' })
+      } catch (e) {
+        console.error(`Failed to add WPS output "${output.identifier}" to the map`, e)
+        onUpdate(output, { ...output, mapStatus: 'failed', mapError: (e as Error).message })
       }
     }
-    return outputs
   }
 
-  async function execute(
-    endpoint: WpsEndpoint,
-    processId: string,
-    options: WpsExecuteOptions,
-    onProgress?: (response: WpsExecuteResponse) => void,
-  ): Promise<{ response: WpsExecuteResponse; outputs: WpsOutputResult[] }> {
-    const response = await executeProcess(endpoint, processId, options, onProgress)
-    const outputs = response.status === 'succeeded' ? await addResultToMap(response) : []
-    return { response, outputs }
-  }
-
-  return { execute }
+  return { addOutputsToMap }
 }

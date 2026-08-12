@@ -275,17 +275,48 @@ test.describe('WPS panel', () => {
     await expect(execute).toBeDisabled()
   })
 
-  test('adds a WMS output as a layer and switches to the Couches tab', async ({ page }) => {
+  test('adds a WMS output as a layer without leaving the results', async ({ page }) => {
     await mockWps(page, fixture('execute-succeeded-wms.xml'))
     await page.route('**/services/wms/demo**', (route) =>
       route.fulfill({ contentType: 'application/xml', body: fixture('wms-capabilities.xml') }),
     )
     await runDemoProcess(page)
 
-    // The successful WMS output switches the panel to the "Couches" tab, where every
-    // named layer from the GetCapabilities is listed (faithful to Sextant).
-    await expect(page.getByRole('tab', { name: 'Couches', selected: true })).toBeVisible()
+    // The badge is the output's own doing: it appears once the layer is really on the map, which
+    // is several requests after the results are listed.
+    await expect(page.getByText('Couche ajoutée à la carte')).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Traitements', selected: true })).toBeVisible()
+
+    // Every named layer from the GetCapabilities is listed (faithful to Sextant).
+    await page.getByRole('tab', { name: 'Couches' }).click()
     await expect(page.getByText('Demo points')).toBeVisible()
     await expect(page.getByText('Demo lines')).toBeVisible()
+  })
+
+  test('states that a layer could not be added, and why', async ({ page }) => {
+    await mockWps(page, fixture('execute-succeeded-wms.xml'))
+    await page.route('**/services/wms/demo**', (route) => route.abort('failed'))
+    await runDemoProcess(page)
+
+    // A capabilities fetch that fails belongs to the layer, not to the run: the results of a
+    // process that did succeed must stay on screen.
+    await expect(page.getByText('Exécution réussie')).toBeVisible()
+    await expect(page.getByText("L'ajout à la carte a échoué")).toBeVisible()
+    await expect(page.getByText("Échec de l'exécution")).toHaveCount(0)
+  })
+
+  test.describe('a panel too short for the whole form', () => {
+    test.use({ viewport: { width: 900, height: 500 } })
+
+    test('scrolls the results into view once the outputs are listed', async ({ page }) => {
+      await mockWps(page, fixture('execute-succeeded.xml'))
+      await runDemoProcess(page)
+
+      // The outputs are what the run is about, and they land after the "succeeded" alert: a
+      // scroll timed on the alert alone leaves them just below the fold.
+      await expect(page.getByText('Exécution réussie')).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Résultats' })).toBeInViewport()
+      await expect(page.getByRole('link', { name: 'Télécharger' })).toBeInViewport()
+    })
   })
 })

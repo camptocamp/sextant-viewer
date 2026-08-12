@@ -61,12 +61,26 @@ function downloadHref(output: Extract<WpsOutputResult, { kind: 'geojson' | 'down
           <UFormField v-for="output in outputs" :key="output.identifier" :label="output.label">
             <div class="flex flex-wrap items-center gap-2">
               <UBadge
-                v-if="output.kind === 'wms' || output.kind === 'geojson'"
+                v-if="output.mapStatus === 'added'"
                 color="success"
                 variant="subtle"
                 size="sm"
               >
                 Couche ajoutée à la carte
+              </UBadge>
+              <UTooltip v-else-if="output.mapStatus === 'failed'" :text="output.mapError">
+                <UBadge color="warning" variant="subtle" size="sm">
+                  L'ajout à la carte a échoué
+                </UBadge>
+              </UTooltip>
+              <UBadge
+                v-else-if="output.mapStatus === 'pending'"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+              >
+                <UIcon name="i-heroicons-arrow-path" class="animate-spin" />
+                Ajout à la carte…
               </UBadge>
               <UButton
                 v-if="output.kind !== 'wms' && downloadHref(output)"

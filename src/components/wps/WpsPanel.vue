@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import type {
   WpsEndpoint,
@@ -10,11 +10,15 @@ import type {
 import { useWps } from '@/composables/useWps'
 import { useMapStore } from '@/stores/map.store'
 import type { WpsFormInputs, WpsFormOutput, WpsOutputResult } from '@/types/wps.types'
-import { buildExecuteOptions, describeProcess, loadProcesses } from '@/utils/wps.utils'
+import {
+  buildExecuteOptions,
+  classifyOutput,
+  describeProcess,
+  executeProcess,
+  loadProcesses,
+} from '@/utils/wps.utils'
 
-const { execute } = useWps()
-
-const emit = defineEmits<{ 'layer-added': [] }>()
+const { addOutputsToMap } = useWps()
 
 const { wpsServices } = storeToRefs(useMapStore())
 
@@ -47,6 +51,22 @@ const processItems = computed(() =>
     value: process.identifier,
   })),
 )
+
+const resultSection = ref<HTMLElement | null>(null)
+
+// Derived state rather than `result` itself: the progress callback reassigns `result` on every
+// poll, which would re-scroll continuously while the process is still running.
+const resultStage = computed(() => {
+  if (error.value) return 'error'
+  if (!result.value) return null
+  return ['succeeded', 'failed'].includes(result.value.status) ? 'done' : 'pending'
+})
+
+watch(resultStage, async (stage) => {
+  if (!stage) return
+  await nextTick()
+  resultSection.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+})
 
 function reset() {
   endpoint.value = null
@@ -97,30 +117,37 @@ watch(selectedProcessId, async (processId) => {
 
 async function onExecute() {
   if (!endpoint.value || !selectedProcess.value) return
+  const process = selectedProcess.value
   executing.value = true
   error.value = null
   result.value = null
   outputs.value = []
   try {
-    const options = buildExecuteOptions(selectedProcess.value, formInputs.value, formOutputs.value)
-    const outcome = await execute(
+    const options = buildExecuteOptions(process, formInputs.value, formOutputs.value)
+    const response = await executeProcess(
       endpoint.value,
-      selectedProcess.value.identifier,
+      process.identifier,
       options,
-      (response) => (result.value = response),
+      // Progress only: the terminal response is assigned below, in the same tick as its outputs,
+      // so the result block never renders half of itself.
+      (pending) => {
+        if (!['succeeded', 'failed'].includes(pending.status)) result.value = pending
+      },
     )
-    result.value = outcome.response
-    outputs.value = outcome.outputs
-    if (outcome.outputs.some((o) => o.kind === 'wms' || o.kind === 'geojson')) {
-      emit('layer-added')
-    }
+    result.value = response
+    outputs.value = response.status === 'succeeded' ? response.outputs.map(classifyOutput) : []
   } catch (e) {
-    const msg = `Failed to execute process "${selectedProcess.value?.identifier}"`
+    const msg = `Failed to execute process "${process.identifier}"`
     console.error(msg, e)
     error.value = `${msg}: ${(e as Error).message}`
+    return
   } finally {
     executing.value = false
   }
+
+  await addOutputsToMap(outputs.value, (previous, updated) => {
+    outputs.value = outputs.value.map((o) => (o === previous ? updated : o))
+  })
 }
 </script>
 
@@ -176,6 +203,8 @@ async function onExecute() {
       />
     </section>
 
-    <WpsExecuteResult :result="result" :error="error" :outputs="outputs" />
+    <div ref="resultSection">
+      <WpsExecuteResult :result="result" :error="error" :outputs="outputs" />
+    </div>
   </div>
 </template>

@@ -88,6 +88,12 @@ describe('classifyOutput', () => {
     expect(result.kind).toBe('download')
   })
 
+  it('starts a layer output pending on the map, and a download with no map status', () => {
+    expect(classifyOutput(reference('application/x-ogc-wms')).mapStatus).toBe('pending')
+    expect(classifyOutput(reference('application/geo+json')).mapStatus).toBe('pending')
+    expect(classifyOutput(reference('text/csv')).mapStatus).toBeUndefined()
+  })
+
   it('uses identifier as label when title is absent', () => {
     const result = classifyOutput({ identifier: 'OUTPUT', reference: { href: 'h', mimeType: '' } })
     expect(result.label).toBe('OUTPUT')
