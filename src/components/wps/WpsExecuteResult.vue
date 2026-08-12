@@ -85,7 +85,9 @@ function downloadHref(output: Extract<WpsOutputResult, { kind: 'geojson' | 'down
               <UButton
                 v-if="output.kind !== 'wms' && downloadHref(output)"
                 :to="downloadHref(output)!"
+                download
                 target="_blank"
+                rel="noopener"
                 size="xs"
                 variant="soft"
                 icon="i-heroicons-arrow-down-tray"
