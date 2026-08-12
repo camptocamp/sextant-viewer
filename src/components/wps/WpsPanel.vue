@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import type {
   WpsEndpoint,
@@ -68,7 +68,19 @@ watch(resultStage, async (stage) => {
   resultSection.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 })
 
+// A poll that outlives what it was started for would keep writing into `result`, for a process
+// the panel has already moved on from.
+let poll: AbortController | null = null
+
+function stopPolling() {
+  poll?.abort()
+  poll = null
+}
+
+onBeforeUnmount(stopPolling)
+
 function reset() {
+  stopPolling()
   endpoint.value = null
   processes.value = []
   selectedProcessId.value = undefined
@@ -99,6 +111,7 @@ function onServiceSelect(serviceUrl: string) {
 }
 
 watch(selectedProcessId, async (processId) => {
+  stopPolling()
   selectedProcess.value = null
   result.value = null
   error.value = null
@@ -124,19 +137,20 @@ async function onExecute() {
   outputs.value = []
   try {
     const options = buildExecuteOptions(process, formInputs.value, formOutputs.value)
-    const response = await executeProcess(
-      endpoint.value,
-      process.identifier,
-      options,
+    poll = new AbortController()
+    const response = await executeProcess(endpoint.value, process.identifier, options, {
       // Progress only: the terminal response is assigned below, in the same tick as its outputs,
       // so the result block never renders half of itself.
-      (pending) => {
+      onProgress: (pending) => {
         if (!['succeeded', 'failed'].includes(pending.status)) result.value = pending
       },
-    )
+      signal: poll.signal,
+    })
     result.value = response
     outputs.value = response.status === 'succeeded' ? response.outputs.map(classifyOutput) : []
   } catch (e) {
+    // An abort is the panel's own doing: it has already moved on, and reported nothing to fix.
+    if ((e as Error).name === 'AbortError') return
     const msg = `Failed to execute process "${process.identifier}"`
     console.error(msg, e)
     error.value = `${msg}: ${(e as Error).message}`

@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
+  WpsEndpoint,
+  WpsExecuteOptions,
   WpsExecuteOutputResult,
   WpsProcessFull,
   WpsProcessInput,
@@ -9,6 +11,7 @@ import {
   buildExecuteOptions,
   cardinalityLabel,
   classifyOutput,
+  executeProcess,
   isBooleanInput,
   isNativeTemporalValue,
   normalizeTemporalLiteral,
@@ -603,5 +606,50 @@ describe('buildExecuteOptions', () => {
       storeExecuteResponse: false,
       status: false,
     })
+  })
+})
+
+describe('executeProcess', () => {
+  afterEach(() => vi.useRealTimers())
+
+  const POLL_INTERVAL = 1000
+
+  // A service that answers 'started' forever, which is what an unbounded poll loop would follow
+  // until the tab is closed.
+  const neverEnding = () => {
+    const started = { status: 'started', statusLocation: 'https://host/status', outputs: [] }
+    return {
+      execute: vi.fn().mockResolvedValue(started),
+      getStatus: vi.fn().mockResolvedValue(started),
+    } as unknown as WpsEndpoint
+  }
+
+  const options = {} as WpsExecuteOptions
+
+  it('gives up on a process that never reaches a terminal status', async () => {
+    vi.useFakeTimers()
+    const endpoint = neverEnding()
+
+    const run = executeProcess(endpoint, 'demo', options)
+    const rejects = expect(run).rejects.toThrow('suivi abandonné après 5 minutes')
+    await vi.advanceTimersByTimeAsync(5 * 60_000 + POLL_INTERVAL)
+    await rejects
+  })
+
+  it('stops polling as soon as the caller aborts', async () => {
+    vi.useFakeTimers()
+    const endpoint = neverEnding()
+    const controller = new AbortController()
+
+    const run = executeProcess(endpoint, 'demo', options, { signal: controller.signal })
+    const rejects = expect(run).rejects.toMatchObject({ name: 'AbortError' })
+    await vi.advanceTimersByTimeAsync(3 * POLL_INTERVAL)
+    controller.abort()
+    await rejects
+
+    // The run is over, not merely unawaited: nothing keeps hitting the service.
+    const polled = vi.mocked(endpoint.getStatus).mock.calls.length
+    await vi.advanceTimersByTimeAsync(10 * POLL_INTERVAL)
+    expect(endpoint.getStatus).toHaveBeenCalledTimes(polled)
   })
 })

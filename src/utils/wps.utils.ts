@@ -21,10 +21,22 @@ const WMS_MIMETYPE_REGEX = /ogc-wms/i
 // don't match here, so they stay downloads.
 const GEOJSON_MIMETYPE_REGEX = /json/i
 const POLL_INTERVAL_MS = 1000
+const POLL_TIMEOUT_MS = 5 * 60_000
 // Anything else ('succeeded', 'failed', 'dismissed') is terminal and stops the polling.
 const PENDING_STATUSES = new Set(['accepted', 'started', 'paused'])
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const delay = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        reject(signal.reason)
+      },
+      { once: true },
+    )
+  })
 
 // ogc-client parses service URLs with `new URL()`, which rejects relative paths. Resolving
 // against the page location lets a same-origin path be used (e.g. `/services/wps3/demo`,
@@ -325,18 +337,34 @@ export async function toLayers(output: WpsOutputResult): Promise<MapContextLayer
  * `onProgress` fires on every response so the panel can show the status as it evolves.
  * Adding the outputs to the map is the caller's job (see useWps), which keeps this free of
  * any map side effect — and testable without one.
+ *
+ * A service that never reports a terminal status would be polled forever, so the wait is
+ * capped; `signal` drops a run whose result the caller no longer has any use for.
  */
 export async function executeProcess(
   endpoint: WpsEndpoint,
   processId: string,
   options: WpsExecuteOptions,
-  onProgress?: (response: WpsExecuteResponse) => void,
+  {
+    onProgress,
+    signal,
+  }: {
+    onProgress?: (response: WpsExecuteResponse) => void
+    signal?: AbortSignal
+  } = {},
 ): Promise<WpsExecuteResponse> {
+  const deadline = Date.now() + POLL_TIMEOUT_MS
   let response = await endpoint.execute(processId, options)
   onProgress?.(response)
 
   while (response.statusLocation && PENDING_STATUSES.has(response.status)) {
-    await delay(POLL_INTERVAL_MS)
+    // An abort landing while getStatus was in flight is missed by `delay`, whose listener is
+    // attached after the fact: an already-aborted signal never fires 'abort' again.
+    signal?.throwIfAborted()
+    if (Date.now() >= deadline) {
+      throw new Error(`suivi abandonné après ${POLL_TIMEOUT_MS / 60_000} minutes sans statut final`)
+    }
+    await delay(POLL_INTERVAL_MS, signal)
     response = await endpoint.getStatus(response.statusLocation)
     onProgress?.(response)
   }
