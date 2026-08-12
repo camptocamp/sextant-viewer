@@ -136,11 +136,10 @@ const TEMPORAL_LITERALS = {
 // Matching on the local name rather than the whole string is what keeps 'dateTime' from being
 // read as a time: a substring test would match both. It also covers the prefixed ('xs:date') and
 // URL ('…xmlschema-2/#dateTime') spellings servers use for the same type.
+const LOCAL_NAME_REGEX = /[^:/#]+$/
+
 const localName = (dataType: string) =>
-  dataType
-    .trim()
-    .toLowerCase()
-    .match(/[^:/#]+$/)?.[0] ?? ''
+  LOCAL_NAME_REGEX.exec(dataType.trim().toLowerCase())?.[0] ?? ''
 
 function temporalLiteral(input: WpsProcessInput) {
   if (input.type !== 'literal') return null
