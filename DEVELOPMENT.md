@@ -61,7 +61,7 @@ npm link @camptocamp/ogc-client @geospatial-sdk/core @geospatial-sdk/legend @geo
 ### 4. Verify the links took
 
 ```bash
-ls -la node_modules/@geospatial-sdk node_modules/@camptocamp/ogc-client
+ls -la node_modules/@geospatial-sdk node_modules/@camptocamp
 ```
 
 Every entry must be a symlink (`-> ../../...`). If any is a real directory,
