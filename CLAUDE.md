@@ -60,7 +60,7 @@ Run a single test:
 ```bash
 npm run test:unit -- src/path/to/file.spec.ts   # one Vitest file
 npm run test:unit -- -t "test name"             # by test name
-npm run test:e2e -- e2e/vue.spec.ts             # one Playwright spec
+CI=true npm run test:e2e -- e2e/vue.spec.ts     # one Playwright spec
 ```
 
 **After each iteration**: Run `npm run format` to ensure consistent code formatting before committing.
