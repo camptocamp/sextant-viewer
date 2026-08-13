@@ -21,5 +21,6 @@ viewer.setInitialContext({
   wpsServices: [
     { url: 'https://sextant.ifremer.fr/services/wps3/demo', label: 'Sextant WPS (démo)' },
     { url: 'https://sextant.ifremer.fr/services/wps3/surval', label: 'Sextant WPS (Surval)' },
+    { url: 'https://sextant.ifremer.fr/services/wps3/sisaqua', label: 'Sextant WPS (SISAQUA)' },
   ],
 })
