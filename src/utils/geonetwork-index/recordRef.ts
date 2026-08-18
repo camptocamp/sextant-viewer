@@ -54,7 +54,7 @@ export function gnBaseFromMetadataUrl(metadataUrl: string): string | null {
  */
 export function parseUuid(metadataUrl: string): string | null {
   try {
-    const url = new URL(metadataUrl, window.location.href)
+    const url = new URL(metadataUrl, globalThis.location.href)
     for (const [key, value] of url.searchParams) {
       if ((key.toLowerCase() === 'uuid' || key.toLowerCase() === 'id') && value) return value
     }

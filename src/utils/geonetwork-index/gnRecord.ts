@@ -35,9 +35,9 @@ const inflight = new Map<string, Promise<RecordResources>>()
  * `set`). Lifetime is the session, like ogc-client's capabilities cache.
  */
 export function fetchRecordResources(gnBase: string, uuid: string): Promise<RecordResources> {
-  const key = `${new URL(gnBase, window.location.href).href}#${uuid}`
+  const key = `${new URL(gnBase, globalThis.location.href).href}#${uuid}`
   let promise = inflight.get(key)
-  if (!promise) {
+  if (promise === undefined) {
     promise = fetchRecord(gnBase, uuid)
     inflight.set(key, promise)
     // A transient network failure must not condemn the record for the whole session. The derived

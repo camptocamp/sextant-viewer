@@ -230,7 +230,7 @@ describe('fetchRecordResources — memoisation', () => {
   it('normalises the base so a relative and an absolute form share the entry', async () => {
     mockFetch(recordXml(JSON.stringify(PROFILE)))
     await fetchRecordResources('/geonetwork', 'uuid-1')
-    await fetchRecordResources(new URL('/geonetwork', window.location.href).href, 'uuid-1')
+    await fetchRecordResources(new URL('/geonetwork', globalThis.location.href).href, 'uuid-1')
     expect(fetchMock()).toHaveBeenCalledTimes(1)
   })
 

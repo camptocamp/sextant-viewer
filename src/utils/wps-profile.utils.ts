@@ -28,9 +28,15 @@ export function linkedFilterValues(
   const linked = profileInput.linkedWfsFilter
   if (!linked) return []
 
-  const rangeIndex = linked.endsWith(FROM_SUFFIX) ? 0 : linked.endsWith(TO_SUFFIX) ? 1 : -1
-  const suffixLength =
-    rangeIndex === 0 ? FROM_SUFFIX.length : rangeIndex === 1 ? TO_SUFFIX.length : 0
+  let rangeIndex = -1
+  let suffixLength = 0
+  if (linked.endsWith(FROM_SUFFIX)) {
+    rangeIndex = 0
+    suffixLength = FROM_SUFFIX.length
+  } else if (linked.endsWith(TO_SUFFIX)) {
+    rangeIndex = 1
+    suffixLength = TO_SUFFIX.length
+  }
   const column = suffixLength ? linked.slice(0, -suffixLength) : linked
 
   const values = filters[column] ?? []
