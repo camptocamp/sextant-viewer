@@ -54651,7 +54651,7 @@ async function o3(t) {
   if (t.url && t.collectionId)
     e = t.url, i = t.collectionId;
   else {
-    const r = await (await Xc.fromUrl(t.url)).data;
+    const r = (await Xc.fromUrl(t.url)).data;
     if (e = r.links.find((a) => a.rel === "root")?.href || "", i = r.id, !e || !i)
       throw new Error("Invalid STAC collection document");
   }
