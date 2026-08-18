@@ -28,17 +28,18 @@ const declaredProcesses = computed<LayerWpsProcess[]>(() =>
 )
 
 const processItems = computed(() =>
-  declaredProcesses.value.map((process) => ({
+  declaredProcesses.value.map((process, index) => ({
     label: process.label ?? process.processId,
-    // A record may declare the same process id on two services, so the index is the identity here.
-    value: process.processId,
+    // A record may declare the same process id on two services, so the position in the list is the
+    // only identity that tells the two entries — and their services and profiles — apart.
+    value: index,
   })),
 )
 
-const chosenProcessId = ref<string>()
+const chosenIndex = ref<number>()
 
 const chosenProcess = computed(() =>
-  declaredProcesses.value.find((process) => process.processId === chosenProcessId.value),
+  chosenIndex.value === undefined ? undefined : declaredProcesses.value[chosenIndex.value],
 )
 
 /**
@@ -47,12 +48,16 @@ const chosenProcess = computed(() =>
  */
 const linkedFilters = computed(() => activeFiltersOf(props.layer))
 
-async function choose(processId: string | undefined) {
-  chosenProcessId.value = processId
-  const process = declaredProcesses.value.find((entry) => entry.processId === processId)
+async function choose(index: number | undefined) {
+  chosenIndex.value = index
+  const process = chosenProcess.value
   if (!process) return
   await loadService(process.url)
   await selectProcess(process.processId)
+}
+
+function firstIndex() {
+  return declaredProcesses.value.length ? 0 : undefined
 }
 
 // Another layer means another filter and another profile, so its choice is made from scratch —
@@ -60,7 +65,7 @@ async function choose(processId: string | undefined) {
 // form on the new layer's values.
 watch(
   () => props.layer.id,
-  () => choose(declaredProcesses.value[0]?.processId),
+  () => choose(firstIndex()),
   { immediate: true },
 )
 
@@ -68,7 +73,7 @@ watch(
 // as it is known, without disturbing a choice the user has already made.
 watch(declaredProcesses, () => {
   if (chosenProcess.value) return
-  choose(declaredProcesses.value[0]?.processId)
+  choose(firstIndex())
 })
 
 const resultSection = ref<HTMLElement | null>(null)
@@ -85,7 +90,7 @@ watch(resultStage, async (stage) => {
     <section v-if="processItems.length > 1" class="flex flex-col gap-2">
       <h3 class="text-sm font-semibold">Traitement</h3>
       <USelect
-        :model-value="chosenProcessId"
+        :model-value="chosenIndex"
         :items="processItems"
         value-key="value"
         aria-label="Traitement de la couche"
