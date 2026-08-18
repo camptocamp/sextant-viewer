@@ -55,16 +55,21 @@ async function choose(processId: string | undefined) {
   await selectProcess(process.processId)
 }
 
-// The layer's processes arrive from a background detection, and the layer itself changes under the
-// panel: in both cases the first declared process is the one to offer.
+// Another layer means another filter and another profile, so its choice is made from scratch —
+// re-selecting even a process id the previous layer also declared, which is what re-initialises the
+// form on the new layer's values.
 watch(
-  [() => props.layer.id, declaredProcesses],
-  () => {
-    if (chosenProcess.value) return
-    choose(declaredProcesses.value[0]?.processId)
-  },
+  () => props.layer.id,
+  () => choose(declaredProcesses.value[0]?.processId),
   { immediate: true },
 )
+
+// The layer's processes arrive from a background detection: the first one becomes the offer as soon
+// as it is known, without disturbing a choice the user has already made.
+watch(declaredProcesses, () => {
+  if (chosenProcess.value) return
+  choose(declaredProcesses.value[0]?.processId)
+})
 
 const resultSection = ref<HTMLElement | null>(null)
 
