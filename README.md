@@ -98,7 +98,7 @@ npm run test:unit
 npm run lint
 ```
 
-### Run end2end tests with [Playwrigth](https://playwright.dev/)
+### Run end-to-end tests with [Playwright](https://playwright.dev/)
 
 First you need to install Chromium:
 
@@ -106,13 +106,13 @@ First you need to install Chromium:
 npx playwright install chromium
 ```
 
-At time writing this, you may have issues on Ubuntu 26.04:
+At the time of writing, you may have issues on Ubuntu 26.04:
 
 ```sh
 PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 npx playwright install chromium
 ```
 
-The run tests:
+Then run the tests:
 
 ```sh
 npm run test:e2e
