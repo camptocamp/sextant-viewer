@@ -54785,9 +54785,9 @@ function Yg(t, e) {
 }
 const cy = /* @__PURE__ */ new Map();
 function c3(t, e) {
-  const i = `${new URL(t, window.location.href).href}#${e}`;
+  const i = `${new URL(t, globalThis.location.href).href}#${e}`;
   let r = cy.get(i);
-  return r || (r = PAe(t, e), cy.set(i, r), r.catch(() => cy.delete(i))), r;
+  return r === void 0 && (r = PAe(t, e), cy.set(i, r), r.catch(() => cy.delete(i))), r;
 }
 async function PAe(t, e) {
   const i = await fetch(`${t}/srv/api/records/${encodeURIComponent(e)}/formatters/xml`);
@@ -54852,7 +54852,7 @@ function OAe(t) {
 }
 function qAe(t) {
   try {
-    const e = new URL(t, window.location.href);
+    const e = new URL(t, globalThis.location.href);
     for (const [n, a] of e.searchParams)
       if ((n.toLowerCase() === "uuid" || n.toLowerCase() === "id") && a) return a;
     const i = /#\/metadata\/([^?&]+)/.exec(t)?.[1];
@@ -93550,7 +93550,9 @@ const Fk = ".from", Lk = ".to", qye = ",";
 function Yye(t, e) {
   const i = t.linkedWfsFilter;
   if (!i) return [];
-  const r = i.endsWith(Fk) ? 0 : i.endsWith(Lk) ? 1 : -1, n = r === 0 ? Fk.length : r === 1 ? Lk.length : 0, a = n ? i.slice(0, -n) : i, s = e[a] ?? [];
+  let r = -1, n = 0;
+  i.endsWith(Fk) ? (r = 0, n = Fk.length) : i.endsWith(Lk) && (r = 1, n = Lk.length);
+  const a = n ? i.slice(0, -n) : i, s = e[a] ?? [];
   if (!s.length) return [];
   if (r >= 0) {
     const o = s[r];
