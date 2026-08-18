@@ -97011,35 +97011,39 @@ const ove = {
     } = VU(), p = F(
       () => $b(e.layer) ? e.layer.extras?.wpsProcesses ?? [] : []
     ), I = F(
-      () => p.value.map((B) => ({
-        label: B.label ?? B.processId,
-        // A record may declare the same process id on two services, so the index is the identity here.
-        value: B.processId
+      () => p.value.map((y, w) => ({
+        label: y.label ?? y.processId,
+        // A record may declare the same process id on two services, so the position in the list is the
+        // only identity that tells the two entries — and their services and profiles — apart.
+        value: w
       }))
     ), C = /* @__PURE__ */ j(), m = F(
-      () => p.value.find((B) => B.processId === C.value)
+      () => C.value === void 0 ? void 0 : p.value[C.value]
     ), v = F(() => a3(e.layer));
-    async function E(B) {
-      C.value = B;
-      const y = p.value.find((w) => w.processId === B);
-      y && (await g(y.url), await d(y.processId));
+    async function E(y) {
+      C.value = y;
+      const w = m.value;
+      w && (await g(w.url), await d(w.processId));
+    }
+    function Q() {
+      return p.value.length ? 0 : void 0;
     }
     Pe(
-      [() => e.layer.id, p],
-      () => {
-        m.value || E(p.value[0]?.processId);
-      },
+      () => e.layer.id,
+      () => E(Q()),
       { immediate: !0 }
-    );
-    const Q = /* @__PURE__ */ j(null);
-    return Pe(u, async (B) => {
-      B && (await dt(), Q.value?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
-    }), (B, y) => {
-      const w = Hl, b = zU, x = qU;
+    ), Pe(p, () => {
+      m.value || E(Q());
+    });
+    const B = /* @__PURE__ */ j(null);
+    return Pe(u, async (y) => {
+      y && (await dt(), B.value?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    }), (y, w) => {
+      const b = Hl, x = zU, M = qU;
       return _(), ae("div", vve, [
         I.value.length > 1 ? (_(), ae("section", Qve, [
-          y[4] || (y[4] = Re("h3", { class: "text-sm font-semibold" }, "Traitement", -1)),
-          W(w, {
+          w[4] || (w[4] = Re("h3", { class: "text-sm font-semibold" }, "Traitement", -1)),
+          W(b, {
             "model-value": C.value,
             items: I.value,
             "value-key": "value",
@@ -97047,27 +97051,27 @@ const ove = {
             placeholder: "Choisir un traitement",
             class: "w-full",
             ui: { content: "z-50" },
-            "onUpdate:modelValue": y[0] || (y[0] = (M) => E(M))
+            "onUpdate:modelValue": w[0] || (w[0] = (k) => E(k))
           }, null, 8, ["model-value", "items"])
         ])) : Ae("", !0),
         f(a) || f(s) ? (_(), ae("div", wve, " Chargement de la description… ")) : Ae("", !0),
-        f(i) ? (_(), P(b, {
+        f(i) ? (_(), P(x, {
           key: 2,
           inputs: f(r),
-          "onUpdate:inputs": y[1] || (y[1] = (M) => /* @__PURE__ */ bt(r) ? r.value = M : null),
+          "onUpdate:inputs": w[1] || (w[1] = (k) => /* @__PURE__ */ bt(r) ? r.value = k : null),
           outputs: f(n),
-          "onUpdate:outputs": y[2] || (y[2] = (M) => /* @__PURE__ */ bt(n) ? n.value = M : null),
+          "onUpdate:outputs": w[2] || (w[2] = (k) => /* @__PURE__ */ bt(n) ? n.value = k : null),
           process: f(i),
           executing: f(o),
           profile: m.value?.profile,
           "linked-filters": v.value,
-          onExecute: y[3] || (y[3] = (M) => f(h)())
+          onExecute: w[3] || (w[3] = (k) => f(h)())
         }, null, 8, ["inputs", "outputs", "process", "executing", "profile", "linked-filters"])) : Ae("", !0),
         Re("div", {
           ref_key: "resultSection",
-          ref: Q
+          ref: B
         }, [
-          W(x, {
+          W(M, {
             result: f(l),
             error: f(A),
             outputs: f(c)
