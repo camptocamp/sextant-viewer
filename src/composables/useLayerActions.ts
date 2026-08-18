@@ -1,7 +1,6 @@
 import { useMapStore } from '@/stores/map.store'
 import type { MapLayer } from '@/utils/layer.utils'
 import { isStacLayer } from '@/utils/layer.utils'
-import type { MapContextLayer } from '@geospatial-sdk/core'
 import { createViewFromLayer } from '@geospatial-sdk/core'
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 
@@ -38,7 +37,7 @@ export function useLayerActions(layer: MaybeRefOrGetter<MapLayer>) {
     const mapContextLayer = isStacLayer(l) ? mapStore.fromStacToGeojsonLayer(l) : l
 
     try {
-      const view = await createViewFromLayer(mapContextLayer as MapContextLayer)
+      const view = await createViewFromLayer(mapContextLayer)
       if (view) {
         mapStore.setView(view)
       }

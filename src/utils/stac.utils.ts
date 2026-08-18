@@ -130,7 +130,7 @@ async function getStacEndpointWithCollectionId(
     rootUrl = layer.url
     collectionId = layer.collectionId
   } else {
-    const collectionDoc = await (await StacEndpoint.fromUrl(layer.url)).data
+    const collectionDoc = (await StacEndpoint.fromUrl(layer.url)).data
     const rootLink = collectionDoc.links.find((link) => link.rel === 'root')
     rootUrl = rootLink?.href || ''
     collectionId = collectionDoc.id
