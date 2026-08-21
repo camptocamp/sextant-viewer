@@ -20,7 +20,7 @@ const {
   outputs,
   resultStage,
   loadService,
-  selectProcess,
+  loadProcess,
   runExecute,
 } = useWpsProcess()
 
@@ -89,7 +89,7 @@ watch(resultStage, async (stage) => {
         placeholder="Choisir un traitement"
         class="w-full"
         :ui="{ content: 'z-50' }"
-        @update:model-value="selectProcess($event)"
+        @update:model-value="loadProcess($event)"
       />
     </section>
 

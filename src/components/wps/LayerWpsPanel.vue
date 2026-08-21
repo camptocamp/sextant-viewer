@@ -19,7 +19,6 @@ const {
   outputs,
   resultStage,
   loadService,
-  selectProcess,
   runExecute,
 } = useWpsProcess()
 
@@ -48,12 +47,13 @@ const chosenProcess = computed(() =>
  */
 const linkedFilters = computed(() => activeFiltersOf(props.layer))
 
+// `chosenIndex` is written before the first await, so the select and the profile handed to the form
+// always stand for the last choice made, whichever load resolves last.
 async function choose(index: number | undefined) {
   chosenIndex.value = index
   const process = chosenProcess.value
   if (!process) return
-  await loadService(process.url)
-  await selectProcess(process.processId)
+  await loadService(process.url, process.processId)
 }
 
 function firstIndex() {

@@ -60,48 +60,77 @@ export function useWpsProcess() {
 
   onScopeDispose(stopPolling)
 
-  function reset() {
+  /** Everything a new process invalidates — the service and its process list aside. */
+  function resetProcess() {
     stopPolling()
+    selectedProcess.value = null
+    result.value = null
+    error.value = null
+  }
+
+  function resetService() {
+    resetProcess()
     endpoint.value = null
     processes.value = []
     selectedProcessId.value = undefined
-    selectedProcess.value = null
-    result.value = null
-    error.value = null
   }
 
-  async function loadService(url: string) {
-    reset()
+  // Neither loadProcesses nor describeProcess takes a signal — ogc-client's WpsEndpoint offers
+  // none — so a superseded request cannot be cancelled, only its writes discarded. Without that,
+  // the slowest of two rapid choices wins by arriving last, and the form describes one process
+  // against another one's endpoint.
+  let currentRun = 0
+
+  /** A response whose run is no longer the current one must not write: the caller moved on. */
+  function isStale(run: number) {
+    return run !== currentRun
+  }
+
+  /**
+   * Load the service's processes, then the description of `processId` when a layer's metadata record
+   * names it in advance. Each half claims a run of its own; the second is claimed only once the
+   * first has committed, so a later choice always outranks anything still in flight.
+   */
+  async function loadService(url: string, processId?: string) {
+    const run = ++currentRun
+    resetService()
     loading.value = true
     try {
       const loaded = await loadProcesses(url)
+      if (isStale(run)) return
       endpoint.value = loaded.endpoint
       processes.value = loaded.processes
     } catch (e) {
+      if (isStale(run)) return
       const msg = `Failed to load processes from URL ${url}`
       console.error(msg, e)
       error.value = `${msg}: ${(e as Error).message}`
+      return
     } finally {
-      loading.value = false
+      // Guarded like every other write: a stale run would otherwise clear the current run's flag.
+      if (!isStale(run)) loading.value = false
     }
+
+    if (processId) await loadProcess(processId)
   }
 
-  async function selectProcess(processId: string | undefined) {
-    stopPolling()
+  async function loadProcess(processId: string | undefined) {
+    const run = ++currentRun
+    resetProcess()
     selectedProcessId.value = processId
-    selectedProcess.value = null
-    result.value = null
-    error.value = null
     if (!endpoint.value || !processId) return
     describing.value = true
     try {
-      selectedProcess.value = await describeProcess(endpoint.value, processId)
+      const described = await describeProcess(endpoint.value, processId)
+      if (isStale(run)) return
+      selectedProcess.value = described
     } catch (e) {
+      if (isStale(run)) return
       const msg = `Failed to describe process "${processId}"`
       console.error(msg, e)
       error.value = `${msg}: ${(e as Error).message}`
     } finally {
-      describing.value = false
+      if (!isStale(run)) describing.value = false
     }
   }
 
@@ -183,7 +212,7 @@ export function useWpsProcess() {
     outputs,
     resultStage,
     loadService,
-    selectProcess,
+    loadProcess,
     runExecute,
   }
 }
