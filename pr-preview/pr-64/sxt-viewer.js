@@ -99834,14 +99834,19 @@ viewer.addEventListener('map-extent-change', (event) => {
     code: JQe
   },
   {
-    name: "Filter WMS layer by attributes",
+    name: "Filter a WMS layer and run its processes",
     description: `
-      <h4>Filter a WMS layer by its attributes.</h4>
+      <h4>Filter a WMS layer by its attributes and run the WPS processes it declares.</h4>
       <p>
         Declare a Geonetwork index in the context's <code>dataSources</code>. The viewer reads the
         layer's Geonetwork metadata record: when its WFS resource carries an attribute-filter
         profile, it offers a <em>Filtre</em> tab to restrict the layer by attribute values via the
         WMS GetMap FILTER.
+      </p>
+      <p>
+        The same record also declares a WPS resource with an application profile, so a
+        <em>Traitements</em> tab offers that process; its inputs are pre-filled from the layer's
+        current attribute filter, and those the profile hides are sent without being shown.
       </p>
     `,
     code: zQe
@@ -99963,10 +99968,6 @@ viewer.addEventListener('map-extent-change', (event) => {
       <p>
         Pass them as <code>wpsServices</code> in the map context: they are offered as suggestions
         in the panel, and the user can still type any other WPS URL in the same field.
-      </p>
-      <p>
-        Note: in dev and in this demo, running a process fails with a CORS error on the Execute
-        request.
       </p>
     `,
     code: XQe
