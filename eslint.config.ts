@@ -3,6 +3,7 @@ import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescri
 import pluginVue from 'eslint-plugin-vue'
 import pluginPlaywright from 'eslint-plugin-playwright'
 import pluginVitest from '@vitest/eslint-plugin'
+import { configs as sonarjsConfigs } from 'eslint-plugin-sonarjs'
 import unusedImports from 'eslint-plugin-unused-imports'
 import skipFormatting from '@vue/eslint-config-prettier/skip-formatting'
 
@@ -21,6 +22,21 @@ export default defineConfigWithVueTs(
 
   ...pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
+
+  {
+    // Mirrors the SonarQube analysis, which only covers `sonar.sources=src`
+    ...sonarjsConfigs.recommended,
+    name: 'app/sonarjs',
+    files: ['src/**/*.{vue,ts,mts,tsx}'],
+    rules: {
+      ...sonarjsConfigs.recommended.rules,
+      // Superseded by unused-imports/no-unused-vars, which honours the `_` prefix used to
+      // drop keys through rest destructuring
+      'sonarjs/no-unused-vars': 'off',
+      // Tracked work, not a defect — surfaced without failing the lint stage
+      'sonarjs/todo-tag': 'warn',
+    },
+  },
 
   {
     name: 'app/unused-imports',

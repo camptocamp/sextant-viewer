@@ -67,6 +67,30 @@ export function stripDerivedExtras(layer: MapLayer): MapLayer {
   return { ...layer, extras }
 }
 
+type WmsDimensionValues = NonNullable<MapContextLayerWms['dimensionValues']>
+
+function seedDimensionValues(
+  dims: WmsLayerDimension[],
+  existing: WmsDimensionValues,
+): WmsDimensionValues {
+  // WMS dimension names are case-insensitive; servers may emit TIME, Time, etc.
+  const timeDim = dims.find((d) => d.name.toLowerCase() === 'time')
+  const seeded: WmsDimensionValues = { ...existing }
+  for (const dim of dims) {
+    const key = dim.name.toUpperCase()
+    // Preserve a consumer-provided value as-is.
+    if (seeded[key]) continue
+    if (dim === timeDim) {
+      const defaultTime = getDefaultWmsTime(dim)
+      if (defaultTime) seeded[key] = toWmsTime(defaultTime)
+    } else {
+      const def = getDimensionDefaultValue(dim)
+      if (def) seeded[key] = String(def)
+    }
+  }
+  return seeded
+}
+
 /**
  * Enrich a WMS layer with the dimensions the server declares (TIME, ELEVATION, …).
  * Stores all dimensions in `extras.wmsDimensions`, then seeds `dimensionValues`
@@ -83,24 +107,7 @@ export async function enrichWmsDimensionsLayer(layer: MapLayer): Promise<MapLaye
     const dims = layerInfo?.dimensions ?? []
     if (dims.length === 0) return layer
 
-    // WMS dimension names are case-insensitive; servers may emit TIME, Time, etc.
-    const timeDim = dims.find((d) => d.name.toLowerCase() === 'time')
-
-    const wmsLayer = layer as MapContextLayerWms
-    const existing = wmsLayer.dimensionValues ?? {}
-    const seeded: NonNullable<MapContextLayerWms['dimensionValues']> = { ...existing }
-    for (const dim of dims) {
-      const key = dim.name.toUpperCase()
-      // Preserve a consumer-provided value as-is.
-      if (seeded[key]) continue
-      if (dim === timeDim) {
-        const defaultTime = getDefaultWmsTime(dim)
-        if (defaultTime) seeded[key] = toWmsTime(defaultTime)
-      } else {
-        const def = getDimensionDefaultValue(dim)
-        if (def) seeded[key] = String(def)
-      }
-    }
+    const seeded = seedDimensionValues(dims, (layer as MapContextLayerWms).dimensionValues ?? {})
 
     return {
       ...layer,

@@ -67,8 +67,8 @@ function isValidDateString(value: string): boolean {
   return (
     !!value &&
     !value.startsWith('0') &&
-    !(value.split('-')[1] === '00') &&
-    !(value.split('-')[2] === '00')
+    value.split('-')[1] !== '00' &&
+    value.split('-')[2] !== '00'
   )
 }
 </script>
