@@ -27,4 +27,7 @@ viewer.setContext({
     center: [-4.56243, 48.36143],
     zoom: 15,
   },
+  wpsServices: [
+    { url: 'https://sextant.ifremer.fr/services/wps3/demo', label: 'Sextant WPS (démo)' },
+  ],
 })

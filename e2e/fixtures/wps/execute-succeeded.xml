@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- py-qgis-wps 1.9.1rc0 -->
+<wps:ExecuteResponse xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:wps="http://www.opengis.net/wps/1.0.0" xmlns:ows="http://www.opengis.net/ows/1.1" xmlns:gml="http://www.opengis.net/gml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/wps/1.0.0 http://schemas.opengis.net/wps/1.0.0/wpsExecute_response.xsd" service="WPS" version="1.0.0" xml:lang="en-US" serviceInstance="https://sextant.ifremer.fr/services/wps3/demo?service=WPS&amp;request=GetCapabilities" statusLocation="https://sextant.ifremer.fr/services/wps3/demo?service=WPS&amp;request=GetResults&amp;uuid=618f982c-7b8b-11f1-8e20-1a94052d9532">
+  <wps:Process wps:processVersion="1.0generic">
+    <ows:Identifier>script:demo-inputs</ows:Identifier>
+    <ows:Title>Ifremer input example</ows:Title>
+    <ows:Abstract>This is a simple script to demonstrate wps capabilities</ows:Abstract>
+  </wps:Process>
+  <wps:Status creationTime="2026-07-09T11:43:19Z">
+    <wps:ProcessSucceeded>Task finished</wps:ProcessSucceeded>
+  </wps:Status>
+  <wps:ProcessOutputs>
+    <wps:Output>
+      <ows:Identifier>OUTPUT</ows:Identifier>
+      <ows:Title>defined inputs as file</ows:Title>
+      <ows:Abstract>defined inputs as file</ows:Abstract>
+      <wps:Reference href="https://sextant.ifremer.fr/services/wps3/demo/jobs/618f982c-7b8b-11f1-8e20-1a94052d9532/files/output.json" mimeType="application/octet-stream"/>
+    </wps:Output>
+  </wps:ProcessOutputs>
+</wps:ExecuteResponse>

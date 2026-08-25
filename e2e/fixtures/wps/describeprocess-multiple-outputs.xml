@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- py-qgis-wps 1.9.1rc0 -->
+<wps:ProcessDescriptions xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:wps="http://www.opengis.net/wps/1.0.0" xmlns:ows="http://www.opengis.net/ows/1.1" xmlns:gml="http://www.opengis.net/gml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/wps/1.0.0 http://schemas.opengis.net/wps/1.0.0/wpsDescribeProcess_response.xsd" service="WPS" version="1.0.0" xml:lang="en-US">
+  <ProcessDescription wps:processVersion="1.0generic" storeSupported="true" statusSupported="true">
+    <ows:Identifier>script:demo-inputs</ows:Identifier>
+    <ows:Title>Ifremer input example</ows:Title>
+    <ows:Abstract>This is a simple script to demonstrate wps capabilities</ows:Abstract>
+    <DataInputs>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>STRING</ows:Identifier>
+        <ows:Title>A text string</ows:Title>
+        <ows:Abstract>help</ows:Abstract>
+        <ows:Metadata xlink:title="processing:type" xlink:href="string" xlink:type="simple"/>
+        <LiteralData>
+          <ows:DataType ows:reference="urn:ogc:def:dataType:OGC:1.1:string">string</ows:DataType>
+          <ows:AnyValue/>
+          <DefaultValue>test</DefaultValue>
+        </LiteralData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>EXTENT</ows:Identifier>
+        <ows:Title>A spatial extent</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="extent" xlink:type="simple"/>
+        <BoundingBoxData>
+          <Default>
+            <CRS>EPSG:4326</CRS>
+          </Default>
+          <Supported>
+            <CRS>EPSG:4326</CRS>
+          </Supported>
+        </BoundingBoxData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>NUMBER</ows:Identifier>
+        <ows:Title>A number</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="number" xlink:type="simple"/>
+        <LiteralData>
+          <ows:DataType ows:reference="urn:ogc:def:dataType:OGC:1.1:float">float</ows:DataType>
+          <ows:AllowedValues>
+            <ows:Range ows:rangeClosure="closed">
+              <ows:MinimumValue>-1.7976931348623157e+308</ows:MinimumValue>
+              <ows:MaximumValue>1.7976931348623157e+308</ows:MaximumValue>
+            </ows:Range>
+          </ows:AllowedValues>
+        </LiteralData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>INT</ows:Identifier>
+        <ows:Title>An integer</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="number" xlink:type="simple"/>
+        <LiteralData>
+          <ows:DataType ows:reference="urn:ogc:def:dataType:OGC:1.1:integer">integer</ows:DataType>
+          <ows:AllowedValues>
+            <ows:Range ows:rangeClosure="closed">
+              <ows:MinimumValue>-1.7976931348623157e+308</ows:MinimumValue>
+              <ows:MaximumValue>1.7976931348623157e+308</ows:MaximumValue>
+            </ows:Range>
+          </ows:AllowedValues>
+        </LiteralData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>ENUM</ows:Identifier>
+        <ows:Title>An enum</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="enum" xlink:type="simple"/>
+        <LiteralData>
+          <ows:DataType ows:reference="urn:ogc:def:dataType:OGC:1.1:string">string</ows:DataType>
+          <ows:AllowedValues>
+            <ows:Value>option 1</ows:Value>
+            <ows:Value>option 2</ows:Value>
+            <ows:Value>option 3</ows:Value>
+          </ows:AllowedValues>
+        </LiteralData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>BOOL</ows:Identifier>
+        <ows:Title>A boolean value</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="boolean" xlink:type="simple"/>
+        <LiteralData>
+          <ows:DataType ows:reference="urn:ogc:def:dataType:OGC:1.1:boolean">boolean</ows:DataType>
+          <ows:AnyValue/>
+        </LiteralData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>DATETIME</ows:Identifier>
+        <ows:Title>A datetime</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="datetime" xlink:type="simple"/>
+        <LiteralData>
+          <ows:DataType ows:reference="urn:ogc:def:dataType:OGC:1.1:dateTime">dateTime</ows:DataType>
+          <ows:AllowedValues>
+            <ows:Range ows:rangeClosure="closed">
+              <ows:MinimumValue>0001-01-01T00:00:00</ows:MinimumValue>
+              <ows:MaximumValue>9999-12-31T23:59:59</ows:MaximumValue>
+            </ows:Range>
+          </ows:AllowedValues>
+        </LiteralData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>DATE</ows:Identifier>
+        <ows:Title>A date</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="datetime" xlink:type="simple"/>
+        <LiteralData>
+          <ows:DataType ows:reference="urn:ogc:def:dataType:OGC:1.1:date">date</ows:DataType>
+          <ows:AllowedValues>
+            <ows:Range ows:rangeClosure="closed">
+              <ows:MinimumValue>0001-01-01</ows:MinimumValue>
+              <ows:MaximumValue>9999-12-31</ows:MaximumValue>
+            </ows:Range>
+          </ows:AllowedValues>
+        </LiteralData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>TIME</ows:Identifier>
+        <ows:Title>A time</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="datetime" xlink:type="simple"/>
+        <LiteralData>
+          <ows:DataType ows:reference="urn:ogc:def:dataType:OGC:1.1:time">time</ows:DataType>
+          <ows:AllowedValues>
+            <ows:Range ows:rangeClosure="closed">
+              <ows:MinimumValue>00:00:00</ows:MinimumValue>
+              <ows:MaximumValue>23:59:59</ows:MaximumValue>
+            </ows:Range>
+          </ows:AllowedValues>
+        </LiteralData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>POLYGON</ows:Identifier>
+        <ows:Title>A polygon geometry</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="geometry" xlink:type="simple"/>
+        <ows:Metadata xlink:title="processing:geometryType" xlink:href="Polygon" xlink:type="simple"/>
+        <ComplexData>
+          <Default>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+          </Default>
+          <Supported>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/gml+xml</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/wkt</MimeType>
+            </Format>
+          </Supported>
+        </ComplexData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>MULTIPOLYGON</ows:Identifier>
+        <ows:Title>A multi-polygon geometry</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="geometry" xlink:type="simple"/>
+        <ows:Metadata xlink:title="processing:geometryType" xlink:href="Polygon" xlink:type="simple"/>
+        <ows:Metadata xlink:title="processing:allowMultipart" xlink:type="simple"/>
+        <ComplexData>
+          <Default>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+          </Default>
+          <Supported>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/gml+xml</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/wkt</MimeType>
+            </Format>
+          </Supported>
+        </ComplexData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>LINE</ows:Identifier>
+        <ows:Title>A line geometry</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="geometry" xlink:type="simple"/>
+        <ows:Metadata xlink:title="processing:geometryType" xlink:href="Line" xlink:type="simple"/>
+        <ComplexData>
+          <Default>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+          </Default>
+          <Supported>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/gml+xml</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/wkt</MimeType>
+            </Format>
+          </Supported>
+        </ComplexData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>MULTILINE</ows:Identifier>
+        <ows:Title>A multi-line geometry</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="geometry" xlink:type="simple"/>
+        <ows:Metadata xlink:title="processing:geometryType" xlink:href="Line" xlink:type="simple"/>
+        <ows:Metadata xlink:title="processing:allowMultipart" xlink:type="simple"/>
+        <ComplexData>
+          <Default>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+          </Default>
+          <Supported>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/gml+xml</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/wkt</MimeType>
+            </Format>
+          </Supported>
+        </ComplexData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>POINT</ows:Identifier>
+        <ows:Title>A point geometry</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="geometry" xlink:type="simple"/>
+        <ows:Metadata xlink:title="processing:geometryType" xlink:href="Point" xlink:type="simple"/>
+        <ComplexData>
+          <Default>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+          </Default>
+          <Supported>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/gml+xml</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/wkt</MimeType>
+            </Format>
+          </Supported>
+        </ComplexData>
+      </Input>
+      <Input minOccurs="0" maxOccurs="1">
+        <ows:Identifier>MULTIPOINT</ows:Identifier>
+        <ows:Title>A multi-point geometry</ows:Title>
+        <ows:Metadata xlink:title="processing:type" xlink:href="geometry" xlink:type="simple"/>
+        <ows:Metadata xlink:title="processing:geometryType" xlink:href="Point" xlink:type="simple"/>
+        <ows:Metadata xlink:title="processing:allowMultipart" xlink:type="simple"/>
+        <ComplexData>
+          <Default>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+          </Default>
+          <Supported>
+            <Format>
+              <MimeType>application/vnd.geo+json</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/gml+xml</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/wkt</MimeType>
+            </Format>
+          </Supported>
+        </ComplexData>
+      </Input>
+    </DataInputs>
+    <ProcessOutputs>
+      <Output>
+        <ows:Identifier>OUTPUT</ows:Identifier>
+        <ows:Title>defined inputs as file</ows:Title>
+        <ows:Abstract>defined inputs as file</ows:Abstract>
+        <ComplexOutput>
+          <Default>
+            <Format>
+              <MimeType>application/octet-stream</MimeType>
+            </Format>
+          </Default>
+          <Supported>
+            <Format>
+              <MimeType>application/octet-stream</MimeType>
+            </Format>
+          </Supported>
+        </ComplexOutput>
+      </Output>
+      <Output>
+        <ows:Identifier>REPORT</ows:Identifier>
+        <ows:Title>execution report</ows:Title>
+        <ComplexOutput>
+          <Default>
+            <Format>
+              <MimeType>text/plain</MimeType>
+            </Format>
+          </Default>
+          <Supported>
+            <Format>
+              <MimeType>text/plain</MimeType>
+            </Format>
+            <Format>
+              <MimeType>application/json</MimeType>
+            </Format>
+          </Supported>
+        </ComplexOutput>
+      </Output>
+    </ProcessOutputs>
+  </ProcessDescription>
+</wps:ProcessDescriptions>

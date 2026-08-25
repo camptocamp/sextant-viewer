@@ -28,6 +28,7 @@ import { resolveAttributeFilter } from '@/utils/geonetwork-index'
 import { enrichNcwmsLayer } from '@/utils/ncwms.utils'
 import { v4 as uuidv4 } from 'uuid'
 import type { ExtendedMapContext } from '@/types/map.types'
+import type { WpsService } from '@/types/wps.types'
 
 export type { ExtendedMapContext }
 
@@ -46,6 +47,7 @@ export const useMapStore = defineStore('map', () => {
   )
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
+  const wpsServices = computed<WpsService[]>(() => context.value.wpsServices ?? [])
 
   const mapState = ref<ResolvedMapState>({ layers: [], view: null })
   const currentExtent = computed<Extent | null>(() => mapState.value.view?.extent ?? null)
@@ -245,6 +247,7 @@ export const useMapStore = defineStore('map', () => {
     view,
     currentExtent,
     backgroundLayers,
+    wpsServices,
     setInitialContext,
     setContext,
     setView,

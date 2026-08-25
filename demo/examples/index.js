@@ -14,6 +14,7 @@ import layerWmts from './layerWmts.js?raw'
 import layerXyz from './layerXyz.js?raw'
 import setContext from './setContext.js?raw'
 import getContext from './getContext.js?raw'
+import wpsService from './wpsService.js?raw'
 import setView from './setView.js?raw'
 import event from './event.js?raw'
 
@@ -194,5 +195,20 @@ export const EXAMPLES = [
       ${symbolDoc('interfaces', 'MapExtentChangeEvent')}
     `,
     code: event,
+  },
+  {
+    name: 'Declare WPS services',
+    description: `
+      <h4>Declare the WPS services offered in the "Traitements (WPS)" panel.</h4>
+      <p>
+        Pass them as <code>wpsServices</code> in the map context: they are offered as suggestions
+        in the panel, and the user can still type any other WPS URL in the same field.
+      </p>
+      <p>
+        Note: in dev and in this demo, running a process fails with a CORS error on the Execute
+        request.
+      </p>
+    `,
+    code: wpsService,
   },
 ]

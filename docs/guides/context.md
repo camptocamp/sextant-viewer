@@ -14,6 +14,7 @@ interface ExtendedMapContext {
   backgroundLayers: MapLayer[]    // couches de fond (fond de carte)
   view: MapContextView            // étendue ou centre+zoom
   dataSources?: DataSource[]      // index sondés pour le filtrage attributaire
+  wpsServices?: WpsService[]      // services WPS proposés dans le panneau Traitements
 }
 ```
 
@@ -57,6 +58,21 @@ Index Geonetwork sondés pour détecter les couches WMS filtrables par attributs
 ```
 
 La détection est asynchrone et non bloquante : la couche s'affiche immédiatement, l'onglet **Filtre** apparaît si et quand l'index répond.
+
+### `wpsServices`
+
+Services WPS proposés dans le panneau **Traitements (WPS)**. Chaque entrée porte l'URL du service et un libellé optionnel (à défaut, l'URL est affichée telle quelle).
+
+```js
+{
+  wpsServices: [
+    { url: 'https://sextant.ifremer.fr/services/wps3/demo', label: 'Sextant WPS (démo)' },
+    { url: 'https://sextant.ifremer.fr/services/wps3/surval', label: 'Sextant WPS (Surval)' },
+  ],
+}
+```
+
+Ces services alimentent une liste déroulante **Services prédéfinis** : la sélection d'une entrée remplit le champ URL et charge les traitements du service. Aucun service n'est présélectionné, et le champ URL reste libre — l'utilisateur peut toujours saisir l'adresse d'un autre service WPS. Sans `wpsServices`, la liste déroulante n'est pas affichée et seule la saisie libre subsiste.
 
 ## `setInitialContext` vs `setContext`
 

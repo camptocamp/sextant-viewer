@@ -19,6 +19,7 @@ interface ExtendedMapContext {
   backgroundLayers: MapLayer[] // couches de fond (fond de carte)
   view: MapContextView         // étendue courante ou centre+zoom
   dataSources?: DataSource[]   // index sondés pour le filtrage attributaire
+  wpsServices?: WpsService[]   // services WPS proposés dans le panneau Traitements
 }
 ```
 
@@ -30,6 +31,17 @@ Source de données déclarée dans le contexte, sondée pour détecter si les do
 interface DataSource {
   url: string              // ex. 'https://sextant.ifremer.fr/geonetwork/index/features'
   type: 'geonetwork-index'
+}
+```
+
+## WpsService
+
+Service WPS déclaré dans le contexte, proposé comme service prédéfini dans le panneau **Traitements (WPS)**.
+
+```typescript
+interface WpsService {
+  url: string     // ex. 'https://sextant.ifremer.fr/services/wps3/demo'
+  label?: string  // à défaut, l'URL est affichée
 }
 ```
 
