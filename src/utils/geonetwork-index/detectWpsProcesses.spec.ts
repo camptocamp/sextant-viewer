@@ -77,9 +77,9 @@ describe('resolveWpsProcesses', () => {
   })
 
   it('returns undefined for a non-WMS layer', async () => {
-    expect(await resolveWpsProcesses({ type: 'geojson', url: 'https://host/x' } as MapLayer)).toBe(
-      undefined,
-    )
+    expect(
+      await resolveWpsProcesses({ type: 'geojson', url: 'https://host/x' } as MapLayer),
+    ).toBeUndefined()
   })
 
   it('absorbs an unreachable record rather than rejecting', async () => {

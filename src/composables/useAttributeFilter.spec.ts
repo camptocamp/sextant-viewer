@@ -102,7 +102,7 @@ describe('useAttributeFilter', () => {
     // An unrelated update (opacity, visibility) replaces the layer object with equal content.
     layer.value = { ...makeLayer(), opacity: 0.5 } as MapLayer
     await flush()
-    expect(mocks.fetchFieldValues.mock.calls.length).toBe(callsDuringLoad)
+    expect(mocks.fetchFieldValues.mock.calls).toHaveLength(callsDuringLoad)
 
     pending.forEach((resolve) => resolve(3))
     await flush()

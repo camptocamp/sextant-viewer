@@ -33,11 +33,8 @@ export function useWmsDimension(layer: MaybeRefOrGetter<MapLayer>, dimensionName
     set: (val) => {
       const l = toValue(layer) as MapContextLayerWms
       const { [key]: _removed, ...others } = l.dimensionValues ?? {}
-      const dimensionValues = val
-        ? { ...others, [key]: val }
-        : Object.keys(others).length > 0
-          ? others
-          : undefined
+      const remaining = Object.keys(others).length > 0 ? others : undefined
+      const dimensionValues = val ? { ...others, [key]: val } : remaining
       mapStore.updateLayer(l as MapLayer, { dimensionValues } as Partial<MapLayer>)
     },
   })

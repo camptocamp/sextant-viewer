@@ -31,11 +31,8 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
     set: (date: Date | null) => {
       const l = toValue(layer) as MapContextLayerWms
       const { TIME: _removed, ...otherDimensions } = l.dimensionValues ?? {}
-      const newDimensions = date
-        ? { ...otherDimensions, TIME: toWmsTime(date) }
-        : Object.keys(otherDimensions).length > 0
-          ? otherDimensions
-          : undefined
+      const remaining = Object.keys(otherDimensions).length > 0 ? otherDimensions : undefined
+      const newDimensions = date ? { ...otherDimensions, TIME: toWmsTime(date) } : remaining
       mapStore.updateLayer(l as MapLayer, { dimensionValues: newDimensions } as Partial<MapLayer>)
     },
   })
