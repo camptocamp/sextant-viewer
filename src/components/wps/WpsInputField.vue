@@ -12,6 +12,8 @@ import {
 
 const props = defineProps<{
   input: WpsProcessInput
+  /** Read-only field: the value is imposed (by the layer filter or the profile), not chosen here. */
+  disabled?: boolean
 }>()
 
 const model = defineModel<WpsInputOccurrence>({ required: true })
@@ -105,6 +107,7 @@ function useMapExtent() {
         :items="BOOLEAN_ITEMS"
         value-key="value"
         placeholder="Non renseigné"
+        :disabled="disabled"
         class="w-full"
         :ui="{ content: 'z-50' }"
       />
@@ -113,16 +116,18 @@ function useMapExtent() {
         v-else-if="isBoolean"
         :model-value="booleanValue"
         :label="booleanValue ? 'Oui' : 'Non'"
+        :disabled="disabled"
         @update:model-value="setBoolean"
       />
       <USelect
         v-else-if="allowedValues.length"
         v-model="literalValue"
         :items="allowedValues"
+        :disabled="disabled"
         class="w-full"
         :ui="{ content: 'z-50' }"
       />
-      <UInput v-else v-model="literalValue" :type="fieldType" class="w-full" />
+      <UInput v-else v-model="literalValue" :type="fieldType" :disabled="disabled" class="w-full" />
     </template>
 
     <template v-else-if="input.type === 'boundingbox'">
@@ -131,6 +136,7 @@ function useMapExtent() {
           v-model="bboxValue"
           placeholder="minX,minY,maxX,maxY"
           class="flex-1"
+          :disabled="disabled"
           :color="bboxIsInvalid ? 'error' : undefined"
           :highlight="bboxIsInvalid"
         />
@@ -138,6 +144,7 @@ function useMapExtent() {
           icon="i-heroicons-map"
           color="neutral"
           variant="subtle"
+          :disabled="disabled"
           title="Utiliser l'emprise de la carte"
           @click="useMapExtent()"
         />
@@ -152,6 +159,7 @@ function useMapExtent() {
       v-model="complexContent"
       :rows="4"
       placeholder="Coller du GeoJSON, WKT ou GML…"
+      :disabled="disabled"
       class="w-full"
     />
   </div>

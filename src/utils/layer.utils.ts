@@ -21,23 +21,29 @@ export function isLayerDataIndexed(layer: MapLayer): layer is ExtendedMapLayerWm
   return isWmsLayer(layer) && !!layer.extras?.dataIndex
 }
 
+/** Whether a WMS layer's record declares WPS processes (its `extras.wpsProcesses` is set). */
+export function hasLayerWps(layer: MapLayer): layer is ExtendedMapLayerWms {
+  return isWmsLayer(layer) && !!layer.extras?.wpsProcesses?.length
+}
+
 /**
- * For a WMS layer managed by the attribute filter (`extras.dataIndex` or `extras.filter` set),
- * encode its active selections (`extras.filter`) as the layer's `filter` (the SDK forwards it
- * verbatim to the WMS `FILTER` GetMap param and resets it when it disappears) and strip the
- * app-only extras before handing the layer to the SDK. Other layers pass through unchanged — in
- * particular a consumer-supplied `customParams.FILTER` is never touched.
+ * For a WMS layer carrying app-only extras (`dataIndex`, `filter` or `wpsProcesses`), encode its
+ * active selections (`extras.filter`) as the layer's `filter` (the SDK forwards it verbatim to the
+ * WMS `FILTER` GetMap param and resets it when it disappears) and strip those extras before handing
+ * the layer to the SDK. Other layers pass through unchanged — in particular a consumer-supplied
+ * `customParams.FILTER` is never touched.
  */
 export function applyWmsFilter(layer: MapContextLayer): MapContextLayer {
   if (!isWmsLayer(layer)) return layer
 
   const wmsExtras = layer.extras
-  if (!wmsExtras?.dataIndex && !wmsExtras?.filter) return layer
+  if (!wmsExtras?.dataIndex && !wmsExtras?.filter && !wmsExtras?.wpsProcesses) return layer
   const filterParam = buildWmsFilterParam(layer.name, wmsExtras.filter ?? [])
 
   const extras = { ...layer.extras }
   delete extras.filter
   delete extras.dataIndex
+  delete extras.wpsProcesses
 
   return { ...layer, extras, ...(filterParam && { filter: filterParam }) }
 }

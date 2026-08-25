@@ -28,7 +28,7 @@
     "format:check": "prettier -c --experimental-cli src/ index.html demo/"
   },
   "dependencies": {
-    "@camptocamp/ogc-client": "1.3.1-dev.a3dd915",
+    "@camptocamp/ogc-client": "1.3.1-dev.200c02a",
     "@geospatial-sdk/core": "^0.0.5-dev.75",
     "@geospatial-sdk/legend": "^0.0.5-dev.75",
     "@geospatial-sdk/openlayers": "^0.0.5-dev.75",

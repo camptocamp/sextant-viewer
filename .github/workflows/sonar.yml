@@ -23,6 +23,12 @@ jobs:
           node-version: '24'
           cache: 'npm'
 
+      # The strict options tsconfig.app.json inherits from `@vue/tsconfig` live in node_modules.
+      # Without them the scanner types the sources loosely and reports the non-null assertions the
+      # build requires as unnecessary.
+      - name: Install dependencies
+        run: npm ci
+
       - name: Read project version
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"

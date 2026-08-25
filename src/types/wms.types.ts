@@ -1,5 +1,6 @@
 import type { MapContextLayerWms, LayerExtras } from '@geospatial-sdk/core'
 import type { IndexField, MatchType } from '@/utils/geonetwork-index/attributeIndex.types'
+import type { LayerWpsProcess } from '@/types/wps.types'
 
 /**
  * Connection to a GeoNetwork data index backed by ElasticSearch
@@ -33,5 +34,7 @@ export interface ExtendedMapLayerWms extends MapContextLayerWms {
   extras?: LayerExtras & {
     filter?: WmsFilterState
     dataIndex?: GeoNetworkIndexConnection
+    /** WPS processes the layer's metadata record declares (derived — never persisted). */
+    wpsProcesses?: LayerWpsProcess[]
   }
 }

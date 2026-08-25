@@ -6,7 +6,8 @@ import {
   type DistinctFieldValues,
   type IndexField,
 } from '@/utils/geonetwork-index'
-import { isLayerDataIndexed, isWmsLayer, type MapLayer } from '@/utils/layer.utils'
+import { isLayerDataIndexed, type MapLayer } from '@/utils/layer.utils'
+import { activeFiltersOf } from '@/utils/wms.utils'
 import type { GeoNetworkIndexConnection, WmsFilterState } from '@/types/wms.types'
 
 /** UI-friendly view of the active selections: selected values keyed by column (`esField`). */
@@ -18,10 +19,6 @@ const LOAD_ERROR =
 function dataIndexOf(layer: MapLayer): GeoNetworkIndexConnection | undefined {
   if (!isLayerDataIndexed(layer)) return undefined
   return layer.extras?.dataIndex
-}
-
-function filterStateOf(layer: MapLayer): WmsFilterState {
-  return (isWmsLayer(layer) && layer.extras?.filter) || []
 }
 
 /** Active selections → an ES query filter, optionally excluding one column (for faceting). */
@@ -47,12 +44,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const activeFilters = computed<ActiveFilters>(() => {
-    const out: ActiveFilters = {}
-    for (const { attributeName, values } of filterStateOf(toValue(layer)))
-      out[attributeName] = values
-    return out
-  })
+  const activeFilters = computed<ActiveFilters>(() => activeFiltersOf(toValue(layer)))
   const hasActiveFilters = computed(() =>
     Object.values(activeFilters.value).some((values) => values.length > 0),
   )

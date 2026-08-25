@@ -3,7 +3,7 @@ const viewer = document.getElementById('viewer')
 viewer.setInitialContext({
   dataSources: [
     {
-      url: '/geonetwork/index/features',
+      url: 'https://sextant.ifremer.fr/geonetwork/index/features',
       type: 'geonetwork-index',
     },
   ],
