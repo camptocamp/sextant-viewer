@@ -4,7 +4,6 @@ import { type MapLayer } from '@/utils/layer.utils'
 import { buildNcwmsStyles, getNcwmsInfo } from '@/utils/ncwms.utils'
 import { NcwmsEndpoint } from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
-import { toWmsTime } from '@/utils/wms.utils'
 
 export function useNcwmsLayer(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
@@ -50,9 +49,8 @@ export function useNcwmsLayer(layer: MaybeRefOrGetter<MapLayer>) {
   async function autoColorRange(extent: [number, number, number, number]) {
     const l = toValue(layer) as MapContextLayerWms
     const timeValue = l.dimensionValues?.TIME
-    const timeStr = timeValue instanceof Date ? toWmsTime(timeValue) : String(timeValue)
     const bounds = await new NcwmsEndpoint(l.url).getMinMax(l.name, extent, {
-      time: timeValue ? timeStr : undefined,
+      time: timeValue,
       elevation: l.dimensionValues?.ELEVATION ? String(l.dimensionValues.ELEVATION) : undefined,
     })
     colorScaleRange.value = [bounds.min, bounds.max]

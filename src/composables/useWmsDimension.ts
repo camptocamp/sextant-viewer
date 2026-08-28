@@ -1,9 +1,9 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import type { MapLayer } from '@/utils/layer.utils'
-import { getWmsOtherDimensions } from '@/utils/wms.utils'
+import { getDefaultDimensionValue, getWmsOtherDimensions } from '@/utils/wms.utils'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
-import { getDimensionDefaultValue, type WmsLayerDimension } from '@camptocamp/ogc-client'
+import { type WmsLayerDimension } from '@camptocamp/ogc-client'
 
 /**
  * Bind a single non-time WMS dimension (elevation, band, …) to a `<USelect>`.
@@ -44,7 +44,7 @@ export function useWmsDimension(layer: MaybeRefOrGetter<MapLayer>, dimensionName
 
   function reset() {
     const dim = dimension.value
-    const def = dim && getDimensionDefaultValue(dim)
+    const def = dim && getDefaultDimensionValue(dim)
     value.value = def ? String(def) : undefined
   }
 

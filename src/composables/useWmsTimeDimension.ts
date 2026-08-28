@@ -1,13 +1,9 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import type { MapLayer } from '@/utils/layer.utils'
-import { getDefaultWmsTime, getWmsTimeDimension, toWmsTime } from '@/utils/wms.utils'
+import { getDefaultTimeDimensionValue, getWmsTimeDimension } from '@/utils/wms.utils'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
-import {
-  expandDimensionValues,
-  parseIso8601DurationMs,
-  type WmsLayerDimension,
-} from '@camptocamp/ogc-client'
+import { expandTimeInterval, type WmsLayerTimeDimension } from '@camptocamp/ogc-client'
 
 const DAY_MS = 86_400_000
 
@@ -18,7 +14,7 @@ function utcDayStart(date: Date): number {
 export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
 
-  const timeDim = computed<WmsLayerDimension | null>(() => getWmsTimeDimension(toValue(layer)))
+  const timeDim = computed<WmsLayerTimeDimension | null>(() => getWmsTimeDimension(toValue(layer)))
 
   const currentDate = computed<Date | null>({
     get: () => {
@@ -32,7 +28,7 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
       const l = toValue(layer) as MapContextLayerWms
       const { TIME: _removed, ...otherDimensions } = l.dimensionValues ?? {}
       const newDimensions = date
-        ? { ...otherDimensions, TIME: toWmsTime(date) }
+        ? { ...otherDimensions, TIME: date }
         : Object.keys(otherDimensions).length > 0
           ? otherDimensions
           : undefined
@@ -45,7 +41,7 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
   function reset() {
     const dim = timeDim.value
     if (!dim) return
-    currentDate.value = getDefaultWmsTime(dim)
+    currentDate.value = getDefaultTimeDimensionValue(dim)
   }
 
   function setNow() {
@@ -57,7 +53,7 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
   const allowedDates = computed<Date[]>(() => {
     const dim = timeDim.value
     if (!dim || dim.values.length === 0) return []
-    return expandDimensionValues(dim).sort((a, b) => a.getTime() - b.getTime())
+    return expandTimeInterval(dim.values).sort((a, b) => a.getTime() - b.getTime())
   })
 
   // Bounds come from the raw dimension strings, not the (capped) expansion:
