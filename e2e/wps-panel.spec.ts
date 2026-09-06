@@ -226,17 +226,18 @@ test.describe('WPS panel', () => {
 
     // No real Sextant service declares a repeatable input, hence the derived fixture:
     // STRING is 1..3 and NUMBER is 0..unbounded.
-    await expect(page.getByText('de 1 à 3 valeurs')).toBeVisible()
-    await expect(page.getByText('plusieurs valeurs possibles')).toBeVisible()
+    // The cardinality lives in the label's info button, whose aria-label carries it without hovering.
+    await expect(page.getByRole('button', { name: /De 1 à 3 valeurs/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Plusieurs valeurs possibles/ })).toBeVisible()
     // A 0..1 input stays free of any hint.
-    await expect(page.getByText("jusqu'à")).toHaveCount(0)
+    await expect(page.getByText("Jusqu'à")).toHaveCount(0)
 
     const addButtons = page.getByRole('button', { name: 'Ajouter une valeur' })
     await expect(addButtons.first()).toBeVisible()
     // STRING caps at 3: the button disappears once the third occurrence is added.
     await addButtons.first().click()
     await addButtons.first().click()
-    await expect(page.getByText('de 1 à 3 valeurs')).toBeVisible()
+    await expect(page.getByRole('button', { name: /De 1 à 3 valeurs/ })).toBeVisible()
   })
 
   test('lists every output, format included, and requests only the ticked ones', async ({

@@ -73,13 +73,13 @@ export function cardinalityLabel(input: WpsProcessInput): string | null {
   if (maxOccurs === 1) return null
   if (minOccurs === 0) {
     return Number.isFinite(maxOccurs)
-      ? `jusqu'à ${maxOccurs} valeurs`
-      : 'plusieurs valeurs possibles'
+      ? `Jusqu'à ${maxOccurs} valeurs`
+      : 'Plusieurs valeurs possibles'
   }
   if (!Number.isFinite(maxOccurs)) {
     return `${minOccurs} valeur${minOccurs > 1 ? 's' : ''} minimum`
   }
-  return `de ${minOccurs} à ${maxOccurs} valeurs`
+  return `De ${minOccurs} à ${maxOccurs} valeurs`
 }
 
 // ogc-client reads the text of <ows:DataType>, not its ows:reference attribute: the value is the

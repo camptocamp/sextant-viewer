@@ -292,11 +292,11 @@ describe('cardinalityLabel', () => {
   })
 
   it('gives only the upper bound for an optional repeatable input', () => {
-    expect(cardinality(0, 3)).toBe("jusqu'à 3 valeurs")
+    expect(cardinality(0, 3)).toBe("Jusqu'à 3 valeurs")
   })
 
   it('gives both bounds for a required repeatable input', () => {
-    expect(cardinality(2, 5)).toBe('de 2 à 5 valeurs')
+    expect(cardinality(2, 5)).toBe('De 2 à 5 valeurs')
   })
 
   it('gives only the lower bound for an unbounded input', () => {
@@ -305,7 +305,7 @@ describe('cardinalityLabel', () => {
   })
 
   it('states no bound for an optional unbounded input', () => {
-    expect(cardinality(0, Infinity)).toBe('plusieurs valeurs possibles')
+    expect(cardinality(0, Infinity)).toBe('Plusieurs valeurs possibles')
   })
 })
 
