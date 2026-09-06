@@ -94400,9 +94400,9 @@ const Hye = {
                 Re(Se(w(z)), 1)
               ]),
               default: G(() => [
-                ke("span", {
+                ke("button", {
+                  type: "button",
                   class: "text-dimmed inline-flex",
-                  role: "img",
                   "aria-label": w(z)
                 }, [
                   j(U, {
