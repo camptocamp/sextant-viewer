@@ -52,10 +52,12 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
     currentDate.value = new Date()
   }
 
+  // Sorted ascending: the server may declare its values in any order, and the
+  // previous/next lookup relies on the ordering.
   const allowedDates = computed<Date[]>(() => {
     const dim = timeDim.value
     if (!dim || dim.values.length === 0) return []
-    return expandDimensionValues(dim)
+    return expandDimensionValues(dim).sort((a, b) => a.getTime() - b.getTime())
   })
 
   // Bounds come from the raw dimension strings, not the (capped) expansion:
@@ -87,6 +89,25 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
   const isEnumerated = computed(
     () => !!timeDim.value?.values.length && timeDim.value.values.every((v) => !v.includes('/')),
   )
+
+  // Adjacent declared values, for stepping through the series without the calendar.
+  // Restricted to enumerated lists: an interval's expansion can be truncated by
+  // expandDimensionValues' cap, which would report a wrong "next" past the cap.
+  function neighbour(direction: 1 | -1): Date | null {
+    const current = currentDate.value
+    if (!current || !isEnumerated.value) return null
+    const time = current.getTime()
+    const dates = allowedDates.value
+    if (direction === 1) return dates.find((d) => d.getTime() > time) ?? null
+    for (let i = dates.length - 1; i >= 0; i--) {
+      const date = dates[i]!
+      if (date.getTime() < time) return date
+    }
+    return null
+  }
+
+  const previousDate = computed<Date | null>(() => neighbour(-1))
+  const nextDate = computed<Date | null>(() => neighbour(1))
 
   // Exact instants available on a given UTC day, as "HH:MM" → Date. Handles both
   // shapes the server may declare: an enumerated list (filter the expansion to
@@ -138,5 +159,7 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
     supportsCurrent,
     isEnumerated,
     timesForDay,
+    previousDate,
+    nextDate,
   }
 }
