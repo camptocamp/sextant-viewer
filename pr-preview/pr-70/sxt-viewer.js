@@ -99460,7 +99460,7 @@ viewer.setInitialContext({
       label: 'Sextant',
       visibility: false,
       opacity: 1,
-    }
+    },
   ],
   layers: [],
   view: {
