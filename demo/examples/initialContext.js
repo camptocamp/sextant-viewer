@@ -12,6 +12,15 @@ viewer.setInitialContext({
       attributions: '© OpenStreetMap contributors',
       referrerPolicy: 'strict-origin-when-cross-origin',
     },
+    {
+      type: 'wmts',
+      id: 'sextant',
+      url: 'https://sextant.ifremer.fr/geowebcache/service/wmts?SERVICE=wmts&REQUEST=getcapabilities',
+      name: 'sextant',
+      label: 'Sextant',
+      visibility: false,
+      opacity: 1,
+    },
   ],
   layers: [],
   view: {
