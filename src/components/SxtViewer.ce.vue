@@ -9,6 +9,7 @@ import type MapViewer from './map/MapViewer.vue'
 import type { Extent } from 'ol/extent'
 import type Map from 'ol/Map'
 import { useAddLayer } from '@/composables/useAddLayer.ts'
+import { assertMapContext } from '@/utils/context.utils.ts'
 
 const emit = defineEmits<{
   /** Émis à chaque déplacement ou zoom de la carte. Le payload est en EPSG:4326. */
@@ -50,8 +51,10 @@ const { addLayer } = useAddLayer()
  * Le contexte peut déclarer des `dataSources` (p. ex. un index ElasticSearch de Geonetwork),
  * sondées pour détecter les couches WMS filtrables par attributs.
  * @param context - Le contexte initial de la carte.
+ * @throws {TypeError} Si le contexte est invalide ; la carte est alors laissée intacte.
  */
 const setInitialContext = (context: ExtendedMapContext): void => {
+  assertMapContext(context)
   mapStore.setInitialContext(context, true)
 }
 
@@ -61,8 +64,10 @@ const setInitialContext = (context: ExtendedMapContext): void => {
  * Ne supporte pas les couches nécessitant un enrichissement asynchrone (ex. STAC) ;
  * utiliser `setInitialContext` dans ce cas.
  * @param context - Le nouveau contexte à appliquer.
+ * @throws {TypeError} Si le contexte est invalide ; la carte est alors laissée intacte.
  */
 const setContext = (context: ExtendedMapContext): void => {
+  assertMapContext(context)
   mapStore.setContext(context)
 }
 
