@@ -12,7 +12,14 @@ const label = props.units ? `${props.dimensionName} (${props.units})` : props.di
 <template>
   <div class="mb-3 flex flex-wrap items-center gap-2">
     <span class="shrink-0 text-sm">{{ label }}&nbsp;:</span>
-    <USelect v-model="value" :items="options" size="sm" :aria-label="dimensionName" />
+    <USelect
+      v-model="value"
+      :items="options"
+      size="sm"
+      class="min-w-0 flex-1"
+      :ui="{ content: 'z-50' }"
+      :aria-label="dimensionName"
+    />
     <UButton size="sm" color="neutral" variant="soft" @click="reset">Réinitialiser</UButton>
   </div>
 </template>
