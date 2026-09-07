@@ -4,6 +4,14 @@ import { CalendarDate, type DateValue } from '@internationalized/date'
 import { useWmsTimeDimension } from '@/composables/useWmsTimeDimension'
 import type { MapLayer } from '@/utils/layer.utils'
 
+// Days carrying a value are tinted green: the selected day already owns the theme's
+// solid primary, so a second blue would read as a weaker selection rather than as
+// availability. Guarded on data-selected so the two never fight over a cell.
+const AVAILABLE_DAY_CLASS = [
+  'not-data-disabled:not-data-selected:bg-success/20',
+  'not-data-disabled:font-semibold',
+].join(' ')
+
 const props = defineProps<{ layer: MapLayer }>()
 
 const {
@@ -16,6 +24,8 @@ const {
   supportsCurrent,
   isEnumerated,
   timesForDay,
+  previousDate,
+  nextDate,
 } = useWmsTimeDimension(() => props.layer)
 
 const formatDate = (date: Date | null): string => {
@@ -108,6 +118,15 @@ const timeValue = computed<string>({
 
     <div class="flex flex-wrap items-center gap-2">
       <span class="shrink-0 text-sm">Temps&nbsp;:</span>
+      <UButton
+        icon="i-lucide-chevron-left"
+        size="sm"
+        color="neutral"
+        variant="outline"
+        :disabled="!previousDate"
+        aria-label="Valeur précédente"
+        @click="currentDate = previousDate"
+      />
       <UPopover :content="{ side: 'top', align: 'start' }">
         <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-calendar">
           {{ currentDate ? formatDate(currentDate) : 'Non définie' }}
@@ -118,6 +137,7 @@ const timeValue = computed<string>({
               v-model="calendarValue"
               :placeholder="calendarValue ?? calendarPlaceholder"
               :is-date-disabled="isDateDisabled"
+              :ui="{ cellTrigger: AVAILABLE_DAY_CLASS }"
             />
             <label v-if="timesForCurrentDay.size > 1" class="flex items-center gap-2 text-sm">
               Heure&nbsp;:
@@ -131,6 +151,15 @@ const timeValue = computed<string>({
           </div>
         </template>
       </UPopover>
+      <UButton
+        icon="i-lucide-chevron-right"
+        size="sm"
+        color="neutral"
+        variant="outline"
+        :disabled="!nextDate"
+        aria-label="Valeur suivante"
+        @click="currentDate = nextDate"
+      />
       <UButton size="sm" color="neutral" variant="soft" @click="reset">Réinitialiser</UButton>
       <UButton v-if="supportsCurrent" size="sm" color="neutral" variant="soft" @click="setNow">
         Maintenant
