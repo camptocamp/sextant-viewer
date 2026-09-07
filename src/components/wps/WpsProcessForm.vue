@@ -165,11 +165,11 @@ const missingHiddenInputs = computed(() =>
     : [],
 )
 
-function helpFor(input: WpsProcessInput) {
+function tooltipFor(input: WpsProcessInput) {
   if (overriddenInputs.value.has(input.identifier)) {
     return 'Surchargé par le filtre de la couche'
   }
-  return [input.abstract, cardinalityLabel(input)].filter(Boolean).join(' — ')
+  return [input.abstract, cardinalityLabel(input)].filter(Boolean).join('\n')
 }
 
 // An imposed value is not one to add occurrences to: the filter decides how many there are.
@@ -214,8 +214,21 @@ function removeOccurrence(identifier: string, index: number) {
       :key="input.identifier"
       :label="input.title || input.identifier"
       :required="input.minOccurs > 0"
-      :help="helpFor(input)"
+      :ui="{ label: 'inline-flex items-center gap-1' }"
     >
+      <template #label="{ label }">
+        {{ label }}
+        <UTooltip
+          v-if="tooltipFor(input)"
+          :ui="{ content: 'z-[60] h-auto max-w-72 items-start whitespace-pre-line' }"
+        >
+          <button type="button" class="text-dimmed inline-flex" :aria-label="tooltipFor(input)">
+            <UIcon name="i-heroicons-information-circle" class="size-4" />
+          </button>
+          <template #content>{{ tooltipFor(input) }}</template>
+        </UTooltip>
+      </template>
+
       <div class="space-y-2">
         <div
           v-for="(occurrence, index) in inputs[input.identifier]"
