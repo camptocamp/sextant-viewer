@@ -8,6 +8,29 @@ const SESSION_STORAGE_INITIAL_CONTEXT_KEY = 'sxt-viewer-current-map-initial-cont
 const SESSION_STORAGE_CONTEXT_KEY = 'sxt-viewer-current-map-context'
 
 /**
+ * Reads a stored context, dropping the key when it cannot be used. Restores run in the store's
+ * setup, so an unusable value must never throw: that would fail the whole viewer mount, and the
+ * offending key would survive the reload.
+ */
+function readStoredContext(key: string): ExtendedMapContext | undefined {
+  const raw = sessionStorage.getItem(key)
+  if (!raw) {
+    return undefined
+  }
+  try {
+    const parsed = JSON.parse(raw)
+    if (isMapContext(parsed)) {
+      return parsed
+    }
+    console.error(`Stored context is not a map context, dropping key ${key}`)
+  } catch (error) {
+    console.error(`Stored context is not readable, dropping key ${key}`, error)
+  }
+  sessionStorage.removeItem(key)
+  return undefined
+}
+
+/**
  * Store for managing persistent map context in sessionStorage
  */
 export const usePersistentContextStore = defineStore('persistentContext', () => {
@@ -17,29 +40,6 @@ export const usePersistentContextStore = defineStore('persistentContext', () => 
   // restore from sessionStorage do not need to be stored in sessionStorage
   let ignoreNextInitialContextChange = false
   let ignoreNextContextChange = false
-
-  /**
-   * Reads a stored context, dropping the key when it cannot be used. Restores run in this store's
-   * setup, so an unusable value must never throw: that would fail the whole viewer mount, and the
-   * offending key would survive the reload.
-   */
-  function readStoredContext(key: string): ExtendedMapContext | undefined {
-    const raw = sessionStorage.getItem(key)
-    if (!raw) {
-      return undefined
-    }
-    try {
-      const parsed = JSON.parse(raw)
-      if (isMapContext(parsed)) {
-        return parsed
-      }
-      console.error(`Stored context is not a map context, dropping key ${key}`)
-    } catch (error) {
-      console.error(`Stored context is not readable, dropping key ${key}`, error)
-    }
-    sessionStorage.removeItem(key)
-    return undefined
-  }
 
   // apply any saved initial context present
   function restoreInitialContext() {
