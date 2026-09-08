@@ -1,13 +1,9 @@
-import { computed, type MaybeRefOrGetter, toValue } from 'vue'
+import { computed, shallowRef, watchEffect, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import type { MapLayer } from '@/utils/layer.utils'
-import { getDefaultWmsTime, getWmsTimeDimension, toWmsTime } from '@/utils/wms.utils'
+import { getDefaultValue } from '@/utils/wms.utils'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
-import {
-  expandDimensionValues,
-  parseIso8601DurationMs,
-  type WmsLayerDimension,
-} from '@camptocamp/ogc-client'
+import { WmsEndpoint, type WmsLayerTimeDimension } from '@camptocamp/ogc-client'
 
 const DAY_MS = 86_400_000
 
@@ -18,21 +14,52 @@ function utcDayStart(date: Date): number {
 export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
 
-  const timeDim = computed<WmsLayerDimension | null>(() => getWmsTimeDimension(toValue(layer)))
+  // Fetch dimension once and cache in closure
+  const timeDim = shallowRef<WmsLayerTimeDimension | null>(null)
+  const loading = shallowRef(false)
 
+  watchEffect(async () => {
+    const l = toValue(layer)
+    if (l.type !== 'wms') {
+      timeDim.value = null
+      return
+    }
+
+    loading.value = true
+    try {
+      const endpoint = await new WmsEndpoint(l.url).isReady()
+      const info = endpoint.getLayerByName(l.name)
+      timeDim.value = info?.timeDimension ?? null
+
+      // Set default value ASAP if dimension requires it and none is set
+      if (timeDim.value && l.dimensionValues?.TIME === undefined) {
+        const defaultVal = getDefaultValue(timeDim.value)
+        if (defaultVal) {
+          mapStore.updateLayer(l, {
+            dimensionValues: { ...l.dimensionValues, TIME: defaultVal },
+          } as Partial<MapLayer>)
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch WMS time dimension', e)
+      timeDim.value = null
+    } finally {
+      loading.value = false
+    }
+  })
+
+  // Current value - read directly from layer.dimensionValues
   const currentDate = computed<Date | null>({
     get: () => {
       const raw = (toValue(layer) as MapContextLayerWms).dimensionValues?.TIME
       if (!raw) return null
-      if (raw instanceof Date) return raw
-      const d = new Date(String(raw))
-      return isNaN(d.getTime()) ? null : d
+      return raw instanceof Date ? raw : new Date(String(raw))
     },
     set: (date: Date | null) => {
       const l = toValue(layer) as MapContextLayerWms
       const { TIME: _removed, ...otherDimensions } = l.dimensionValues ?? {}
       const newDimensions = date
-        ? { ...otherDimensions, TIME: toWmsTime(date) }
+        ? { ...otherDimensions, TIME: date }
         : Object.keys(otherDimensions).length > 0
           ? otherDimensions
           : undefined
@@ -40,116 +67,143 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
     },
   })
 
-  // Reset to the server's declared default, falling back to the first allowed
-  // value — mirroring the initial TIME seeded during layer enrichment.
   function reset() {
     const dim = timeDim.value
     if (!dim) return
-    currentDate.value = getDefaultWmsTime(dim)
+    const def = getDefaultValue(dim)
+    currentDate.value = def instanceof Date ? def : null
   }
 
   function setNow() {
     currentDate.value = new Date()
   }
 
-  // Sorted ascending: the server may declare its values in any order, and the
-  // previous/next lookup relies on the ordering.
-  const allowedDates = computed<Date[]>(() => {
+  // Bounds from raw dimension values
+  const minDate = computed<Date | null>(() => {
     const dim = timeDim.value
-    if (!dim || dim.values.length === 0) return []
-    return expandDimensionValues(dim).sort((a, b) => a.getTime() - b.getTime())
+    if (!dim) return null
+    const values = dim.values
+    if (Array.isArray(values) && values.length > 0) {
+      const first = values[0]
+      if (first instanceof Date) {
+        return new Date(Math.min(...(values as Date[]).map((d) => d.getTime())))
+      }
+      if (first && typeof first === 'object' && 'begin' in first) {
+        const intervals = values as Array<{ begin: Date }>
+        return new Date(Math.min(...intervals.map((i) => i.begin.getTime())))
+      }
+    }
+    if (values && typeof values === 'object' && 'begin' in values) return values.begin
+    return null
   })
 
-  // Bounds come from the raw dimension strings, not the (capped) expansion:
-  // an interval "start/end/period" can exceed expandDimensionValues' value cap,
-  // which would otherwise report a truncated, wrong maximum.
-  const bounds = computed<{ min: Date | null; max: Date | null }>(() => {
+  const maxDate = computed<Date | null>(() => {
     const dim = timeDim.value
-    if (!dim || dim.values.length === 0) return { min: null, max: null }
-    const edges = dim.values.flatMap((v) => {
-      const [start, end] = v.split('/')
-      return [start, end ?? start]
-    })
-    const times = edges
-      .filter((s): s is string => !!s)
-      .map((s) => new Date(s).getTime())
-      .filter((t) => !isNaN(t))
-    if (times.length === 0) return { min: null, max: null }
-    return { min: new Date(Math.min(...times)), max: new Date(Math.max(...times)) }
+    if (!dim) return null
+    const values = dim.values
+    if (Array.isArray(values) && values.length > 0) {
+      const first = values[0]
+      if (first instanceof Date) {
+        return new Date(Math.max(...(values as Date[]).map((d) => d.getTime())))
+      }
+      if (first && typeof first === 'object' && 'begin' in first) {
+        const intervals = values as Array<{ end: Date }>
+        return new Date(Math.max(...intervals.map((i) => i.end.getTime())))
+      }
+    }
+    if (values && typeof values === 'object' && 'end' in values) return values.end
+    return null
   })
-
-  const minDate = computed<Date | null>(() => bounds.value.min)
-  const maxDate = computed<Date | null>(() => bounds.value.max)
 
   const supportsCurrent = computed(() => timeDim.value?.current ?? false)
 
-  // True when the server enumerates discrete dates (no "start/end/period" interval).
-  // A list is safe to enumerate; an interval is truncated by expandDimensionValues'
-  // cap and must be handled by range-bounding instead.
-  const isEnumerated = computed(
-    () => !!timeDim.value?.values.length && timeDim.value.values.every((v) => !v.includes('/')),
+  // True when the server enumerates discrete dates (array of Date objects)
+  const isEnumerated = computed(() => {
+    const dim = timeDim.value
+    if (!dim) return false
+    const values = dim.values
+    return Array.isArray(values) && values.length > 0 && values[0] instanceof Date
+  })
+
+  // Raw allowed dates for enumerated lists (empty for intervals - no pre-expansion)
+  const allowedDates = computed<Date[]>(() =>
+    isEnumerated.value ? (timeDim.value!.values as Date[]) : [],
   )
 
-  // Adjacent declared values, for stepping through the series without the calendar.
-  // Restricted to enumerated lists: an interval's expansion can be truncated by
-  // expandDimensionValues' cap, which would report a wrong "next" past the cap.
-  function neighbour(direction: 1 | -1): Date | null {
+  // Find adjacent date in enumerated list (on-the-fly, no pre-expansion)
+  function findNeighbour(direction: 1 | -1): Date | null {
+    const dim = timeDim.value
     const current = currentDate.value
-    if (!current || !isEnumerated.value) return null
-    const time = current.getTime()
-    const dates = allowedDates.value
-    if (direction === 1) return dates.find((d) => d.getTime() > time) ?? null
-    for (let i = dates.length - 1; i >= 0; i--) {
-      const date = dates[i]!
-      if (date.getTime() < time) return date
+    if (!dim || !current || !isEnumerated.value) return null
+
+    const dates = dim.values as Date[]
+    const currentTime = current.getTime()
+    const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime())
+
+    if (direction === 1) {
+      return sorted.find((d) => d.getTime() > currentTime) ?? null
+    }
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      if (sorted[i]!.getTime() < currentTime) return sorted[i]!
     }
     return null
   }
 
-  const previousDate = computed<Date | null>(() => neighbour(-1))
-  const nextDate = computed<Date | null>(() => neighbour(1))
+  const previousDate = computed<Date | null>(() => findNeighbour(-1))
+  const nextDate = computed<Date | null>(() => findNeighbour(1))
 
-  // Exact instants available on a given UTC day, as "HH:MM" → Date. Handles both
-  // shapes the server may declare: an enumerated list (filter the expansion to
-  // that day) and an interval "start/end/period" (walk the period grid across
-  // just that day, anchored on the interval's start — avoids the value cap that
-  // truncates a multi-year expansion). Sub-day grids are always PT… durations,
-  // so a constant-ms step is exact; calendar periods (P1M…) yield no intra-day
-  // times anyway.
+  // Times available on a given UTC day, as "HH:MM" → Date
   function timesForDay(day: Date): Map<string, Date> {
     const dim = timeDim.value
     const result = new Map<string, Date>()
     if (!dim) return result
+
     const dayStart = utcDayStart(day)
     const dayEnd = dayStart + DAY_MS
     const key = (d: Date) =>
       `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
 
-    for (const value of dim.values) {
-      const [startStr, endStr, period] = value.split('/')
-      if (!startStr) continue
-      if (!period) {
-        // Single enumerated instant
-        const d = new Date(startStr)
-        if (!isNaN(d.getTime()) && d.getTime() >= dayStart && d.getTime() < dayEnd)
-          result.set(key(d), d)
-        continue
+    const values = dim.values
+
+    // Enumerated dates
+    if (Array.isArray(values) && values.length > 0 && values[0] instanceof Date) {
+      for (const d of values as Date[]) {
+        const t = d.getTime()
+        if (t >= dayStart && t < dayEnd) result.set(key(d), d)
       }
-      const start = new Date(startStr).getTime()
-      const end = new Date(endStr ?? startStr).getTime()
-      const stepMs = parseIso8601DurationMs(period)
-      if (isNaN(start) || isNaN(end) || !stepMs) continue
-      // First grid instant at or after the day's start, then walk within the day.
+      return result
+    }
+
+    // Intervals - walk the period grid for this day
+    // Skip if values is not a proper interval object
+    if (typeof values !== 'object' || values === null) return result
+
+    const intervals = Array.isArray(values) ? values : [values]
+    for (const interval of intervals) {
+      // Skip if interval doesn't have the expected structure
+      if (!interval || typeof interval !== 'object' || !('begin' in interval)) continue
+
+      const typedInterval = interval as { begin: Date; end: Date; period: unknown }
+      const start = typedInterval.begin.getTime()
+      const end = typedInterval.end.getTime()
+      const period = typedInterval.period as { hours: number; minutes: number; seconds: number }
+      if (!period) continue
+
+      const stepMs = (period.hours * 3600 + period.minutes * 60 + period.seconds) * 1000
+      if (!stepMs) continue
+
       const offset = Math.max(0, Math.ceil((dayStart - start) / stepMs))
       for (let t = start + offset * stepMs; t <= end && t < dayEnd; t += stepMs) {
-        const d = new Date(t)
-        result.set(key(d), d)
+        result.set(key(new Date(t)), new Date(t))
       }
     }
+
     return result
   }
 
   return {
+    timeDim,
+    loading,
     currentDate,
     reset,
     setNow,
