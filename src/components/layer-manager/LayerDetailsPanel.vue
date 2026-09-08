@@ -5,7 +5,6 @@ import { getLayerLabel, hasLayerWps, isLayerDataIndexed, isStacLayer } from '@/u
 import { hasLegendSupport } from '@geospatial-sdk/legend'
 import type { MapContextLayer } from '@geospatial-sdk/core'
 import type { MapLayer } from '@/utils/layer.utils'
-import { getWmsOtherDimensions, getWmsTimeDimension } from '@/utils/wms.utils'
 import type { MapLayerStac } from '@/types/stac.types'
 import StacLayerDetails from '@/components/stac/StacLayerDetails.vue'
 import WmsTimeDetails from '@/components/layer-manager/WmsTimeDetails.vue'
@@ -35,7 +34,7 @@ const tabItems = computed(() => {
   if (isStacLayer(props.layer)) {
     items.push({ slot: 'stac', value: 'stac', label: 'Données' })
   }
-  if (getWmsTimeDimension(props.layer) || getWmsOtherDimensions(props.layer).length) {
+  if (props.layer.type === 'wms') {
     items.push({ slot: 'dimensions', value: 'dimensions', label: 'Dimensions' })
   }
   if (isLayerDataIndexed(props.layer)) {
@@ -96,7 +95,7 @@ watch(
       </template>
 
       <template #dimensions>
-        <WmsTimeDetails v-if="getWmsTimeDimension(layer)" :layer="layer" />
+        <WmsTimeDetails :layer="layer" />
         <WmsDimensionsDetails :layer="layer" />
       </template>
 

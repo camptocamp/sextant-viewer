@@ -1,9 +1,4 @@
-import {
-  WmsEndpoint,
-  type WmsLayerDimension,
-  type WmsLayerTimeDimension,
-} from '@camptocamp/ogc-client'
-import type { MapContextLayerWms } from '@geospatial-sdk/core'
+import type { WmsLayerDimension, WmsLayerTimeDimension } from '@camptocamp/ogc-client'
 import { and, equalTo, like, or } from 'ol/format/filter'
 import { writeFilter } from 'ol/format/WFS'
 import type Filter from 'ol/format/filter/Filter'
@@ -18,118 +13,35 @@ export function splitSublayers(layerName: string): string[] {
     .filter(Boolean)
 }
 
-export function getWmsTimeDimension(layer: MapLayer): WmsLayerTimeDimension | null {
-  if (layer.type !== 'wms') return null
-  const dims = (layer.extras?.wmsDimensions as WmsLayerDimension[]) ?? []
-  return dims.find((d) => d.name.toLowerCase() === 'time') ?? null
-}
-
-/** Non-time dimensions declared by the server (elevation, band, …). */
-export function getWmsOtherDimensions(layer: MapLayer): WmsLayerDimension[] {
-  if (layer.type !== 'wms') return []
-  const dims = (layer.extras?.wmsDimensions as WmsLayerDimension[]) ?? []
-  return dims.filter((d) => d.name.toLowerCase() !== 'time')
-}
-
-export function getDefaultTimeDimensionValue(dim: WmsLayerTimeDimension): Date | null {
-  let candidate = dim.defaultValue
-  if (!candidate && 'begin' in dim.values) {
-    candidate = dim.values.begin
+/**
+ * Get the default value from a WMS dimension (time or other).
+ * Returns the declared default, or falls back to the first available value.
+ */
+export function getDefaultValue(
+  dim: WmsLayerTimeDimension | WmsLayerDimension,
+): Date | string | number | null {
+  if (dim.defaultValue !== undefined) return dim.defaultValue
+  const values = dim.values
+  if (values && typeof values === 'object' && !Array.isArray(values) && 'begin' in values) {
+    return values.begin
   }
-  if (!candidate && Array.isArray(dim.values) && dim.values.length > 0) {
-    if ('begin' in dim.values[0]!) {
-      candidate = dim.values[0].begin
-    } else {
-      candidate = dim.values[0]
-    }
+  if (Array.isArray(values) && values.length > 0) {
+    const first = values[0]
+    if (first && typeof first === 'object' && 'begin' in first) return first.begin
+    return first ?? null
   }
-  if (!candidate) {
-    return null
-  }
-  return isNaN(candidate.getTime()) ? null : candidate
-}
-
-export function getDefaultDimensionValue(dim: WmsLayerDimension): string | number | null {
-  let candidate = dim.defaultValue
-  if (!candidate && 'begin' in dim.values) {
-    candidate = dim.values.begin
-  }
-  if (!candidate && Array.isArray(dim.values) && dim.values.length > 0) {
-    if (dim.values[0] instanceof Object && 'begin' in dim.values[0]!) {
-      candidate = dim.values[0].begin
-    } else {
-      candidate = dim.values[0]
-    }
-  }
-  return candidate ?? null
+  return null
 }
 
 /**
- * Drop the server-derived extras (`wmsDimensions`, `dataIndex`, `wpsProcesses`) before persistence
- * FIXME: this should not be required
+ * Drop the server-derived extras (`dataIndex`, `wpsProcesses`) before persistence.
  */
 export function stripDerivedExtras(layer: MapLayer): MapLayer {
   if (layer.type !== 'wms' || !layer.extras) return layer
-  const { wmsDimensions, dataIndex, wpsProcesses } = layer.extras
-  if (!wmsDimensions && !dataIndex && !wpsProcesses) return layer
-  const {
-    wmsDimensions: _wmsDimensions,
-    dataIndex: _dataIndex,
-    wpsProcesses: _wpsProcesses,
-    ...extras
-  } = layer.extras
+  const { dataIndex, wpsProcesses } = layer.extras
+  if (!dataIndex && !wpsProcesses) return layer
+  const { dataIndex: _dataIndex, wpsProcesses: _wpsProcesses, ...extras } = layer.extras
   return { ...layer, extras }
-}
-
-/**
- * Enrich a WMS layer with the dimensions the server declares (TIME, ELEVATION, …).
- * Stores all dimensions in `extras.wmsDimensions`, then seeds `dimensionValues`
- * from each dimension's server default.
- * Returns the layer unchanged when it declares no dimensions
- * FIXME: do not store dimension data on the layer!! also handle other dimensions than time and elev
- */
-export async function enrichWmsDimensionsLayer(layer: MapLayer): Promise<MapLayer> {
-  if (layer.type !== 'wms' || layer.extras?.wmsDimensions) return layer
-
-  try {
-    const endpoint = new WmsEndpoint((layer as { url: string }).url)
-    await endpoint.isReady()
-    const layerInfo = endpoint.getLayerByName((layer as { name: string }).name)
-    if (!layerInfo.timeDimension && !layerInfo.elevationDimension) return layer
-
-    const wmsLayer = layer as MapContextLayerWms
-    const dimensions: MapContextLayerWms['dimensionValues'] = wmsLayer.dimensionValues
-      ? { ...wmsLayer.dimensionValues }
-      : {}
-
-    if (layerInfo.timeDimension && dimensions['TIME'] === undefined) {
-      const time = getDefaultTimeDimensionValue(layerInfo.timeDimension)
-      if (time) {
-        dimensions['TIME'] = time
-      }
-    }
-    if (layerInfo.elevationDimension && dimensions['ELEVATION'] === undefined) {
-      const elevation = getDefaultDimensionValue(layerInfo.elevationDimension)
-      if (elevation) {
-        dimensions['ELEVATION'] = elevation
-      }
-    }
-
-    return {
-      ...layer,
-      extras: {
-        ...layer.extras,
-        wmsDimensions: {
-          time: layerInfo.timeDimension,
-          elevation: layerInfo.elevationDimension,
-        },
-      },
-      ...(Object.keys(dimensions).length > 0 && { dimensionValues: dimensions }),
-    }
-  } catch (err) {
-    console.error('WMS dimension enrichment failed', err)
-    return layer
-  }
 }
 
 // WMS version used to write the OGC Filter.
@@ -199,8 +111,6 @@ function serializeFilter(filter: Filter): string {
  */
 export function activeFiltersOf(layer: MapLayer): Record<string, string[]> {
   const out: Record<string, string[]> = {}
-  // `layer.type` and a cast rather than `isWmsLayer`: layer.utils imports this module, so importing
-  // a value back from it would close a runtime cycle (same reason as `getWmsTimeDimension` above).
   const filter = (layer.type === 'wms' && (layer.extras?.filter as WmsFilterState)) || []
   for (const { attributeName, values } of filter) out[attributeName] = values
   return out

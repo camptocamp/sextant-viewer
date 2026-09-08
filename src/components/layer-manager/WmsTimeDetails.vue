@@ -15,6 +15,7 @@ const AVAILABLE_DAY_CLASS = [
 const props = defineProps<{ layer: MapLayer }>()
 
 const {
+  timeDim: rawTimeDim,
   currentDate,
   reset,
   setNow,
@@ -27,6 +28,9 @@ const {
   previousDate,
   nextDate,
 } = useWmsTimeDimension(() => props.layer)
+
+// Wrap in computed to ensure proper reactivity tracking
+const timeDim = computed(() => rawTimeDim.value)
 
 const formatDate = (date: Date | null): string => {
   if (!date) return '—'
@@ -111,7 +115,7 @@ const timeValue = computed<string>({
 </script>
 
 <template>
-  <div class="mb-3">
+  <div v-if="timeDim" class="mb-3">
     <p class="mb-1 text-xs text-gray-400">
       Minimum&nbsp;: {{ formatDate(minDate) }}, maximum&nbsp;: {{ formatDate(maxDate) }}
     </p>
