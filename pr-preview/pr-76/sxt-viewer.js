@@ -55108,10 +55108,7 @@ function iw(t) {
   }
   if (e.otherDimensionValues) {
     const n = Object.fromEntries(
-      Object.entries(e.otherDimensionValues).map(([r, a]) => [
-        r,
-        Pd(a)
-      ])
+      Object.entries(e.otherDimensionValues).filter(([, r]) => r !== void 0).map(([r, a]) => [r, Pd(a)])
     );
     i.otherDimensionValues = Object.keys(n ?? {}).length > 0 ? n : void 0;
   }
