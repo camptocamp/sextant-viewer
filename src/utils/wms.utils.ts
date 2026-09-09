@@ -88,9 +88,10 @@ export function toWmsTime(date: Date): string {
  */
 const toOption = (value: unknown): string | null => {
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : toWmsTime(value)
-  // Only a primitive has a string form a GetMap parameter accepts; an interval has none.
-  if (value == null || typeof value === 'object' || typeof value === 'function') return null
-  return String(value)
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  // An interval, like any other non-primitive, has no form a GetMap parameter accepts.
+  return null
 }
 
 /** Enumerable values as strings. An interval is not enumerable and yields none. */
