@@ -69,6 +69,19 @@ function getParamDescriptions(jsDoc) {
   return result
 }
 
+// Returns the descriptions of the @throws tags in a JSDoc block, type annotation included so the
+// rendered line names the error class.
+function getThrowsDescriptions(jsDoc) {
+  const result = []
+  for (const tag of jsDoc?.tags ?? []) {
+    if (tag.kind !== ts.SyntaxKind.JSDocThrowsTag) continue
+    const type = tag.typeExpression?.type?.getText(sf)
+    const description = jsDocCommentToText(tag.comment)
+    result.push(type ? `\`${type}\` — ${description}` : description)
+  }
+  return result
+}
+
 // ── 2. Collect arrow-function and JSDoc-annotated destructured declarations ───
 // We build two maps so that step 3 can look up any exposed method's signature
 // and JSDoc by name:
@@ -160,9 +173,23 @@ function buildMethod(name) {
       const paramDescriptions = getParamDescriptions(jsDoc)
       const paramNames = Object.keys(paramDescriptions)
       const signature = `${name}(${paramNames.join(', ')})`
-      return { name, signature, description: jsDocCommentToText(jsDoc?.comment), paramDescriptions, fn: null }
+      return {
+        name,
+        signature,
+        description: jsDocCommentToText(jsDoc?.comment),
+        paramDescriptions,
+        throws: getThrowsDescriptions(jsDoc),
+        fn: null,
+      }
     }
-    return { name, signature: `${name}()`, description: '', paramDescriptions: {}, fn: null }
+    return {
+      name,
+      signature: `${name}()`,
+      description: '',
+      paramDescriptions: {},
+      throws: [],
+      fn: null,
+    }
   }
 
   const { statement, fn } = info
@@ -184,6 +211,7 @@ function buildMethod(name) {
     signature,
     description: jsDocCommentToText(jsDoc?.comment),
     paramDescriptions: getParamDescriptions(jsDoc),
+    throws: getThrowsDescriptions(jsDoc),
     fn,
   }
 }
@@ -206,6 +234,12 @@ function renderParamTable(method) {
   return ['', '| Paramètre | Description |', '|-----------|-------------|', ...rows, ''].join('\n')
 }
 
+function renderThrows(method) {
+  if (method.throws.length === 0) return ''
+  const rows = method.throws.map((t) => `| ${t} |`)
+  return ['', '| Exception |', '|-----------|', ...rows, ''].join('\n')
+}
+
 function renderMethod(method) {
   return `### \`${method.name}\`
 
@@ -214,7 +248,7 @@ ${method.signature}
 \`\`\`
 
 ${method.description || '_Aucune description._'}
-${renderParamTable(method)}`
+${renderParamTable(method)}${renderThrows(method)}`
 }
 
 function renderEventsTable() {

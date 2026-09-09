@@ -2,9 +2,33 @@ import { watch, watchEffect } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useMapStore, type ExtendedMapContext } from '@/stores/map.store'
 import { defineStore, storeToRefs } from 'pinia'
+import { isMapContext } from '@/utils/context.utils'
 
 const SESSION_STORAGE_INITIAL_CONTEXT_KEY = 'sxt-viewer-current-map-initial-context'
 const SESSION_STORAGE_CONTEXT_KEY = 'sxt-viewer-current-map-context'
+
+/**
+ * Reads a stored context, dropping the key when it cannot be used. Restores run in the store's
+ * setup, so an unusable value must never throw: that would fail the whole viewer mount, and the
+ * offending key would survive the reload.
+ */
+function readStoredContext(key: string): ExtendedMapContext | undefined {
+  const raw = sessionStorage.getItem(key)
+  if (!raw) {
+    return undefined
+  }
+  try {
+    const parsed = JSON.parse(raw)
+    if (isMapContext(parsed)) {
+      return parsed
+    }
+    console.error(`Stored context is not a map context, dropping key ${key}`)
+  } catch (error) {
+    console.error(`Stored context is not readable, dropping key ${key}`, error)
+  }
+  sessionStorage.removeItem(key)
+  return undefined
+}
 
 /**
  * Store for managing persistent map context in sessionStorage
@@ -19,10 +43,10 @@ export const usePersistentContextStore = defineStore('persistentContext', () => 
 
   // apply any saved initial context present
   function restoreInitialContext() {
-    const sessionInitialContext = sessionStorage.getItem(SESSION_STORAGE_INITIAL_CONTEXT_KEY)
+    const sessionInitialContext = readStoredContext(SESSION_STORAGE_INITIAL_CONTEXT_KEY)
     if (sessionInitialContext) {
       ignoreNextInitialContextChange = true
-      setInitialContext(JSON.parse(sessionInitialContext))
+      setInitialContext(sessionInitialContext)
       ignoreNextInitialContextChange = false
     }
   }
@@ -30,10 +54,10 @@ export const usePersistentContextStore = defineStore('persistentContext', () => 
 
   // apply any saved context present
   function restoreContext() {
-    const sessionContext = sessionStorage.getItem(SESSION_STORAGE_CONTEXT_KEY)
+    const sessionContext = readStoredContext(SESSION_STORAGE_CONTEXT_KEY)
     if (sessionContext) {
       ignoreNextContextChange = true
-      setContext(JSON.parse(sessionContext))
+      setContext(sessionContext)
       ignoreNextContextChange = false
     }
   }
