@@ -1,7 +1,12 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import type { MapLayer } from '@/utils/layer.utils'
-import { getDefaultWmsTime, getWmsTimeDimension, toWmsTime } from '@/utils/wms.utils'
+import {
+  getDefaultWmsTime,
+  getWmsTimeDimension,
+  toDimensionDate,
+  toWmsTime,
+} from '@/utils/wms.utils'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
 import { expandTimeInterval, type WmsLayerTimeDimension } from '@camptocamp/ogc-client'
 
@@ -17,9 +22,6 @@ const DAY_MS = 86_400_000
 function utcDayStart(date: Date): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
 }
-
-const isValidDate = (value: unknown): value is Date =>
-  value instanceof Date && !isNaN(value.getTime())
 
 const isInterval = (value: unknown): value is TimeInterval =>
   typeof value === 'object' && value !== null && 'period' in value
@@ -68,17 +70,22 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
     // Element by element: the parser casts a mixed list to Date[] | TimeInterval[], so a dimension
     // declaring both a date and an interval really does yield a heterogeneous array.
     for (const value of declared) {
-      if (isValidDate(value)) {
-        instants.push(value)
+      const instant = toDimensionDate(value)
+      if (instant) {
+        instants.push(instant)
         continue
       }
       if (!isInterval(value)) continue
-      const { begin, end, period } = value
+      const { period } = value
       // Typed non-optional, yet null on a malformed <Extent> — and expandTimeInterval throws there.
-      if (!isValidDate(begin) || !isValidDate(end) || !period) continue
+      const begin = toDimensionDate(value.begin)
+      const end = toDimensionDate(value.end)
+      if (!begin || !end || !period) continue
 
       const stepMs = fixedStepMs(period)
-      if (stepMs === null) instants.push(...expandTimeInterval(value))
+      // Rebuild the interval: expandTimeInterval calls getTime() on begin/end, which a cached
+      // capabilities read hands over as ISO strings.
+      if (stepMs === null) instants.push(...expandTimeInterval({ begin, end, period }))
       else grids.push({ begin: begin.getTime(), end: end.getTime(), stepMs })
     }
 
@@ -101,12 +108,8 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
   const currentDate = computed<Date | null>({
     get: () => {
       const raw = (toValue(layer) as MapContextLayerWms).timeValue
-      if (isValidDate(raw)) return raw
-      // 'current' and the string a JS consumer may pass both mean the calendar has no instant to
-      // point at; a parseable string is honoured for the latter.
-      if (typeof raw !== 'string' || raw === 'current') return null
-      const date = new Date(raw)
-      return isNaN(date.getTime()) ? null : date
+      // 'current' means the server picks; the calendar has no instant to point at.
+      return raw === 'current' ? null : toDimensionDate(raw)
     },
     set: (date: Date | null) => {
       const l = toValue(layer) as MapContextLayerWms

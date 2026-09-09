@@ -188,6 +188,20 @@ describe('getDimensionOptions', () => {
   })
 })
 
+describe('getDefaultWmsTime on a cached dimension', () => {
+  it("accepts the ISO strings ogc-client's JSON cache hands back", () => {
+    const dim = JSON.parse(
+      JSON.stringify(timeDim({ values: [new Date('2002-01-15T00:00:00Z')] })),
+    ) as WmsLayerTimeDimension
+    expect(getDefaultWmsTime(dim)?.toISOString()).toBe('2002-01-15T00:00:00.000Z')
+
+    const withDefault = JSON.parse(
+      JSON.stringify(timeDim({ values: [], defaultValue: new Date('2002-03-15T00:00:00Z') })),
+    ) as WmsLayerTimeDimension
+    expect(getDefaultWmsTime(withDefault)?.toISOString()).toBe('2002-03-15T00:00:00.000Z')
+  })
+})
+
 describe('getDimensionDefaultOption', () => {
   it('keeps a declared default of 0, which a truthiness test would drop', () => {
     expect(getDimensionDefaultOption(scalarDim({ values: [0, 10], defaultValue: 0 }))).toBe('0')

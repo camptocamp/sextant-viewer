@@ -2,6 +2,7 @@ import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import { type MapLayer } from '@/utils/layer.utils'
 import { buildNcwmsStyles, getNcwmsInfo } from '@/utils/ncwms.utils'
+import { toDimensionDate } from '@/utils/wms.utils'
 import { NcwmsEndpoint } from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
 
@@ -50,10 +51,9 @@ export function useNcwmsLayer(layer: MaybeRefOrGetter<MapLayer>) {
     const l = toValue(layer) as MapContextLayerWms
     // getMinMax takes a single value; the list and interval forms the SDK also allows have no
     // meaning for an auto-scale query and are dropped.
-    const time = typeof l.timeValue === 'string' ? new Date(l.timeValue) : undefined
     const elevation = l.elevationValue
     const bounds = await new NcwmsEndpoint(l.url).getMinMax(l.name, extent, {
-      time: time && !Number.isNaN(time.getTime()) ? time : undefined,
+      time: toDimensionDate(l.timeValue) ?? undefined,
       elevation:
         typeof elevation === 'string' || typeof elevation === 'number' ? elevation : undefined,
     })

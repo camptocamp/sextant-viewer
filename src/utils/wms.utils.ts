@@ -59,6 +59,19 @@ const isInterval = (value: unknown): boolean =>
   typeof value === 'object' && value !== null && 'begin' in value
 
 /**
+ * A temporal dimension's dates are Date objects on the first parse only: ogc-client's cache
+ * round-trips its capabilities through JSON (`shared/cache.js` stringifies on store and parses on
+ * read), so every later read hands back ISO strings under the very same `Date` type. Coerce rather
+ * than test with `instanceof`, or a layer whose service was already cached loses its dimension.
+ */
+export function toDimensionDate(value: unknown): Date | null {
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value
+  if (typeof value !== 'string') return null
+  const date = new Date(value)
+  return isNaN(date.getTime()) ? null : date
+}
+
+/**
  * Format a Date as ISO 8601 without the zero milliseconds ("2026-06-24T03:00:00Z"). The SDK forwards
  * the string verbatim, and two public servers reject the ".000Z" that toISOString() always appends:
  * NASA GIBS answers HTTP 400, Environment Canada's GeoMet a `NoMatch` ServiceException. A genuine
@@ -97,15 +110,13 @@ export function getDimensionDefaultOption(dim: AnyWmsDimension): string | undefi
 
 /** Declared default, else the first date, else the interval start. */
 export function getDefaultWmsTime(dim: WmsLayerTimeDimension): Date | null {
-  const valid = (date: unknown): Date | null =>
-    date instanceof Date && !isNaN(date.getTime()) ? date : null
-
-  const declared = valid(dim.defaultValue)
+  const declared = toDimensionDate(dim.defaultValue)
   if (declared) return declared
 
   for (const value of listValues(dim)) {
     const date =
-      valid(value) ?? (isInterval(value) ? valid((value as { begin: Date }).begin) : null)
+      toDimensionDate(value) ??
+      (isInterval(value) ? toDimensionDate((value as { begin: unknown }).begin) : null)
     if (date) return date
   }
   return null

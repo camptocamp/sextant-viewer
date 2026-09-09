@@ -225,6 +225,31 @@ describe('useWmsTimeDimension', () => {
     })
   })
 
+  it('reads a cached dimension, whose dates come back as ISO strings', () => {
+    // ogc-client's cache round-trips capabilities through JSON, so every read after the first
+    // hands back strings under the Date type.
+    const cached = JSON.parse(
+      JSON.stringify([
+        MONTHS[0],
+        {
+          begin: new Date('2003-01-01T00:00:00Z'),
+          end: new Date('2003-01-05T00:00:00Z'),
+          period: duration({ days: 1 }),
+        },
+      ]),
+    ) as TimeValues
+    const { isAllowedDay, minDate, maxDate, nextDate } = useWmsTimeDimension(
+      makeLayer(cached, '2003-01-02T00:00:00.000Z'),
+    )
+
+    expect(isAllowedDay(new Date('2002-01-15T00:00:00Z'))).toBe(true)
+    expect(isAllowedDay(new Date('2003-01-03T00:00:00Z'))).toBe(true)
+    expect(isAllowedDay(new Date('2003-01-06T00:00:00Z'))).toBe(false)
+    expect(minDate.value?.toISOString()).toBe('2002-01-15T00:00:00.000Z')
+    expect(maxDate.value?.toISOString()).toBe('2003-01-05T00:00:00.000Z')
+    expect(nextDate.value?.toISOString()).toBe('2003-01-03T00:00:00.000Z')
+  })
+
   it('reads a restored string and the "current" literal', () => {
     const restored = useWmsTimeDimension(makeLayer(MONTHS, '2002-02-15T00:00:00.000Z'))
     expect(restored.currentDate.value?.toISOString()).toBe('2002-02-15T00:00:00.000Z')
