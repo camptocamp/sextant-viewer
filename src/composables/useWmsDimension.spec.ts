@@ -61,6 +61,31 @@ describe('useWmsDimension', () => {
     })
   })
 
+  it('clears the last other dimension to undefined, not to an empty object', () => {
+    updateLayer.mockClear()
+    const layer = makeLayer([scalarDim({ name: 'band', units: '' })], {
+      otherDimensionValues: { band: 'red' },
+    })
+    const { value } = useWmsDimension(layer, 'band')
+
+    value.value = undefined
+    // `getHash` keeps `{}` but drops an undefined value, so an empty object would diff the layer.
+    expect(updateLayer).toHaveBeenCalledWith(layer, { otherDimensionValues: undefined })
+  })
+
+  it('keeps the siblings when clearing one of several other dimensions', () => {
+    updateLayer.mockClear()
+    const layer = makeLayer([scalarDim({ name: 'band', units: '' })], {
+      otherDimensionValues: { band: 'red', reference_time: '2026-06-24T03:00:00.000Z' },
+    })
+    const { value } = useWmsDimension(layer, 'band')
+
+    value.value = undefined
+    expect(updateLayer).toHaveBeenCalledWith(layer, {
+      otherDimensionValues: { reference_time: '2026-06-24T03:00:00.000Z' },
+    })
+  })
+
   it('offers the enumerated values, and none for an interval', () => {
     const enumerated = useWmsDimension(makeLayer([scalarDim({ values: [0, 10, 20] })]), 'elevation')
     expect(enumerated.options.value).toEqual(['0', '10', '20'])

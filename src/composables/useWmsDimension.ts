@@ -47,7 +47,10 @@ export function useWmsDimension(layer: MaybeRefOrGetter<MapLayer>, dimensionName
         return
       }
       const { [dimensionName]: _removed, ...others } = l.otherDimensionValues ?? {}
-      const otherDimensionValues = val ? { ...others, [dimensionName]: val } : others
+      // An empty object is not the same layer as one without the key: `getHash` drops an
+      // undefined value from its JSON but keeps `{}`, so clearing would diff the layer.
+      const remaining = Object.keys(others).length > 0 ? others : undefined
+      const otherDimensionValues = val ? { ...others, [dimensionName]: val } : remaining
       mapStore.updateLayer(l as MapLayer, { otherDimensionValues } as Partial<MapLayer>)
     },
   })
