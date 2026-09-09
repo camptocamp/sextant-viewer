@@ -1,6 +1,7 @@
 import {
   WmsEndpoint,
   type WmsLayerDimension,
+  type WmsLayerFull,
   type WmsLayerTimeDimension,
 } from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
@@ -65,10 +66,10 @@ const isInterval = (value: unknown): boolean =>
  * than test with `instanceof`, or a layer whose service was already cached loses its dimension.
  */
 export function toDimensionDate(value: unknown): Date | null {
-  if (value instanceof Date) return isNaN(value.getTime()) ? null : value
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
   if (typeof value !== 'string') return null
   const date = new Date(value)
-  return isNaN(date.getTime()) ? null : date
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
 /**
@@ -86,8 +87,9 @@ export function toWmsTime(date: Date): string {
  * GetMap parameter, and Date.toString() is not a valid WMS value.
  */
 const toOption = (value: unknown): string | null => {
-  if (value instanceof Date) return isNaN(value.getTime()) ? null : toWmsTime(value)
-  if (value == null || isInterval(value)) return null
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : toWmsTime(value)
+  // Only a primitive has a string form a GetMap parameter accepts; an interval has none.
+  if (value == null || typeof value === 'object' || typeof value === 'function') return null
   return String(value)
 }
 
@@ -144,6 +146,59 @@ export function stripDerivedExtras(layer: MapLayer): MapLayer {
   return { ...layer, extras }
 }
 
+/** Every dimension the layer declares, temporal and scalar alike, in a single flat list. */
+function collectDimensions(layerInfo: WmsLayerFull): AnyWmsDimension[] {
+  return [
+    layerInfo.timeDimension,
+    layerInfo.elevationDimension,
+    ...(layerInfo.otherDimensions ?? []),
+  ].filter((dim): dim is AnyWmsDimension => !!dim)
+}
+
+type OtherDimensionValues = NonNullable<MapContextLayerWms['otherDimensionValues']>
+
+function seedOtherDimensionValues(
+  layer: MapContextLayerWms,
+  dims: AnyWmsDimension[],
+): OtherDimensionValues {
+  const values: OtherDimensionValues = { ...layer.otherDimensionValues }
+  for (const dim of dims) {
+    if (isTimeName(dim.name) || isElevationName(dim.name)) continue
+    if (values[dim.name] !== undefined) continue
+    // The server's own casing: the SDK upper-cases it to build DIM_<NAME>.
+    const def = getDimensionDefaultOption(dim)
+    if (def !== undefined) values[dim.name] = def
+  }
+  return values
+}
+
+/** Each dimension's server default, for the families the consumer left unset. */
+function seedDimensionValues(
+  layer: MapContextLayerWms,
+  dims: AnyWmsDimension[],
+): Partial<MapContextLayerWms> {
+  const seeded: Partial<MapContextLayerWms> = {}
+
+  const timeDim = dims.find(
+    (dim): dim is WmsLayerTimeDimension => isTimeName(dim.name) && isTemporal(dim),
+  )
+  if (timeDim && layer.timeValue === undefined) {
+    const defaultTime = getDefaultWmsTime(timeDim)
+    if (defaultTime) seeded.timeValue = toWmsTime(defaultTime)
+  }
+
+  const elevationDim = dims.find((dim) => isElevationName(dim.name))
+  if (elevationDim && layer.elevationValue === undefined) {
+    const def = getDimensionDefaultOption(elevationDim)
+    if (def !== undefined) seeded.elevationValue = def
+  }
+
+  const otherValues = seedOtherDimensionValues(layer, dims)
+  if (Object.keys(otherValues).length > 0) seeded.otherDimensionValues = otherValues
+
+  return seeded
+}
+
 /**
  * Enrich a WMS layer with the dimensions the server declares (TIME, ELEVATION, …).
  * Stores every dimension in a flat `extras.wmsDimensions`, then seeds `timeValue`,
@@ -160,40 +215,12 @@ export async function enrichWmsDimensionsLayer(layer: MapLayer): Promise<MapLaye
     const layerInfo = endpoint.getLayerByName((layer as { name: string }).name)
     if (!layerInfo) return layer
 
-    const dims: AnyWmsDimension[] = [
-      layerInfo.timeDimension,
-      layerInfo.elevationDimension,
-      ...(layerInfo.otherDimensions ?? []),
-    ].filter((dim): dim is AnyWmsDimension => !!dim)
+    const dims = collectDimensions(layerInfo)
     if (dims.length === 0) return layer
-
-    const wmsLayer = layer as MapContextLayerWms
-    const seeded: Partial<MapContextLayerWms> = {}
-    const otherValues = { ...wmsLayer.otherDimensionValues }
-
-    for (const dim of dims) {
-      if (isTimeName(dim.name)) {
-        if (wmsLayer.timeValue === undefined && isTemporal(dim)) {
-          const defaultTime = getDefaultWmsTime(dim)
-          if (defaultTime) seeded.timeValue = toWmsTime(defaultTime)
-        }
-      } else if (isElevationName(dim.name)) {
-        if (wmsLayer.elevationValue === undefined) {
-          const def = getDimensionDefaultOption(dim)
-          if (def !== undefined) seeded.elevationValue = def
-        }
-      } else if (otherValues[dim.name] === undefined) {
-        // The server's own casing: the SDK upper-cases it to build DIM_<NAME>.
-        const def = getDimensionDefaultOption(dim)
-        if (def !== undefined) otherValues[dim.name] = def
-      }
-    }
-
-    if (Object.keys(otherValues).length > 0) seeded.otherDimensionValues = otherValues
 
     return {
       ...layer,
-      ...seeded,
+      ...seedDimensionValues(layer as MapContextLayerWms, dims),
       extras: {
         ...layer.extras,
         wmsDimensions: dims,

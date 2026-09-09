@@ -36,7 +36,9 @@ export function useWmsDimension(layer: MaybeRefOrGetter<MapLayer>, dimensionName
     get: () => {
       const l = toValue(layer) as MapContextLayerWms
       const raw = isElevation ? l.elevationValue : l.otherDimensionValues?.[dimensionName]
-      return raw === undefined ? undefined : String(raw)
+      // Only a primitive matches one of the options; an interval has no matching entry.
+      if (raw == null || typeof raw === 'object') return undefined
+      return String(raw)
     },
     set: (val) => {
       const l = toValue(layer) as MapContextLayerWms
