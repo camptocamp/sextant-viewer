@@ -54776,7 +54776,7 @@ function al(t) {
   const e = new Date(t);
   return Number.isNaN(e.getTime()) ? null : e;
 }
-const Q3 = (t) => t instanceof Date ? Number.isNaN(t.getTime()) ? null : t.toISOString() : t == null || typeof t == "object" || typeof t == "function" ? null : String(t);
+const Q3 = (t) => t instanceof Date ? Number.isNaN(t.getTime()) ? null : t.toISOString() : typeof t == "string" ? t : typeof t == "number" || typeof t == "boolean" ? String(t) : null;
 function s1(t) {
   return w3(t).map(Q3).filter((e) => e !== null);
 }
