@@ -13,10 +13,12 @@ The procedure below wires those local checkouts into `sextant-viewer` via
 reasons:
 
 1. **Nested duplicate.** The `geospatial-sdk` monorepo has its own
-   `node_modules/@camptocamp/ogc-client`. If that copy is the unpatched published
-   version, WMS dimension parsing (and anything else patched in ogc-client)
-   silently does nothing, because `@geospatial-sdk/openlayers` resolves that
-   nested copy instead of the linked one. Step 2 replaces it with a symlink.
+   `node_modules/@camptocamp/ogc-client`. `@geospatial-sdk/core` type-imports
+   ogc-client, and the published SDK packages declare it neither as a dependency
+   nor as a peer, so they resolve whichever copy is nearest. Two copies mean two
+   sets of types and a wall of `vue-tsc` errors in `node_modules`; at runtime, a
+   local patch silently does nothing because the nested copy wins. Step 2
+   replaces it with a symlink.
 2. **Silent clobbering.** Running `npm install`, or running `npm link` for the
    three packages in separate commands, overwrites the symlinks with the
    published copies again — without any error.

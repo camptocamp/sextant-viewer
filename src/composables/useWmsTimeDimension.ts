@@ -3,11 +3,14 @@ import { useMapStore } from '@/stores/map.store'
 import type { MapLayer } from '@/utils/layer.utils'
 import { getDefaultWmsTime, getWmsTimeDimension, toWmsTime } from '@/utils/wms.utils'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
-import {
-  expandDimensionValues,
-  parseIso8601DurationMs,
-  type WmsLayerDimension,
-} from '@camptocamp/ogc-client'
+import { expandTimeInterval, type WmsLayerTimeDimension } from '@camptocamp/ogc-client'
+
+// TimeInterval and Duration are not exported by ogc-client's index; extract them structurally.
+type TimeInterval = Extract<WmsLayerTimeDimension['values'], { period: unknown }>
+type Duration = TimeInterval['period']
+
+/** An interval whose period has a constant length, kept as arithmetic rather than enumerated. */
+type Grid = { begin: number; end: number; stepMs: number }
 
 const DAY_MS = 86_400_000
 
@@ -15,28 +18,104 @@ function utcDayStart(date: Date): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
 }
 
+const isValidDate = (value: unknown): value is Date =>
+  value instanceof Date && !isNaN(value.getTime())
+
+const isInterval = (value: unknown): value is TimeInterval =>
+  typeof value === 'object' && value !== null && 'period' in value
+
+/**
+ * Step length in ms, or null for a calendar period (years/months) whose steps are not
+ * constant-length and must be walked by calendar arithmetic instead.
+ */
+function fixedStepMs(period: Duration): number | null {
+  if (period.years || period.months) return null
+  const ms =
+    ((period.days * 24 + period.hours) * 60 + period.minutes) * 60_000 + period.seconds * 1000
+  return ms > 0 ? ms : null
+}
+
+/** First grid instant falling inside the given UTC day, or null if the grid skips that day. */
+function firstGridInstantOfDay(grid: Grid, dayStart: number): number | null {
+  const offset = Math.max(0, Math.ceil((dayStart - grid.begin) / grid.stepMs))
+  const first = grid.begin + offset * grid.stepMs
+  return first <= grid.end && first < dayStart + DAY_MS ? first : null
+}
+
 export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
 
-  const timeDim = computed<WmsLayerDimension | null>(() => getWmsTimeDimension(toValue(layer)))
+  const timeDim = computed<WmsLayerTimeDimension | null>(() => getWmsTimeDimension(toValue(layer)))
+
+  /**
+   * The dimension's values split by how they are best interrogated, not by how they are declared.
+   * A dense grid (sub-day or daily) has a constant-length step in UTC, so it is answered by closed
+   * form and never enumerated — which is what removes any need for a value cap. A calendar grid
+   * needs arithmetic ogc-client does not export, but yields at most twelve instants a year, so it
+   * enumerates safely; `expandTimeInterval`'s own default only bites past three centuries.
+   */
+  const parts = computed<{ instants: Date[]; grids: Grid[] }>(() => {
+    const instants: Date[] = []
+    const grids: Grid[] = []
+    const dim = timeDim.value
+    if (!dim) return { instants, grids }
+
+    // `values` is typed non-nullable but arrives null through the WMS 1.1.x <Extent> inheritance
+    // path, and a lone interval is not wrapped in an array.
+    const values: unknown = dim.values
+    const declared = values == null ? [] : Array.isArray(values) ? values : [values]
+
+    // Element by element: the parser casts a mixed list to Date[] | TimeInterval[], so a dimension
+    // declaring both a date and an interval really does yield a heterogeneous array.
+    for (const value of declared) {
+      if (isValidDate(value)) {
+        instants.push(value)
+        continue
+      }
+      if (!isInterval(value)) continue
+      const { begin, end, period } = value
+      // Typed non-optional, yet null on a malformed <Extent> — and expandTimeInterval throws there.
+      if (!isValidDate(begin) || !isValidDate(end) || !period) continue
+
+      const stepMs = fixedStepMs(period)
+      if (stepMs === null) instants.push(...expandTimeInterval(value))
+      else grids.push({ begin: begin.getTime(), end: end.getTime(), stepMs })
+    }
+
+    // The server may declare values in any order; stepping and snapping rely on the ordering.
+    instants.sort((a, b) => a.getTime() - b.getTime())
+    return { instants, grids }
+  })
+
+  const instantsByDay = computed<Map<number, Date[]>>(() => {
+    const byDay = new Map<number, Date[]>()
+    for (const instant of parts.value.instants) {
+      const key = utcDayStart(instant)
+      const bucket = byDay.get(key)
+      if (bucket) bucket.push(instant)
+      else byDay.set(key, [instant])
+    }
+    return byDay
+  })
 
   const currentDate = computed<Date | null>({
     get: () => {
-      const raw = (toValue(layer) as MapContextLayerWms).dimensionValues?.TIME
-      if (!raw) return null
-      if (raw instanceof Date) return raw
-      const d = new Date(String(raw))
-      return isNaN(d.getTime()) ? null : d
+      const raw = (toValue(layer) as MapContextLayerWms).timeValue
+      if (isValidDate(raw)) return raw
+      // 'current' and the string a JS consumer may pass both mean the calendar has no instant to
+      // point at; a parseable string is honoured for the latter.
+      if (typeof raw !== 'string' || raw === 'current') return null
+      const date = new Date(raw)
+      return isNaN(date.getTime()) ? null : date
     },
     set: (date: Date | null) => {
       const l = toValue(layer) as MapContextLayerWms
-      const { TIME: _removed, ...otherDimensions } = l.dimensionValues ?? {}
-      const newDimensions = date
-        ? { ...otherDimensions, TIME: toWmsTime(date) }
-        : Object.keys(otherDimensions).length > 0
-          ? otherDimensions
-          : undefined
-      mapStore.updateLayer(l as MapLayer, { dimensionValues: newDimensions } as Partial<MapLayer>)
+      mapStore.updateLayer(
+        l as MapLayer,
+        {
+          timeValue: date ? toWmsTime(date) : undefined,
+        } as Partial<MapLayer>,
+      )
     },
   })
 
@@ -52,28 +131,13 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
     currentDate.value = new Date()
   }
 
-  // Sorted ascending: the server may declare its values in any order, and the
-  // previous/next lookup relies on the ordering.
-  const allowedDates = computed<Date[]>(() => {
-    const dim = timeDim.value
-    if (!dim || dim.values.length === 0) return []
-    return expandDimensionValues(dim).sort((a, b) => a.getTime() - b.getTime())
-  })
-
-  // Bounds come from the raw dimension strings, not the (capped) expansion:
-  // an interval "start/end/period" can exceed expandDimensionValues' value cap,
-  // which would otherwise report a truncated, wrong maximum.
   const bounds = computed<{ min: Date | null; max: Date | null }>(() => {
-    const dim = timeDim.value
-    if (!dim || dim.values.length === 0) return { min: null, max: null }
-    const edges = dim.values.flatMap((v) => {
-      const [start, end] = v.split('/')
-      return [start, end ?? start]
-    })
-    const times = edges
-      .filter((s): s is string => !!s)
-      .map((s) => new Date(s).getTime())
-      .filter((t) => !isNaN(t))
+    const { instants, grids } = parts.value
+    const times: number[] = []
+    // instants is sorted, so its own bounds are its ends — no need to scan it.
+    if (instants.length > 0)
+      times.push(instants[0]!.getTime(), instants[instants.length - 1]!.getTime())
+    for (const grid of grids) times.push(grid.begin, grid.end)
     if (times.length === 0) return { min: null, max: null }
     return { min: new Date(Math.min(...times)), max: new Date(Math.max(...times)) }
   })
@@ -83,67 +147,89 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
 
   const supportsCurrent = computed(() => timeDim.value?.current ?? false)
 
-  // True when the server enumerates discrete dates (no "start/end/period" interval).
-  // A list is safe to enumerate; an interval is truncated by expandDimensionValues'
-  // cap and must be handled by range-bounding instead.
-  const isEnumerated = computed(
-    () => !!timeDim.value?.values.length && timeDim.value.values.every((v) => !v.includes('/')),
-  )
-
-  // Adjacent declared values, for stepping through the series without the calendar.
-  // Restricted to enumerated lists: an interval's expansion can be truncated by
-  // expandDimensionValues' cap, which would report a wrong "next" past the cap.
-  function neighbour(direction: 1 | -1): Date | null {
-    const current = currentDate.value
-    if (!current || !isEnumerated.value) return null
-    const time = current.getTime()
-    const dates = allowedDates.value
-    if (direction === 1) return dates.find((d) => d.getTime() > time) ?? null
-    for (let i = dates.length - 1; i >= 0; i--) {
-      const date = dates[i]!
-      if (date.getTime() < time) return date
-    }
-    return null
+  /** True when the server offers at least one instant on the given UTC day. */
+  function isAllowedDay(day: Date): boolean {
+    const dayStart = utcDayStart(day)
+    if (instantsByDay.value.has(dayStart)) return true
+    return parts.value.grids.some((grid) => firstGridInstantOfDay(grid, dayStart) !== null)
   }
 
-  const previousDate = computed<Date | null>(() => neighbour(-1))
-  const nextDate = computed<Date | null>(() => neighbour(1))
+  /**
+   * The first exact instant offered on a UTC day, carrying the time component the server expects,
+   * or null when the day holds none.
+   */
+  function snapToDay(day: Date): Date | null {
+    const dayStart = utcDayStart(day)
+    const candidates: number[] = []
+    const first = instantsByDay.value.get(dayStart)?.[0]
+    if (first) candidates.push(first.getTime())
+    for (const grid of parts.value.grids) {
+      const instant = firstGridInstantOfDay(grid, dayStart)
+      if (instant !== null) candidates.push(instant)
+    }
+    return candidates.length > 0 ? new Date(Math.min(...candidates)) : null
+  }
 
-  // Exact instants available on a given UTC day, as "HH:MM" → Date. Handles both
-  // shapes the server may declare: an enumerated list (filter the expansion to
-  // that day) and an interval "start/end/period" (walk the period grid across
-  // just that day, anchored on the interval's start — avoids the value cap that
-  // truncates a multi-year expansion). Sub-day grids are always PT… durations,
-  // so a constant-ms step is exact; calendar periods (P1M…) yield no intra-day
-  // times anyway.
+  /** The earliest instant strictly after `from`, across enumerated values and grids alike. */
+  function next(from: Date): Date | null {
+    const time = from.getTime()
+    const candidates: number[] = []
+    const instant = parts.value.instants.find((d) => d.getTime() > time)
+    if (instant) candidates.push(instant.getTime())
+    for (const grid of parts.value.grids) {
+      if (time < grid.begin) {
+        candidates.push(grid.begin)
+        continue
+      }
+      const step = grid.begin + (Math.floor((time - grid.begin) / grid.stepMs) + 1) * grid.stepMs
+      if (step <= grid.end) candidates.push(step)
+    }
+    return candidates.length > 0 ? new Date(Math.min(...candidates)) : null
+  }
+
+  /** The latest instant strictly before `from`, across enumerated values and grids alike. */
+  function previous(from: Date): Date | null {
+    const time = from.getTime()
+    const { instants, grids } = parts.value
+    const candidates: number[] = []
+    for (let i = instants.length - 1; i >= 0; i--) {
+      const instant = instants[i]!
+      if (instant.getTime() < time) {
+        candidates.push(instant.getTime())
+        break
+      }
+    }
+    for (const grid of grids) {
+      const stepsToEnd = Math.floor((grid.end - grid.begin) / grid.stepMs)
+      const index = time > grid.end ? stepsToEnd : Math.ceil((time - grid.begin) / grid.stepMs) - 1
+      if (index >= 0) candidates.push(grid.begin + index * grid.stepMs)
+    }
+    return candidates.length > 0 ? new Date(Math.max(...candidates)) : null
+  }
+
+  const previousDate = computed<Date | null>(() =>
+    currentDate.value ? previous(currentDate.value) : null,
+  )
+  const nextDate = computed<Date | null>(() => (currentDate.value ? next(currentDate.value) : null))
+
+  /**
+   * Exact instants available on a given UTC day, as "HH:MM" → Date: the enumerated values filtered
+   * to that day, plus each grid walked across just that day.
+   */
   function timesForDay(day: Date): Map<string, Date> {
-    const dim = timeDim.value
-    const result = new Map<string, Date>()
-    if (!dim) return result
     const dayStart = utcDayStart(day)
     const dayEnd = dayStart + DAY_MS
+    const result = new Map<string, Date>()
     const key = (d: Date) =>
       `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
 
-    for (const value of dim.values) {
-      const [startStr, endStr, period] = value.split('/')
-      if (!startStr) continue
-      if (!period) {
-        // Single enumerated instant
-        const d = new Date(startStr)
-        if (!isNaN(d.getTime()) && d.getTime() >= dayStart && d.getTime() < dayEnd)
-          result.set(key(d), d)
-        continue
-      }
-      const start = new Date(startStr).getTime()
-      const end = new Date(endStr ?? startStr).getTime()
-      const stepMs = parseIso8601DurationMs(period)
-      if (isNaN(start) || isNaN(end) || !stepMs) continue
-      // First grid instant at or after the day's start, then walk within the day.
-      const offset = Math.max(0, Math.ceil((dayStart - start) / stepMs))
-      for (let t = start + offset * stepMs; t <= end && t < dayEnd; t += stepMs) {
-        const d = new Date(t)
-        result.set(key(d), d)
+    for (const instant of instantsByDay.value.get(dayStart) ?? []) result.set(key(instant), instant)
+    for (const grid of parts.value.grids) {
+      const first = firstGridInstantOfDay(grid, dayStart)
+      if (first === null) continue
+      for (let t = first; t <= grid.end && t < dayEnd; t += grid.stepMs) {
+        const date = new Date(t)
+        result.set(key(date), date)
       }
     }
     return result
@@ -153,11 +239,11 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
     currentDate,
     reset,
     setNow,
-    allowedDates,
     minDate,
     maxDate,
     supportsCurrent,
-    isEnumerated,
+    isAllowedDay,
+    snapToDay,
     timesForDay,
     previousDate,
     nextDate,

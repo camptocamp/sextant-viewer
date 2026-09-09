@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { buildWmsFilterParam } from './wms.utils'
+import {
+  buildWmsFilterParam,
+  getDefaultWmsTime,
+  getDimensionDefaultOption,
+  getDimensionOptions,
+  getDimensionUnitLabel,
+  getWmsOtherDimensions,
+  getWmsTimeDimension,
+  toWmsTime,
+  type AnyWmsDimension,
+} from './wms.utils'
 import type { FilterByAttribute } from '@/types/wms.types'
+import type { MapLayer } from './layer.utils'
+import type { WmsLayerDimension, WmsLayerTimeDimension } from '@camptocamp/ogc-client'
 
 const region = (values: string[]): FilterByAttribute => ({
   attributeName: 'DCSMM_SOUS_REGION',
@@ -91,5 +103,130 @@ describe('buildWmsFilterParam', () => {
   it('emits one parenthesised <Filter> per sublayer (trimmed)', () => {
     const group = `(${filterXml(eq('DCSMM_SOUS_REGION', 'A'))})`
     expect(buildWmsFilterParam('a, b ,c', [region(['A'])])).toBe(group + group + group)
+  })
+})
+
+const timeDim = (over: Partial<WmsLayerTimeDimension> = {}): WmsLayerTimeDimension => ({
+  name: 'time',
+  isTime: true,
+  values: [],
+  nearestValue: false,
+  multipleValues: false,
+  current: false,
+  ...over,
+})
+
+const scalarDim = (over: Partial<WmsLayerDimension> = {}): WmsLayerDimension => ({
+  name: 'elevation',
+  units: 'meters',
+  values: [],
+  nearestValue: false,
+  multipleValues: false,
+  ...over,
+})
+
+const wmsLayer = (dims: AnyWmsDimension[]) =>
+  ({ type: 'wms', name: 'lyr', extras: { wmsDimensions: dims } }) as unknown as MapLayer
+
+describe('dimension classification', () => {
+  it('reads the time dimension whatever casing the server used', () => {
+    for (const name of ['time', 'TIME', 'Time']) {
+      const layer = wmsLayer([timeDim({ name })])
+      expect(getWmsTimeDimension(layer)?.name).toBe(name)
+      expect(getWmsOtherDimensions(layer)).toEqual([])
+    }
+  })
+
+  it('drops a non-temporal dimension named time rather than emitting DIM_TIME', () => {
+    const layer = wmsLayer([scalarDim({ name: 'TIME' })])
+    expect(getWmsTimeDimension(layer)).toBeNull()
+    expect(getWmsOtherDimensions(layer)).toEqual([])
+  })
+
+  it('keeps a temporal dimension named otherwise among the other dimensions', () => {
+    const reference = timeDim({ name: 'reference_time' })
+    const layer = wmsLayer([reference])
+    expect(getWmsTimeDimension(layer)).toBeNull()
+    expect(getWmsOtherDimensions(layer)).toEqual([reference])
+  })
+})
+
+describe('toWmsTime', () => {
+  it('drops the zero milliseconds two public servers reject', () => {
+    expect(toWmsTime(new Date('2026-06-24T03:00:00Z'))).toBe('2026-06-24T03:00:00Z')
+  })
+
+  it('leaves a genuine sub-second value alone', () => {
+    expect(toWmsTime(new Date('2026-06-24T03:00:00.500Z'))).toBe('2026-06-24T03:00:00.500Z')
+  })
+})
+
+describe('getDimensionOptions', () => {
+  it('formats temporal values as WMS time, never as Date.toString()', () => {
+    const dim = timeDim({ name: 'reference_time', values: [new Date('2026-06-24T03:00:00Z')] })
+    expect(getDimensionOptions(dim)).toEqual(['2026-06-24T03:00:00Z'])
+  })
+
+  it('stringifies scalar values and yields none for an interval', () => {
+    expect(getDimensionOptions(scalarDim({ values: [0, -1.5, 'top'] }))).toEqual([
+      '0',
+      '-1.5',
+      'top',
+    ])
+    expect(
+      getDimensionOptions(scalarDim({ values: { begin: 0, end: 100, resolution: 10 } })),
+    ).toEqual([])
+  })
+
+  it('tolerates the null values the WMS 1.1.x extent inheritance leaves behind', () => {
+    const dim = scalarDim({ values: null as unknown as WmsLayerDimension['values'] })
+    expect(getDimensionOptions(dim)).toEqual([])
+    expect(getDimensionDefaultOption(dim)).toBeUndefined()
+    expect(
+      getDefaultWmsTime(timeDim({ values: null as unknown as WmsLayerTimeDimension['values'] })),
+    ).toBeNull()
+  })
+})
+
+describe('getDimensionDefaultOption', () => {
+  it('keeps a declared default of 0, which a truthiness test would drop', () => {
+    expect(getDimensionDefaultOption(scalarDim({ values: [0, 10], defaultValue: 0 }))).toBe('0')
+  })
+
+  it('falls back to the first enumerable value', () => {
+    expect(getDimensionDefaultOption(scalarDim({ values: [5, 10] }))).toBe('5')
+  })
+})
+
+describe('getDefaultWmsTime', () => {
+  it('prefers the declared default', () => {
+    const dim = timeDim({
+      values: [new Date('2002-01-15T00:00:00Z')],
+      defaultValue: new Date('2002-03-15T00:00:00Z'),
+    })
+    expect(getDefaultWmsTime(dim)?.toISOString()).toBe('2002-03-15T00:00:00.000Z')
+  })
+
+  it('falls back to the first date, then to an interval start', () => {
+    expect(
+      getDefaultWmsTime(timeDim({ values: [new Date('2002-01-15T00:00:00Z')] }))?.toISOString(),
+    ).toBe('2002-01-15T00:00:00.000Z')
+
+    const asInterval = {
+      begin: new Date('2002-01-15T00:00:00Z'),
+      end: new Date('2002-06-15T00:00:00Z'),
+      period: { years: 0, months: 1, days: 0, hours: 0, minutes: 0, seconds: 0 },
+    } as unknown as WmsLayerTimeDimension['values']
+    expect(getDefaultWmsTime(timeDim({ values: asInterval }))?.toISOString()).toBe(
+      '2002-01-15T00:00:00.000Z',
+    )
+  })
+})
+
+describe('getDimensionUnitLabel', () => {
+  it('prefers the symbol, and declares none for a temporal dimension', () => {
+    expect(getDimensionUnitLabel(scalarDim({ units: 'meters', unitSymbol: 'm' }))).toBe('m')
+    expect(getDimensionUnitLabel(scalarDim({ units: 'meters' }))).toBe('meters')
+    expect(getDimensionUnitLabel(timeDim({ name: 'reference_time' }))).toBeUndefined()
   })
 })

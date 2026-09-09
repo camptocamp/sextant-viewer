@@ -1,7 +1,7 @@
 import {
-  getDimensionDefaultValue,
   WmsEndpoint,
   type WmsLayerDimension,
+  type WmsLayerTimeDimension,
 } from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
 import { and, equalTo, like, or } from 'ol/format/filter'
@@ -9,6 +9,8 @@ import { writeFilter } from 'ol/format/WFS'
 import type Filter from 'ol/format/filter/Filter'
 import type { FilterByAttribute, WmsFilterState } from '@/types/wms.types'
 import type { MapLayer } from './layer.utils'
+
+export type AnyWmsDimension = WmsLayerDimension | WmsLayerTimeDimension
 
 /** Split a (possibly comma-joined) WMS layer name into its trimmed, non-empty sublayers. */
 export function splitSublayers(layerName: string): string[] {
@@ -18,37 +20,101 @@ export function splitSublayers(layerName: string): string[] {
     .filter(Boolean)
 }
 
-export function getWmsTimeDimension(layer: MapLayer): WmsLayerDimension | null {
-  if (layer.type !== 'wms') return null
-  const dims = (layer.extras?.wmsDimensions as WmsLayerDimension[]) ?? []
-  return dims.find((d) => d.name.toLowerCase() === 'time') ?? null
-}
+// WMS dimension names are case-insensitive; ogc-client classifies them case-sensitively,
+// so a server emitting "TIME" lands in `otherDimensions`. Re-derive the classification here.
+const isTimeName = (name: string) => name.toLowerCase() === 'time'
+export const isElevationName = (name: string) => name.toLowerCase() === 'elevation'
 
-/** Non-time dimensions declared by the server (elevation, band, …). */
-export function getWmsOtherDimensions(layer: MapLayer): WmsLayerDimension[] {
+const isTemporal = (dim: AnyWmsDimension): dim is WmsLayerTimeDimension => 'isTime' in dim
+
+function getWmsDimensions(layer: MapLayer): AnyWmsDimension[] {
   if (layer.type !== 'wms') return []
-  const dims = (layer.extras?.wmsDimensions as WmsLayerDimension[]) ?? []
-  return dims.filter((d) => d.name.toLowerCase() !== 'time')
+  return (layer.extras?.wmsDimensions as AnyWmsDimension[]) ?? []
+}
+
+/** The `time` dimension, only when the server also declares it as temporal. */
+export function getWmsTimeDimension(layer: MapLayer): WmsLayerTimeDimension | null {
+  const dim = getWmsDimensions(layer).find((d) => isTimeName(d.name))
+  return dim && isTemporal(dim) ? dim : null
 }
 
 /**
- * Resolve the TIME value a layer should default to, as a Date.
- * Delegates the WMS semantics to ogc-client; returns null if unparseable.
+ * Every dimension but the temporal `time` one (elevation, band, …). A dimension named `time` that
+ * the server does not declare as temporal is dropped rather than emitted as `DIM_TIME`.
  */
-export function getDefaultWmsTime(dim: WmsLayerDimension): Date | null {
-  const candidate = getDimensionDefaultValue(dim)
-  if (!candidate) return null
-  const d = new Date(candidate)
-  return isNaN(d.getTime()) ? null : d
+export function getWmsOtherDimensions(layer: MapLayer): AnyWmsDimension[] {
+  return getWmsDimensions(layer).filter((d) => !isTimeName(d.name))
 }
 
+// `values` is typed non-nullable but arrives null from `getDimensionsWithNewExtent`, the WMS 1.1.x
+// `<Extent>` inheritance path, which only filters out null dimensions. Reading it in a computed
+// makes an unguarded access take down the whole details panel.
+const listValues = (dim: AnyWmsDimension): unknown[] => {
+  const values: unknown = dim.values
+  if (values == null) return []
+  return Array.isArray(values) ? values : [values]
+}
+
+const isInterval = (value: unknown): boolean =>
+  typeof value === 'object' && value !== null && 'begin' in value
+
 /**
- * Format a Date as ISO 8601 without milliseconds ("2026-06-24T03:00:00Z").
- * Some WMS servers (e.g. GeoMet) reject the ".000" that Date.toISOString() emits.
- * Stored as a string so the SDK forwards it verbatim rather than re-serializing.
+ * Format a Date as ISO 8601 without the zero milliseconds ("2026-06-24T03:00:00Z"). The SDK forwards
+ * the string verbatim, and two public servers reject the ".000Z" that toISOString() always appends:
+ * NASA GIBS answers HTTP 400, Environment Canada's GeoMet a `NoMatch` ServiceException. A genuine
+ * sub-second value is left alone rather than truncated.
  */
 export function toWmsTime(date: Date): string {
-  return date.toISOString().replace(/\.\d{3}Z$/, 'Z')
+  return date.toISOString().replace(/\.000Z$/, 'Z')
+}
+
+/**
+ * A temporal value is formatted as a WMS time string: it is both displayed and sent verbatim as the
+ * GetMap parameter, and Date.toString() is not a valid WMS value.
+ */
+const toOption = (value: unknown): string | null => {
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : toWmsTime(value)
+  if (value == null || isInterval(value)) return null
+  return String(value)
+}
+
+/** Enumerable values as strings. An interval is not enumerable and yields none. */
+export function getDimensionOptions(dim: AnyWmsDimension): string[] {
+  return listValues(dim)
+    .map(toOption)
+    .filter((option): option is string => option !== null)
+}
+
+/** Declared default, falling back to the first enumerable value. */
+export function getDimensionDefaultOption(dim: AnyWmsDimension): string | undefined {
+  // `!= null` rather than truthiness: an elevation `default="0"` is a valid default.
+  if (dim.defaultValue != null) {
+    const option = toOption(dim.defaultValue)
+    if (option !== null) return option
+  }
+  return getDimensionOptions(dim)[0]
+}
+
+/** Declared default, else the first date, else the interval start. */
+export function getDefaultWmsTime(dim: WmsLayerTimeDimension): Date | null {
+  const valid = (date: unknown): Date | null =>
+    date instanceof Date && !isNaN(date.getTime()) ? date : null
+
+  const declared = valid(dim.defaultValue)
+  if (declared) return declared
+
+  for (const value of listValues(dim)) {
+    const date =
+      valid(value) ?? (isInterval(value) ? valid((value as { begin: Date }).begin) : null)
+    if (date) return date
+  }
+  return null
+}
+
+/** Label for a dimension's unit; temporal dimensions declare none. */
+export function getDimensionUnitLabel(dim: AnyWmsDimension): string | undefined {
+  if (isTemporal(dim)) return undefined
+  return dim.unitSymbol || dim.units || undefined
 }
 
 /**
@@ -69,9 +135,10 @@ export function stripDerivedExtras(layer: MapLayer): MapLayer {
 
 /**
  * Enrich a WMS layer with the dimensions the server declares (TIME, ELEVATION, …).
- * Stores all dimensions in `extras.wmsDimensions`, then seeds `dimensionValues`
- * from each dimension's server default.
- * Returns the layer unchanged when it declares no dimensions
+ * Stores every dimension in a flat `extras.wmsDimensions`, then seeds `timeValue`,
+ * `elevationValue` and `otherDimensionValues` from each dimension's server default,
+ * preserving whatever the consumer already provided.
+ * Returns the layer unchanged when it declares no dimensions.
  */
 export async function enrichWmsDimensionsLayer(layer: MapLayer): Promise<MapLayer> {
   if (layer.type !== 'wms' || layer.extras?.wmsDimensions) return layer
@@ -80,35 +147,46 @@ export async function enrichWmsDimensionsLayer(layer: MapLayer): Promise<MapLaye
     const endpoint = new WmsEndpoint((layer as { url: string }).url)
     await endpoint.isReady()
     const layerInfo = endpoint.getLayerByName((layer as { name: string }).name)
-    const dims = layerInfo?.dimensions ?? []
+    if (!layerInfo) return layer
+
+    const dims: AnyWmsDimension[] = [
+      layerInfo.timeDimension,
+      layerInfo.elevationDimension,
+      ...(layerInfo.otherDimensions ?? []),
+    ].filter((dim): dim is AnyWmsDimension => !!dim)
     if (dims.length === 0) return layer
 
-    // WMS dimension names are case-insensitive; servers may emit TIME, Time, etc.
-    const timeDim = dims.find((d) => d.name.toLowerCase() === 'time')
-
     const wmsLayer = layer as MapContextLayerWms
-    const existing = wmsLayer.dimensionValues ?? {}
-    const seeded: NonNullable<MapContextLayerWms['dimensionValues']> = { ...existing }
+    const seeded: Partial<MapContextLayerWms> = {}
+    const otherValues = { ...wmsLayer.otherDimensionValues }
+
     for (const dim of dims) {
-      const key = dim.name.toUpperCase()
-      // Preserve a consumer-provided value as-is.
-      if (seeded[key]) continue
-      if (dim === timeDim) {
-        const defaultTime = getDefaultWmsTime(dim)
-        if (defaultTime) seeded[key] = toWmsTime(defaultTime)
-      } else {
-        const def = getDimensionDefaultValue(dim)
-        if (def) seeded[key] = String(def)
+      if (isTimeName(dim.name)) {
+        if (wmsLayer.timeValue === undefined && isTemporal(dim)) {
+          const defaultTime = getDefaultWmsTime(dim)
+          if (defaultTime) seeded.timeValue = toWmsTime(defaultTime)
+        }
+      } else if (isElevationName(dim.name)) {
+        if (wmsLayer.elevationValue === undefined) {
+          const def = getDimensionDefaultOption(dim)
+          if (def !== undefined) seeded.elevationValue = def
+        }
+      } else if (otherValues[dim.name] === undefined) {
+        // The server's own casing: the SDK upper-cases it to build DIM_<NAME>.
+        const def = getDimensionDefaultOption(dim)
+        if (def !== undefined) otherValues[dim.name] = def
       }
     }
 
+    if (Object.keys(otherValues).length > 0) seeded.otherDimensionValues = otherValues
+
     return {
       ...layer,
+      ...seeded,
       extras: {
         ...layer.extras,
         wmsDimensions: dims,
       },
-      ...(Object.keys(seeded).length > 0 && { dimensionValues: seeded }),
     }
   } catch (err) {
     console.error('WMS dimension enrichment failed', err)
