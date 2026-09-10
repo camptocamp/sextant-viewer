@@ -47,8 +47,9 @@ const duration = (part: Partial<Duration>): Duration => ({
   ...part,
 })
 
+// A one-element list, the shape `normalizeDimension` produces from any declared interval form.
 const interval = (begin: string, end: string, period: Duration) =>
-  ({ begin: new Date(begin), end: new Date(end), period }) as unknown as TimeValues
+  [{ begin: new Date(begin), end: new Date(end), period }] as unknown as TimeValues
 
 const MONTHS = [
   new Date('2002-01-15T00:00:00Z'),
@@ -94,15 +95,11 @@ describe('useWmsTimeDimension', () => {
     expect(nextDate.value?.toISOString()).toBe('2002-03-15T00:00:00.000Z')
   })
 
-  it('accepts an interval declared as a lone object and as a one-element list', () => {
-    const lone = interval('2002-01-01T00:00:00Z', '2002-01-31T00:00:00Z', duration({ days: 1 }))
-    const wrapped = [lone] as unknown as TimeValues
-
-    for (const values of [lone, wrapped]) {
-      const { minDate, maxDate } = useWmsTimeDimension(makeLayer(values, null))
-      expect(minDate.value?.toISOString()).toBe('2002-01-01T00:00:00.000Z')
-      expect(maxDate.value?.toISOString()).toBe('2002-01-31T00:00:00.000Z')
-    }
+  it('reports an interval bounds without enumerating it', () => {
+    const daily = interval('2002-01-01T00:00:00Z', '2002-01-31T00:00:00Z', duration({ days: 1 }))
+    const { minDate, maxDate } = useWmsTimeDimension(makeLayer(daily, null))
+    expect(minDate.value?.toISOString()).toBe('2002-01-01T00:00:00.000Z')
+    expect(maxDate.value?.toISOString()).toBe('2002-01-31T00:00:00.000Z')
   })
 
   it('reads a list mixing dates and intervals', () => {
@@ -195,22 +192,13 @@ describe('useWmsTimeDimension', () => {
     expect(monthlyDim.timesForDay(new Date('2002-02-15T00:00:00Z')).size).toBe(1)
   })
 
-  it('survives a malformed interval and null values', () => {
-    const malformed = [
-      { begin: null, end: null, period: null },
-      {
-        begin: new Date('2002-01-01T00:00:00Z'),
-        end: new Date('2002-01-02T00:00:00Z'),
-        period: null,
-      },
-    ] as unknown as TimeValues
-
-    for (const values of [malformed, null as unknown as TimeValues]) {
-      const { minDate, isAllowedDay, nextDate } = useWmsTimeDimension(makeLayer(values, null))
-      expect(minDate.value).toBeNull()
-      expect(isAllowedDay(new Date('2002-01-01T00:00:00Z'))).toBe(false)
-      expect(nextDate.value).toBeNull()
-    }
+  // Null values, malformed intervals and the ISO strings of a cached read are the boundary's
+  // business: see the `enrichWmsDimensionsLayer` cases in `utils/wms.utils.spec.ts`.
+  it('reports nothing for a dimension the boundary left empty', () => {
+    const { minDate, isAllowedDay, nextDate } = useWmsTimeDimension(makeLayer([], null))
+    expect(minDate.value).toBeNull()
+    expect(isAllowedDay(new Date('2002-01-01T00:00:00Z'))).toBe(false)
+    expect(nextDate.value).toBeNull()
   })
 
   it('writes the picked instant as a WMS time string', () => {
@@ -223,31 +211,6 @@ describe('useWmsTimeDimension', () => {
     expect(mocks.updateLayer).toHaveBeenCalledWith(layer, {
       timeValue: '2002-02-15T00:00:00Z',
     })
-  })
-
-  it('reads a cached dimension, whose dates come back as ISO strings', () => {
-    // ogc-client's cache round-trips capabilities through JSON, so every read after the first
-    // hands back strings under the Date type.
-    const cached = JSON.parse(
-      JSON.stringify([
-        MONTHS[0],
-        {
-          begin: new Date('2003-01-01T00:00:00Z'),
-          end: new Date('2003-01-05T00:00:00Z'),
-          period: duration({ days: 1 }),
-        },
-      ]),
-    ) as TimeValues
-    const { isAllowedDay, minDate, maxDate, nextDate } = useWmsTimeDimension(
-      makeLayer(cached, '2003-01-02T00:00:00.000Z'),
-    )
-
-    expect(isAllowedDay(new Date('2002-01-15T00:00:00Z'))).toBe(true)
-    expect(isAllowedDay(new Date('2003-01-03T00:00:00Z'))).toBe(true)
-    expect(isAllowedDay(new Date('2003-01-06T00:00:00Z'))).toBe(false)
-    expect(minDate.value?.toISOString()).toBe('2002-01-15T00:00:00.000Z')
-    expect(maxDate.value?.toISOString()).toBe('2003-01-05T00:00:00.000Z')
-    expect(nextDate.value?.toISOString()).toBe('2003-01-03T00:00:00.000Z')
   })
 
   it('reads a restored string and the "current" literal', () => {

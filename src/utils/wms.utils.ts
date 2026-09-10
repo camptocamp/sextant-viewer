@@ -13,6 +13,10 @@ import type { MapLayer } from './layer.utils'
 
 export type AnyWmsDimension = WmsLayerDimension | WmsLayerTimeDimension
 
+// Not exported by ogc-client's index; extracted structurally from the dimension model.
+export type WmsTimeInterval = Extract<WmsLayerTimeDimension['values'], { period: unknown }>
+export type WmsDuration = WmsTimeInterval['period']
+
 /** Split a (possibly comma-joined) WMS layer name into its trimmed, non-empty sublayers. */
 export function splitSublayers(layerName: string): string[] {
   return layerName
@@ -47,14 +51,8 @@ export function getWmsOtherDimensions(layer: MapLayer): AnyWmsDimension[] {
   return getWmsDimensions(layer).filter((d) => !isTimeName(d.name))
 }
 
-// `values` is typed non-nullable but arrives null from `getDimensionsWithNewExtent`, the WMS 1.1.x
-// `<Extent>` inheritance path, which only filters out null dimensions. Reading it in a computed
-// makes an unguarded access take down the whole details panel.
-const listValues = (dim: AnyWmsDimension): unknown[] => {
-  const values: unknown = dim.values
-  if (values == null) return []
-  return Array.isArray(values) ? values : [values]
-}
+// A list, always: `normalizeDimension` unwraps the lone-interval and null forms the type allows.
+const listValues = (dim: AnyWmsDimension): unknown[] => dim.values as unknown[]
 
 const isInterval = (value: unknown): boolean =>
   typeof value === 'object' && value !== null && 'begin' in value
@@ -113,14 +111,11 @@ export function getDimensionDefaultOption(dim: AnyWmsDimension): string | undefi
 
 /** Declared default, else the first date, else the interval start. */
 export function getDefaultWmsTime(dim: WmsLayerTimeDimension): Date | null {
-  const declared = toDimensionDate(dim.defaultValue)
-  if (declared) return declared
+  if (dim.defaultValue) return dim.defaultValue
 
-  for (const value of listValues(dim)) {
-    const date =
-      toDimensionDate(value) ??
-      (isInterval(value) ? toDimensionDate((value as { begin: unknown }).begin) : null)
-    if (date) return date
+  for (const value of listValues(dim) as (Date | WmsTimeInterval)[]) {
+    if (value instanceof Date) return value
+    if (isInterval(value)) return value.begin
   }
   return null
 }
@@ -147,13 +142,55 @@ export function stripDerivedExtras(layer: MapLayer): MapLayer {
   return { ...layer, extras }
 }
 
+/** A period is exploitable only if it advances: `P0D` parses fine and would step nowhere. */
+const isPositive = (period: WmsDuration): boolean => Object.values(period).some((part) => part > 0)
+
+function normalizeTimeValue(value: unknown): Date | WmsTimeInterval | null {
+  const instant = toDimensionDate(value)
+  if (instant) return instant
+  if (!isInterval(value)) return null
+
+  const { begin, end, period } = value as Record<'begin' | 'end' | 'period', unknown>
+  const [from, to] = [toDimensionDate(begin), toDimensionDate(end)]
+  if (!from || !to || !period || !isPositive(period as WmsDuration)) return null
+  return { begin: from, end: to, period: period as WmsDuration }
+}
+
+/**
+ * Absorb what ogc-client's dimension types do not say, so that every reader downstream can trust
+ * them: `values` arrives null through the WMS 1.1.x `<Extent>` inheritance path, a lone interval is
+ * not wrapped in a list, an interval's `begin`, `end` and `period` are null on a malformed extent,
+ * and the capabilities cache round-trips through JSON — so every read but the first hands back ISO
+ * strings under the `Date` type. A dimension left without a single usable value is kept, empty:
+ * dropping it would strand `enrichWmsDimensionsLayer` on its unchanged-layer path, whose missing
+ * `extras.wmsDimensions` key makes enrichment run again on every pass.
+ */
+function normalizeDimension(dim: AnyWmsDimension): AnyWmsDimension {
+  const declared: unknown = dim.values
+  const values = declared == null ? [] : Array.isArray(declared) ? declared : [declared]
+
+  if (!isTemporal(dim)) return { ...dim, values: values as WmsLayerDimension['values'] }
+
+  return {
+    ...dim,
+    values: values
+      .map(normalizeTimeValue)
+      .filter(
+        (value): value is Date | WmsTimeInterval => value !== null,
+      ) as WmsLayerTimeDimension['values'],
+    defaultValue: toDimensionDate(dim.defaultValue) ?? undefined,
+  }
+}
+
 /** Every dimension the layer declares, temporal and scalar alike, in a single flat list. */
 function collectDimensions(layerInfo: WmsLayerFull): AnyWmsDimension[] {
   return [
     layerInfo.timeDimension,
     layerInfo.elevationDimension,
     ...(layerInfo.otherDimensions ?? []),
-  ].filter((dim): dim is AnyWmsDimension => !!dim)
+  ]
+    .filter((dim): dim is AnyWmsDimension => !!dim)
+    .map(normalizeDimension)
 }
 
 type OtherDimensionValues = NonNullable<MapContextLayerWms['otherDimensionValues']>

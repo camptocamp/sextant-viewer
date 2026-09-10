@@ -91,7 +91,7 @@ describe('useWmsDimension', () => {
     expect(enumerated.options.value).toEqual(['0', '10', '20'])
 
     const asInterval = useWmsDimension(
-      makeLayer([scalarDim({ values: { begin: 0, end: 100, resolution: 10 } })]),
+      makeLayer([scalarDim({ values: [{ begin: 0, end: 100, resolution: 10 }] })]),
       'elevation',
     )
     expect(asInterval.options.value).toEqual([])

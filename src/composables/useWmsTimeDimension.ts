@@ -6,13 +6,11 @@ import {
   getWmsTimeDimension,
   toDimensionDate,
   toWmsTime,
+  type WmsDuration,
+  type WmsTimeInterval,
 } from '@/utils/wms.utils'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
 import { expandTimeInterval, type WmsLayerTimeDimension } from '@camptocamp/ogc-client'
-
-// TimeInterval and Duration are not exported by ogc-client's index; extract them structurally.
-type TimeInterval = Extract<WmsLayerTimeDimension['values'], { period: unknown }>
-type Duration = TimeInterval['period']
 
 /** An interval whose period has a constant length, kept as arithmetic rather than enumerated. */
 type Grid = { begin: number; end: number; stepMs: number }
@@ -23,18 +21,16 @@ function utcDayStart(date: Date): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
 }
 
-const isInterval = (value: unknown): value is TimeInterval =>
-  typeof value === 'object' && value !== null && 'period' in value
+const isInterval = (value: Date | WmsTimeInterval): value is WmsTimeInterval =>
+  !(value instanceof Date)
 
 /**
  * Step length in ms, or null for a calendar period (years/months) whose steps are not
  * constant-length and must be walked by calendar arithmetic instead.
  */
-function fixedStepMs(period: Duration): number | null {
+function fixedStepMs(period: WmsDuration): number | null {
   if (period.years || period.months) return null
-  const ms =
-    ((period.days * 24 + period.hours) * 60 + period.minutes) * 60_000 + period.seconds * 1000
-  return ms > 0 ? ms : null
+  return ((period.days * 24 + period.hours) * 60 + period.minutes) * 60_000 + period.seconds * 1000
 }
 
 /** First grid instant falling inside the given UTC day, or null if the grid skips that day. */
@@ -62,31 +58,16 @@ export function useWmsTimeDimension(layer: MaybeRefOrGetter<MapLayer>) {
     const dim = timeDim.value
     if (!dim) return { instants, grids }
 
-    // `values` is typed non-nullable but arrives null through the WMS 1.1.x <Extent> inheritance
-    // path, and a lone interval is not wrapped in an array.
-    const values: unknown = dim.values
-    const declared = values == null ? [] : Array.isArray(values) ? values : [values]
-
     // Element by element: the parser casts a mixed list to Date[] | TimeInterval[], so a dimension
     // declaring both a date and an interval really does yield a heterogeneous array.
-    for (const value of declared) {
-      const instant = toDimensionDate(value)
-      if (instant) {
-        instants.push(instant)
+    for (const value of dim.values as (Date | WmsTimeInterval)[]) {
+      if (!isInterval(value)) {
+        instants.push(value)
         continue
       }
-      if (!isInterval(value)) continue
-      const { period } = value
-      // Typed non-optional, yet null on a malformed <Extent> — and expandTimeInterval throws there.
-      const begin = toDimensionDate(value.begin)
-      const end = toDimensionDate(value.end)
-      if (!begin || !end || !period) continue
-
-      const stepMs = fixedStepMs(period)
-      // Rebuild the interval: expandTimeInterval calls getTime() on begin/end, which a cached
-      // capabilities read hands over as ISO strings.
-      if (stepMs === null) instants.push(...expandTimeInterval({ begin, end, period }))
-      else grids.push({ begin: begin.getTime(), end: end.getTime(), stepMs })
+      const stepMs = fixedStepMs(value.period)
+      if (stepMs === null) instants.push(...expandTimeInterval(value))
+      else grids.push({ begin: value.begin.getTime(), end: value.end.getTime(), stepMs })
     }
 
     // The server may declare values in any order; stepping and snapping rely on the ordering.

@@ -1,6 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({ getLayerByName: vi.fn() }))
+
+vi.mock('@camptocamp/ogc-client', () => ({
+  WmsEndpoint: class {
+    isReady() {
+      return Promise.resolve(this)
+    }
+    getLayerByName = mocks.getLayerByName
+  },
+}))
+
 import {
   buildWmsFilterParam,
+  enrichWmsDimensionsLayer,
   getDefaultWmsTime,
   getDimensionDefaultOption,
   getDimensionOptions,
@@ -12,7 +25,7 @@ import {
 } from './wms.utils'
 import type { FilterByAttribute } from '@/types/wms.types'
 import type { MapLayer } from './layer.utils'
-import type { WmsLayerDimension, WmsLayerTimeDimension } from '@camptocamp/ogc-client'
+import type { WmsLayerDimension, WmsLayerFull, WmsLayerTimeDimension } from '@camptocamp/ogc-client'
 
 const region = (values: string[]): FilterByAttribute => ({
   attributeName: 'DCSMM_SOUS_REGION',
@@ -174,31 +187,15 @@ describe('getDimensionOptions', () => {
       'top',
     ])
     expect(
-      getDimensionOptions(scalarDim({ values: { begin: 0, end: 100, resolution: 10 } })),
+      getDimensionOptions(scalarDim({ values: [{ begin: 0, end: 100, resolution: 10 }] })),
     ).toEqual([])
   })
 
-  it('tolerates the null values the WMS 1.1.x extent inheritance leaves behind', () => {
-    const dim = scalarDim({ values: null as unknown as WmsLayerDimension['values'] })
+  it('yields none for a dimension the boundary left empty', () => {
+    const dim = scalarDim({ values: [] })
     expect(getDimensionOptions(dim)).toEqual([])
     expect(getDimensionDefaultOption(dim)).toBeUndefined()
-    expect(
-      getDefaultWmsTime(timeDim({ values: null as unknown as WmsLayerTimeDimension['values'] })),
-    ).toBeNull()
-  })
-})
-
-describe('getDefaultWmsTime on a cached dimension', () => {
-  it("accepts the ISO strings ogc-client's JSON cache hands back", () => {
-    const dim = JSON.parse(
-      JSON.stringify(timeDim({ values: [new Date('2002-01-15T00:00:00Z')] })),
-    ) as WmsLayerTimeDimension
-    expect(getDefaultWmsTime(dim)?.toISOString()).toBe('2002-01-15T00:00:00.000Z')
-
-    const withDefault = JSON.parse(
-      JSON.stringify(timeDim({ values: [], defaultValue: new Date('2002-03-15T00:00:00Z') })),
-    ) as WmsLayerTimeDimension
-    expect(getDefaultWmsTime(withDefault)?.toISOString()).toBe('2002-03-15T00:00:00.000Z')
+    expect(getDefaultWmsTime(timeDim({ values: [] }))).toBeNull()
   })
 })
 
@@ -226,11 +223,13 @@ describe('getDefaultWmsTime', () => {
       getDefaultWmsTime(timeDim({ values: [new Date('2002-01-15T00:00:00Z')] }))?.toISOString(),
     ).toBe('2002-01-15T00:00:00.000Z')
 
-    const asInterval = {
-      begin: new Date('2002-01-15T00:00:00Z'),
-      end: new Date('2002-06-15T00:00:00Z'),
-      period: { years: 0, months: 1, days: 0, hours: 0, minutes: 0, seconds: 0 },
-    } as unknown as WmsLayerTimeDimension['values']
+    const asInterval = [
+      {
+        begin: new Date('2002-01-15T00:00:00Z'),
+        end: new Date('2002-06-15T00:00:00Z'),
+        period: { years: 0, months: 1, days: 0, hours: 0, minutes: 0, seconds: 0 },
+      },
+    ] as unknown as WmsLayerTimeDimension['values']
     expect(getDefaultWmsTime(timeDim({ values: asInterval }))?.toISOString()).toBe(
       '2002-01-15T00:00:00.000Z',
     )
@@ -242,5 +241,99 @@ describe('getDimensionUnitLabel', () => {
     expect(getDimensionUnitLabel(scalarDim({ units: 'meters', unitSymbol: 'm' }))).toBe('m')
     expect(getDimensionUnitLabel(scalarDim({ units: 'meters' }))).toBe('meters')
     expect(getDimensionUnitLabel(timeDim({ name: 'reference_time' }))).toBeUndefined()
+  })
+})
+
+const MONTHLY = { years: 0, months: 1, days: 0, hours: 0, minutes: 0, seconds: 0 }
+const NEVER = { years: 0, months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 }
+
+async function enrich(layerInfo: Partial<WmsLayerFull> | undefined) {
+  mocks.getLayerByName.mockReturnValue(layerInfo)
+  const layer = { type: 'wms', url: 'https://host/wms', name: 'lyr' } as unknown as MapLayer
+  const enriched = (await enrichWmsDimensionsLayer(layer)) as MapLayer & {
+    timeValue?: unknown
+    extras?: { wmsDimensions?: AnyWmsDimension[] }
+  }
+  return {
+    layer: enriched,
+    dimensions: enriched.extras?.wmsDimensions ?? [],
+    values: (enriched.extras?.wmsDimensions?.[0]?.values ?? []) as unknown[],
+  }
+}
+
+// Every reader downstream trusts the dimension model, so this is the one place that has to face
+// what ogc-client's types do not say.
+describe('enrichWmsDimensionsLayer — the ogc-client boundary', () => {
+  beforeEach(() => mocks.getLayerByName.mockReset())
+
+  it('turns the null values of the 1.1.x extent inheritance into an empty list', async () => {
+    const { dimensions, values } = await enrich({
+      timeDimension: timeDim({ values: null as unknown as WmsLayerTimeDimension['values'] }),
+    })
+    // Kept, not dropped: a missing `extras.wmsDimensions` key would re-run enrichment every pass.
+    expect(dimensions).toHaveLength(1)
+    expect(values).toEqual([])
+  })
+
+  it('wraps an interval declared on its own into a list', async () => {
+    const lone = {
+      begin: new Date('2002-01-15T00:00:00Z'),
+      end: new Date('2002-06-15T00:00:00Z'),
+      period: MONTHLY,
+    }
+    const { values } = await enrich({
+      timeDimension: timeDim({ values: lone as unknown as WmsLayerTimeDimension['values'] }),
+    })
+    expect(values).toEqual([lone])
+  })
+
+  it("revives the ISO strings ogc-client's JSON cache hands back", async () => {
+    const fresh = {
+      timeDimension: timeDim({
+        values: [new Date('2002-01-15T00:00:00Z')],
+        defaultValue: new Date('2002-03-15T00:00:00Z'),
+      }),
+    }
+    const cached = JSON.parse(JSON.stringify(fresh)) as Partial<WmsLayerFull>
+    const { layer, values } = await enrich(cached)
+
+    expect(values).toEqual([new Date('2002-01-15T00:00:00Z')])
+    expect(layer.extras?.wmsDimensions?.[0]?.defaultValue).toEqual(new Date('2002-03-15T00:00:00Z'))
+    // The seeded TIME is what the map ends up requesting, and the SDK forwards it verbatim.
+    expect(layer.timeValue).toBe('2002-03-15T00:00:00Z')
+  })
+
+  it('drops an interval no reader could step through', async () => {
+    const { values } = await enrich({
+      timeDimension: timeDim({
+        values: [
+          { begin: null, end: null, period: null },
+          { begin: new Date('2002-01-01T00:00:00Z'), end: null, period: MONTHLY },
+          // `P0D` parses fine and would step nowhere, expanding to the same instant 3650 times.
+          {
+            begin: new Date('2002-01-01T00:00:00Z'),
+            end: new Date('2002-01-02T00:00:00Z'),
+            period: NEVER,
+          },
+          new Date('2002-02-01T00:00:00Z'),
+        ] as unknown as WmsLayerTimeDimension['values'],
+      }),
+    })
+    expect(values).toEqual([new Date('2002-02-01T00:00:00Z')])
+  })
+
+  it('normalizes the scalar dimensions alongside the temporal one', async () => {
+    const { dimensions } = await enrich({
+      elevationDimension: scalarDim({
+        values: null as unknown as WmsLayerDimension['values'],
+      }),
+      otherDimensions: [scalarDim({ name: 'band', values: [1, 2] })],
+    })
+    expect(dimensions.map((dim) => dim.values)).toEqual([[], [1, 2]])
+  })
+
+  it('leaves a layer the server declares no dimension for untouched', async () => {
+    const { layer } = await enrich({})
+    expect(layer.extras).toBeUndefined()
   })
 })
