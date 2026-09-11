@@ -53421,7 +53421,7 @@ function Nae(t) {
   return !a || !s || !n || !Mae(n) ? null : { begin: a, end: s, period: n };
 }
 function Fae(t) {
-  const e = t.values, i = e == null ? [] : Array.isArray(e) ? e : [e];
+  const e = t.values ?? [], i = Array.isArray(e) ? e : [e];
   return jm(t) ? {
     ...t,
     values: i.map(Nae).filter(
