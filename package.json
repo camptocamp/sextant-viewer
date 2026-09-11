@@ -28,10 +28,10 @@
     "format:check": "prettier -c --experimental-cli src/ index.html demo/"
   },
   "dependencies": {
-    "@camptocamp/ogc-client": "1.3.1-dev.200c02a",
-    "@geospatial-sdk/core": "^0.0.5-dev.75",
-    "@geospatial-sdk/legend": "^0.0.5-dev.75",
-    "@geospatial-sdk/openlayers": "^0.0.5-dev.75",
+    "@camptocamp/ogc-client": "^2.0.1",
+    "@geospatial-sdk/core": "^0.0.5-dev.84.sha-c0309b8",
+    "@geospatial-sdk/legend": "^0.0.5-dev.84.sha-c0309b8",
+    "@geospatial-sdk/openlayers": "^0.0.5-dev.84.sha-c0309b8",
     "@nuxt/ui": "^4.5.0",
     "@types/sortablejs": "^1.15.9",
     "@vueuse/core": "^14.1.0",

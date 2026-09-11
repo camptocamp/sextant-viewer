@@ -1,51 +1,63 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import type { MapLayer } from '@/utils/layer.utils'
-import { getWmsOtherDimensions } from '@/utils/wms.utils'
+import {
+  getDimensionDefaultOption,
+  getDimensionOptions,
+  getWmsOtherDimensions,
+  isElevationName,
+  type AnyWmsDimension,
+} from '@/utils/wms.utils'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
-import { getDimensionDefaultValue, type WmsLayerDimension } from '@camptocamp/ogc-client'
 
 /**
  * Bind a single non-time WMS dimension (elevation, band, …) to a `<USelect>`.
- * Enumerated comma-list values only — no start/end/period interval
- * expansion or units conversion. Add when a server declares an interval on a
- * non-time dimension.
+ * Enumerated values only — an interval yields no option. Add interval support when a
+ * server declares one on a non-time dimension.
+ *
+ * The value stays a display string throughout: the SDK serialises by `toString()`, so
+ * writing the string `getDimensionOptions` produced yields the exact same GetMap parameter
+ * as writing the native value.
  */
 export function useWmsDimension(layer: MaybeRefOrGetter<MapLayer>, dimensionName: string) {
   const mapStore = useMapStore()
-  const key = dimensionName.toUpperCase()
+  const isElevation = isElevationName(dimensionName)
 
-  const dimension = computed<WmsLayerDimension | null>(
+  const dimension = computed<AnyWmsDimension | null>(
     () => getWmsOtherDimensions(toValue(layer)).find((d) => d.name === dimensionName) ?? null,
   )
 
   const options = computed<string[]>(() => {
     const dim = dimension.value
-    if (!dim) return []
-    return dim.values.flatMap((v) => v.split(',')).map((v) => v.trim())
+    return dim ? getDimensionOptions(dim) : []
   })
 
   const value = computed<string | undefined>({
     get: () => {
-      const raw = (toValue(layer) as MapContextLayerWms).dimensionValues?.[key]
-      return raw === undefined ? undefined : String(raw)
+      const l = toValue(layer) as MapContextLayerWms
+      const raw = isElevation ? l.elevationValue : l.otherDimensionValues?.[dimensionName]
+      // Only a primitive matches one of the options; an interval has no matching entry.
+      if (raw == null || typeof raw === 'object') return undefined
+      return String(raw)
     },
     set: (val) => {
       const l = toValue(layer) as MapContextLayerWms
-      const { [key]: _removed, ...others } = l.dimensionValues ?? {}
-      const dimensionValues = val
-        ? { ...others, [key]: val }
-        : Object.keys(others).length > 0
-          ? others
-          : undefined
-      mapStore.updateLayer(l as MapLayer, { dimensionValues } as Partial<MapLayer>)
+      if (isElevation) {
+        mapStore.updateLayer(l as MapLayer, { elevationValue: val } as Partial<MapLayer>)
+        return
+      }
+      const { [dimensionName]: _removed, ...others } = l.otherDimensionValues ?? {}
+      // An empty object is not the same layer as one without the key: `getHash` drops an
+      // undefined value from its JSON but keeps `{}`, so clearing would diff the layer.
+      const remaining = Object.keys(others).length > 0 ? others : undefined
+      const otherDimensionValues = val ? { ...others, [dimensionName]: val } : remaining
+      mapStore.updateLayer(l as MapLayer, { otherDimensionValues } as Partial<MapLayer>)
     },
   })
 
   function reset() {
     const dim = dimension.value
-    const def = dim && getDimensionDefaultValue(dim)
-    value.value = def ? String(def) : undefined
+    value.value = dim ? getDimensionDefaultOption(dim) : undefined
   }
 
   return { dimension, options, value, reset }

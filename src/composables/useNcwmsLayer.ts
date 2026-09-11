@@ -2,9 +2,9 @@ import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMapStore } from '@/stores/map.store'
 import { type MapLayer } from '@/utils/layer.utils'
 import { buildNcwmsStyles, getNcwmsInfo } from '@/utils/ncwms.utils'
+import { toDimensionDate } from '@/utils/wms.utils'
 import { NcwmsEndpoint } from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
-import { toWmsTime } from '@/utils/wms.utils'
 
 export function useNcwmsLayer(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
@@ -49,11 +49,13 @@ export function useNcwmsLayer(layer: MaybeRefOrGetter<MapLayer>) {
 
   async function autoColorRange(extent: [number, number, number, number]) {
     const l = toValue(layer) as MapContextLayerWms
-    const timeValue = l.dimensionValues?.TIME
-    const timeStr = timeValue instanceof Date ? toWmsTime(timeValue) : String(timeValue)
+    // getMinMax takes a single value; the list and interval forms the SDK also allows have no
+    // meaning for an auto-scale query and are dropped.
+    const elevation = l.elevationValue
     const bounds = await new NcwmsEndpoint(l.url).getMinMax(l.name, extent, {
-      time: timeValue ? timeStr : undefined,
-      elevation: l.dimensionValues?.ELEVATION ? String(l.dimensionValues.ELEVATION) : undefined,
+      time: toDimensionDate(l.timeValue) ?? undefined,
+      elevation:
+        typeof elevation === 'string' || typeof elevation === 'number' ? elevation : undefined,
     })
     colorScaleRange.value = [bounds.min, bounds.max]
   }

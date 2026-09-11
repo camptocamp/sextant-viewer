@@ -1,4 +1,5 @@
 import type { MapContextLayerWms, LayerExtras } from '@geospatial-sdk/core'
+import type { AnyWmsDimension } from '@/utils/wms.utils'
 import type { IndexField, MatchType } from '@/utils/geonetwork-index/attributeIndex.types'
 import type { LayerWpsProcess } from '@/types/wps.types'
 
@@ -36,5 +37,7 @@ export interface ExtendedMapLayerWms extends MapContextLayerWms {
     dataIndex?: GeoNetworkIndexConnection
     /** WPS processes the layer's metadata record declares (derived — never persisted). */
     wpsProcesses?: LayerWpsProcess[]
+    /** Dimensions the server declares, flattened (derived — never persisted). */
+    wmsDimensions?: AnyWmsDimension[]
   }
 }

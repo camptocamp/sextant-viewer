@@ -18,11 +18,11 @@ const {
   currentDate,
   reset,
   setNow,
-  allowedDates,
   minDate,
   maxDate,
   supportsCurrent,
-  isEnumerated,
+  isAllowedDay,
+  snapToDay,
   timesForDay,
   previousDate,
   nextDate,
@@ -46,20 +46,9 @@ function toCalendarDate(date: Date | null): DateValue | undefined {
   return new CalendarDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate())
 }
 
-// Key a Date by its UTC calendar day so picker selections map back to the exact
-// allowed value (which carries the precise time component the WMS server expects).
-function utcDayKey(date: Date): string {
-  return `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`
+function toUtcDate(value: DateValue): Date {
+  return new Date(Date.UTC(value.year, value.month - 1, value.day))
 }
-
-// UTC midnight of a date's calendar day, for whole-day range comparisons.
-function utcDay(date: Date): number {
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
-}
-
-const allowedDateByDay = computed<Map<string, Date>>(() => {
-  return new Map(allowedDates.value.map((d) => [utcDayKey(d), d]))
-})
 
 const calendarValue = computed<DateValue | undefined>({
   get: () => toCalendarDate(currentDate.value),
@@ -68,24 +57,15 @@ const calendarValue = computed<DateValue | undefined>({
       currentDate.value = null
       return
     }
-    const key = `${value.year}-${value.month - 1}-${value.day}`
-    // Snap to the exact allowed value for that day if the layer enumerates values,
-    // otherwise use the picked day at UTC midnight.
-    currentDate.value =
-      allowedDateByDay.value.get(key) ?? new Date(Date.UTC(value.year, value.month - 1, value.day))
+    // Snap to the exact instant the server offers on that day — it carries the time component the
+    // server expects — and fall back to the picked day at UTC midnight.
+    const picked = toUtcDate(value)
+    currentDate.value = snapToDay(picked) ?? picked
   },
 })
 
 function isDateDisabled(date: DateValue): boolean {
-  // Enumerated list: only the listed days are selectable.
-  if (isEnumerated.value) {
-    return !allowedDateByDay.value.has(`${date.year}-${date.month - 1}-${date.day}`)
-  }
-  // Interval: bound on [min, max] — allowedDates is capped, so unusable here.
-  const picked = Date.UTC(date.year, date.month - 1, date.day)
-  if (minDate.value && picked < utcDay(minDate.value)) return true
-  if (maxDate.value && picked > utcDay(maxDate.value)) return true
-  return false
+  return !isAllowedDay(toUtcDate(date))
 }
 
 // Open the calendar at the min date (or default) rather than today

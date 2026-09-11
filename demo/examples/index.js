@@ -8,6 +8,7 @@ import layerStac from './layerStac.js?raw'
 import layerWfs from './layerWfs.js?raw'
 import layerWms from './layerWms.js?raw'
 import layerWmsTime from './layerWmsTime.js?raw'
+import layerWmsTimeInterval from './layerWmsTimeInterval.js?raw'
 import layerWmsAttributeFilter from './layerWmsAttributeFilter.js?raw'
 import layerNcwms from './layerNcwms.js?raw'
 import layerWmts from './layerWmts.js?raw'
@@ -72,6 +73,22 @@ export const EXAMPLES = [
       <p>A clock icon appears in the layer list, and a date picker is shown in the layer details panel.</p>
     `,
     code: layerWmsTime,
+  },
+  {
+    name: 'Add WMS layers whose TIME is an interval',
+    description: `
+      <h4>Add WMS layers that declare TIME as <code>start/end/period</code> rather than a list.</h4>
+      <p>
+        The calendar only enables the days the period actually lands on: every day of a
+        <code>P1D</code> range, but a single day a month for a <code>P1M</code> one. Days falling in
+        a gap between two declared segments are disabled too.
+      </p>
+      <p>
+        Stepping with the arrows follows the same grid, including well past the 3650th step — the
+        series is never enumerated.
+      </p>
+    `,
+    code: layerWmsTimeInterval,
   },
   {
     name: 'Filter a WMS layer and run its processes',
