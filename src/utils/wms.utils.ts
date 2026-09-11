@@ -166,8 +166,8 @@ function normalizeTimeValue(value: unknown): Date | WmsTimeInterval | null {
  * `extras.wmsDimensions` key makes enrichment run again on every pass.
  */
 function normalizeDimension(dim: AnyWmsDimension): AnyWmsDimension {
-  const declared: unknown = dim.values
-  const values = declared == null ? [] : Array.isArray(declared) ? declared : [declared]
+  const declared: unknown = dim.values ?? []
+  const values = Array.isArray(declared) ? declared : [declared]
 
   if (!isTemporal(dim)) return { ...dim, values: values as WmsLayerDimension['values'] }
 
