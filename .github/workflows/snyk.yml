@@ -22,11 +22,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Snyk test
-        uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
       - name: Snyk monitor
         if: always()
         uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
