@@ -32,8 +32,8 @@ jobs:
       - name: Linting
         run: npm run lint
 
-      # - name: Run tests
-      #   run: npm run test:unit
+      - name: Run tests
+        run: npm run test:unit
 
   e2e:
     name: E2E tests
