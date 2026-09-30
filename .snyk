@@ -1,0 +1,28 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.1
+# ignores vulnerabilities until expiry date; change duration by modifying expiry date
+ignore:
+  SNYK-JS-ESBUILD-17750822:
+    - '*':
+        reason: >-
+          Not vulnerable. The flaw is in lib/deno/mod.ts (binary installation
+          through the Deno API). This is a Node/npm-only project; the Deno
+          module is never loaded. The source advisory GHSA-gv7w-rqvm-qjhr was
+          withdrawn by GitHub on 2026-06-17 (affected package incorrectly
+          identified).
+        expires: 2027-03-31T00:00:00.000Z
+        created: 2026-09-30T12:34:08.263Z
+  SNYK-JS-ESBUILD-17750815:
+    - '*':
+        reason: >-
+          Not vulnerable. Exploitation requires esbuild's built-in HTTP server
+          (serve API / servedir) running on Windows. No dependency in this
+          project invokes the esbuild serve API (verified by code search):
+          esbuild is only used through its transform/build/context APIs (vite,
+          vitepress, fontless, unplugin, @unhead/bundler). The Vite/VitePress
+          dev servers are separate HTTP servers and are not affected. This holds
+          for any contributor OS, including Windows. No compatible fix available
+          for Vite 7.3 / @nuxt/fonts 0.14.
+        expires: 2027-03-31T00:00:00.000Z
+        created: 2026-09-30T12:34:11.075Z
+patch: {}
