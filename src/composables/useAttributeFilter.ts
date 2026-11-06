@@ -180,8 +180,8 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     }
   }
 
-  // A zoom started on another layer must neither move the map nor report its failure here.
-  watch(() => toValue(layer)?.id, cancelZoom)
+  // A zoom started on another layer or selection must neither move the map nor report its failure.
+  watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], cancelZoom)
   onScopeDispose(cancelZoom)
 
   // Reload on layer change; on a selection change, only refresh the faceted counts. Watching
