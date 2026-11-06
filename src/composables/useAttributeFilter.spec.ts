@@ -5,14 +5,19 @@ import type { MapLayer } from '@/utils/layer.utils'
 const mocks = vi.hoisted(() => ({
   fetchFieldValues: vi.fn(),
   fetchCount: vi.fn(),
+  fetchExtent: vi.fn(),
   updateLayer: vi.fn(),
+  setView: vi.fn(),
 }))
 
 vi.mock('@/utils/geonetwork-index', () => ({
   fetchFieldValues: mocks.fetchFieldValues,
   fetchCount: mocks.fetchCount,
+  fetchExtent: mocks.fetchExtent,
 }))
-vi.mock('@/stores/map.store', () => ({ useMapStore: () => ({ updateLayer: mocks.updateLayer }) }))
+vi.mock('@/stores/map.store', () => ({
+  useMapStore: () => ({ updateLayer: mocks.updateLayer, setView: mocks.setView }),
+}))
 
 import { useAttributeFilter } from './useAttributeFilter'
 
@@ -41,6 +46,8 @@ beforeEach(() => {
   mocks.fetchFieldValues.mockReset()
   mocks.fetchCount.mockReset()
   mocks.updateLayer.mockReset()
+  mocks.fetchExtent.mockReset()
+  mocks.setView.mockReset()
   mocks.fetchFieldValues.mockImplementation((_index, field) =>
     Promise.resolve({ esField: field.esField, values: [], truncated: false }),
   )
@@ -274,6 +281,37 @@ describe('useAttributeFilter', () => {
 
     await api.searchValues('B', 'b')
     expect(api.error.value).toBeNull()
+    scope.stop()
+  })
+
+  it('zooms to the extent of the active selection', async () => {
+    const filter = [{ attributeName: 'A', matchType: 'equals', values: ['x'] }]
+    const layer = ref(makeLayer(filter))
+    mocks.fetchExtent.mockResolvedValue([-5, 43, 8, 51])
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    await api.zoomToSelection()
+
+    expect(mocks.fetchExtent).toHaveBeenCalledWith(layer.value.extras!.dataIndex, filter)
+    expect(mocks.setView).toHaveBeenCalledWith({ extent: [-5, 43, 8, 51] })
+    expect(api.zooming.value).toBe(false)
+    expect(api.error.value).toBeNull()
+    scope.stop()
+  })
+
+  it('reports an error instead of zooming when the selection has no extent', async () => {
+    const layer = ref(makeLayer())
+    mocks.fetchExtent.mockResolvedValue(null)
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    await api.zoomToSelection()
+
+    expect(mocks.setView).not.toHaveBeenCalled()
+    expect(api.error.value).not.toBeNull()
     scope.stop()
   })
 })
