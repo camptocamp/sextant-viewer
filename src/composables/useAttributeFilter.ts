@@ -2,6 +2,7 @@ import { computed, onScopeDispose, readonly, ref, toValue, watch, type MaybeRefO
 import { useMapStore } from '@/stores/map.store'
 import {
   fetchCount,
+  fetchExtent,
   fetchFieldValues,
   type DistinctFieldValues,
   type IndexField,
@@ -23,6 +24,7 @@ interface ColumnState {
 
 const LOAD_ERROR =
   'Impossible de charger les valeurs depuis ElasticSearch. Vérifiez la connexion à l’index.'
+const EXTENT_ERROR = 'Impossible de calculer l’étendue de la sélection.'
 
 function dataIndexOf(layer: MapLayer): GeoNetworkIndexConnection | undefined {
   if (!isLayerDataIndexed(layer)) return undefined
@@ -64,11 +66,14 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
       Object.entries(columns.value).map(([esField, column]) => [esField, column.searching]),
     ),
   )
-  const error = computed(() =>
-    countsFailed.value || Object.values(columns.value).some((column) => column.failed)
-      ? LOAD_ERROR
-      : null,
-  )
+  const zooming = ref(false)
+  const zoomFailed = ref(false)
+  const error = computed(() => {
+    if (countsFailed.value || Object.values(columns.value).some((column) => column.failed)) {
+      return LOAD_ERROR
+    }
+    return zoomFailed.value ? EXTENT_ERROR : null
+  })
 
   const activeFilters = computed<ActiveFilters>(() => activeFiltersOf(toValue(layer)))
   const hasActiveFilters = computed(() =>
@@ -211,6 +216,27 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     setActiveFilters({})
   }
 
+  // Independent of `requestId`: zooming must not abort an in-flight count refresh.
+  async function zoomToSelection() {
+    const dataIndex = dataIndexOf(toValue(layer))
+    if (!dataIndex) return
+    zooming.value = true
+    zoomFailed.value = false
+    try {
+      const extent = await fetchExtent(dataIndex, toFilterState(activeFilters.value))
+      if (extent) {
+        mapStore.setView({ extent })
+      } else {
+        zoomFailed.value = true
+      }
+    } catch (e) {
+      console.error("Erreur lors du calcul de l'étendue de la sélection:", e)
+      zoomFailed.value = true
+    } finally {
+      zooming.value = false
+    }
+  }
+
   // Reload on layer change; on a selection change, only refresh the faceted counts. Watching
   // serialized values (not the layer object) keeps unrelated layer updates — opacity, visibility —
   // from superseding an in-flight load.
@@ -230,10 +256,12 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     loading: readonly(loading),
     error,
     searching,
+    zooming: readonly(zooming),
     activeFilters,
     hasActiveFilters,
     toggleValue,
     resetFilters,
     searchValues,
+    zoomToSelection,
   }
 }

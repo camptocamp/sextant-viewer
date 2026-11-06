@@ -45,5 +45,14 @@ export interface EsSearchResponse {
     values?: {
       buckets?: Array<{ key: string | number; doc_count: number }>
     }
+    xmin?: EsMetricAggregation
+    ymin?: EsMetricAggregation
+    xmax?: EsMetricAggregation
+    ymax?: EsMetricAggregation
   }
+}
+
+/** @internal A `min`/`max` aggregation result; `value` is null when no document matched. */
+interface EsMetricAggregation {
+  value: number | null
 }
