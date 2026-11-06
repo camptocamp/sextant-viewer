@@ -97284,7 +97284,7 @@ function PBe(t) {
       v === b && (v = null, A.value = !1);
     }
   }
-  return Le(() => je(t)?.id, B), Ia(B), Le(
+  return Le([() => je(t)?.id, () => JSON.stringify(u.value)], B), Ia(B), Le(
     [() => je(t)?.id, () => JSON.stringify(u.value)],
     ([w], [b]) => w === b ? I(p()) : C()
   ), C(), Ia(() => h?.abort()), {
