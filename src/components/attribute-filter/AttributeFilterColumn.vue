@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, watchEffect } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import type { FieldValue, IndexField } from '@/utils/geonetwork-index'
 
-defineProps<{
+const props = defineProps<{
   field: IndexField
   values: readonly FieldValue[]
   truncated: boolean
@@ -21,6 +21,13 @@ watch(
   () => debouncedSearch.value.trim(),
   (term) => emit('search', term),
 )
+
+// Latched: `values` holds search results, so deriving visibility from them would unmount the
+// input mid-search (e.g. while a cleared term is refetching, or for good if that refetch fails).
+const searchable = ref(false)
+watchEffect(() => {
+  if (props.truncated || props.values.length > 8) searchable.value = true
+})
 </script>
 
 <template>
@@ -44,7 +51,7 @@ watch(
     <template #content>
       <div class="space-y-2 px-2 pb-2">
         <UInput
-          v-if="truncated || values.length > 8 || search"
+          v-if="searchable"
           v-model="search"
           :loading="searching"
           size="xs"
