@@ -221,4 +221,59 @@ describe('useAttributeFilter', () => {
     expect(api.searching.value.A).toBe(false)
     scope.stop()
   })
+
+  it('a search started before a selection change does not overwrite the refreshed values', async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+    let api!: ReturnType<typeof useAttributeFilter>
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+
+    let releaseSearch!: () => void
+    mocks.fetchFieldValues.mockImplementationOnce(
+      (_index, field) =>
+        new Promise((resolve) => {
+          releaseSearch = () =>
+            resolve({ esField: field.esField, values: [{ value: 'stale', count: 9 }] })
+        }),
+    )
+    const search = api.searchValues('A', 'st')
+
+    mocks.fetchFieldValues.mockImplementation((_index, field) =>
+      Promise.resolve({ esField: field.esField, values: [{ value: 'fresh', count: 1 }] }),
+    )
+    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    await flush()
+    releaseSearch()
+    await search
+
+    expect(api.fieldValues.value.A?.values).toEqual([{ value: 'fresh', count: 1 }])
+    scope.stop()
+  })
+
+  it("a successful search clears its column's error but not another column's", async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+    let api!: ReturnType<typeof useAttributeFilter>
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mocks.fetchFieldValues.mockRejectedValueOnce(new Error('A down'))
+    await api.searchValues('A', 'a')
+    mocks.fetchFieldValues.mockRejectedValueOnce(new Error('B down'))
+    await api.searchValues('B', 'b')
+    expect(api.error.value).not.toBeNull()
+
+    await api.searchValues('A', 'a')
+    expect(api.error.value).not.toBeNull()
+
+    await api.searchValues('B', 'b')
+    expect(api.error.value).toBeNull()
+    scope.stop()
+  })
 })
