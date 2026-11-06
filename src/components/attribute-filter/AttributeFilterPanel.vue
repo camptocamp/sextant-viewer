@@ -12,10 +12,12 @@ const {
   totalCount,
   loading,
   error,
+  searching,
   activeFilters,
   hasActiveFilters,
   toggleValue,
   resetFilters,
+  searchValues,
 } = useAttributeFilter(() => props.layer)
 </script>
 
@@ -47,7 +49,9 @@ const {
         :values="fieldValues[field.esField]?.values ?? []"
         :truncated="fieldValues[field.esField]?.truncated ?? false"
         :selected="activeFilters[field.esField] ?? []"
+        :searching="searching[field.esField] ?? false"
         @toggle="(value) => toggleValue(field.esField, value)"
+        @search="(term) => searchValues(field.esField, term)"
       />
 
       <p v-if="!fields.length" class="text-muted text-sm">Aucune colonne filtrable.</p>

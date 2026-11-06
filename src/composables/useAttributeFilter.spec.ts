@@ -140,4 +140,85 @@ describe('useAttributeFilter', () => {
     expect(api.count.value).toBe(7)
     scope.stop()
   })
+
+  it('a search refetches only the searched column, with its own faceting', async () => {
+    const layer = ref(makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }]))
+    const scope = effectScope()
+    let api!: ReturnType<typeof useAttributeFilter>
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+    mocks.fetchFieldValues.mockClear()
+    mocks.fetchCount.mockClear()
+
+    await api.searchValues('A', 'foo')
+
+    expect(mocks.fetchFieldValues).toHaveBeenCalledTimes(1)
+    const [, field, filters, , term] = mocks.fetchFieldValues.mock.calls[0]!
+    expect(field.esField).toBe('A')
+    expect(filters).toEqual([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    expect(term).toBe('foo')
+    expect(mocks.fetchCount).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('a selection change keeps each column searched with its current term', async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+    let api!: ReturnType<typeof useAttributeFilter>
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+    await api.searchValues('A', 'foo')
+    mocks.fetchFieldValues.mockClear()
+
+    layer.value = {
+      ...layer.value,
+      extras: {
+        ...layer.value.extras,
+        filter: [{ attributeName: 'B', matchType: 'equals', values: ['y'] }],
+      },
+    } as MapLayer
+    await flush()
+
+    const termOf = (esField: string) =>
+      mocks.fetchFieldValues.mock.calls.find((c) => c[1].esField === esField)?.[4]
+    expect(termOf('A')).toBe('foo')
+    expect(termOf('B')).toBeUndefined()
+    scope.stop()
+  })
+
+  it('a superseded search does not overwrite the newer one', async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+    let api!: ReturnType<typeof useAttributeFilter>
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+
+    let releaseFirst!: () => void
+    mocks.fetchFieldValues
+      .mockImplementationOnce(
+        (_index, field) =>
+          new Promise((resolve) => {
+            releaseFirst = () =>
+              resolve({ esField: field.esField, values: [{ value: 'old', count: 1 }] })
+          }),
+      )
+      .mockImplementationOnce((_index, field) =>
+        Promise.resolve({ esField: field.esField, values: [{ value: 'new', count: 1 }] }),
+      )
+
+    const first = api.searchValues('A', 'o')
+    await api.searchValues('A', 'ne')
+    releaseFirst()
+    await first
+
+    expect(api.fieldValues.value.A?.values).toEqual([{ value: 'new', count: 1 }])
+    expect(api.searching.value.A).toBe(false)
+    scope.stop()
+  })
 })

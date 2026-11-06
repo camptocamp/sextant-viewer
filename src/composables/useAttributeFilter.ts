@@ -43,6 +43,9 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const totalCount = ref<number | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  // Per-column search term: the values list is capped, so a search must query the index.
+  const searchTerms = ref<Record<string, string>>({})
+  const searching = ref<Record<string, boolean>>({})
 
   const activeFilters = computed<ActiveFilters>(() => activeFiltersOf(toValue(layer)))
   const hasActiveFilters = computed(() =>
@@ -72,11 +75,18 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     const dataIndex = dataIndexOf(toValue(layer))
     if (!dataIndex) return
     const active = activeFilters.value
+    const terms = searchTerms.value
     try {
       const [results, total, grandTotal] = await Promise.all([
         Promise.all(
           fields.value.map((field) =>
-            fetchFieldValues(dataIndex, field, toFilterState(active, field.esField), signal),
+            fetchFieldValues(
+              dataIndex,
+              field,
+              toFilterState(active, field.esField),
+              signal,
+              terms[field.esField],
+            ),
           ),
         ),
         fetchCount(dataIndex, toFilterState(active), signal),
@@ -89,7 +99,15 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
       error.value = null
       count.value = total
       if (grandTotal !== null) totalCount.value = grandTotal
-      fieldValues.value = Object.fromEntries(results.map((result) => [result.esField, result]))
+      // A column searched again meanwhile keeps its newer result.
+      fieldValues.value = Object.fromEntries(
+        results.map((result) => [
+          result.esField,
+          searchTerms.value[result.esField] === terms[result.esField]
+            ? result
+            : fieldValues.value[result.esField],
+        ]),
+      )
     } catch (e) {
       if (signal.aborted || id !== requestId) return
       console.error('Erreur lors du chargement des valeurs ElasticSearch:', e)
@@ -97,7 +115,51 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     }
   }
 
+  const searchControllers = new Map<string, AbortController>()
+
+  /** Re-query one column's values for `term`, leaving the other columns untouched. */
+  async function searchValues(esField: string, term: string) {
+    const dataIndex = dataIndexOf(toValue(layer))
+    const field = fields.value.find((f) => f.esField === esField)
+    if (!dataIndex || !field) return
+
+    searchControllers.get(esField)?.abort()
+    const searchController = new AbortController()
+    searchControllers.set(esField, searchController)
+    searchTerms.value = { ...searchTerms.value, [esField]: term }
+    searching.value = { ...searching.value, [esField]: true }
+
+    try {
+      const result = await fetchFieldValues(
+        dataIndex,
+        field,
+        toFilterState(activeFilters.value, esField),
+        searchController.signal,
+        term,
+      )
+      if (searchController.signal.aborted) return
+      fieldValues.value = { ...fieldValues.value, [esField]: result }
+    } catch (e) {
+      if (searchController.signal.aborted) return
+      console.error(`Erreur lors de la recherche de valeurs pour ${esField}:`, e)
+      error.value = LOAD_ERROR
+    } finally {
+      if (searchControllers.get(esField) === searchController) {
+        searchControllers.delete(esField)
+        searching.value = { ...searching.value, [esField]: false }
+      }
+    }
+  }
+
+  function abortSearches() {
+    searchControllers.forEach((c) => c.abort())
+    searchControllers.clear()
+    searching.value = {}
+  }
+
   async function load() {
+    abortSearches()
+    searchTerms.value = {}
     if (!dataIndexOf(toValue(layer))) {
       fieldValues.value = {}
       count.value = null
@@ -143,7 +205,10 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   load()
 
   // Cancel any in-flight request when the panel is torn down.
-  onScopeDispose(() => controller?.abort())
+  onScopeDispose(() => {
+    controller?.abort()
+    abortSearches()
+  })
 
   return {
     fields,
@@ -152,9 +217,11 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     totalCount: readonly(totalCount),
     loading: readonly(loading),
     error: readonly(error),
+    searching: readonly(searching),
     activeFilters,
     hasActiveFilters,
     toggleValue,
     resetFilters,
+    searchValues,
   }
 }
