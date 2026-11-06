@@ -2,6 +2,7 @@ import { computed, onScopeDispose, readonly, ref, toValue, watch, type MaybeRefO
 import { useMapStore } from '@/stores/map.store'
 import {
   fetchCount,
+  fetchExtent,
   fetchFieldValues,
   type DistinctFieldValues,
   type IndexField,
@@ -15,6 +16,7 @@ type ActiveFilters = Record<string, string[]>
 
 const LOAD_ERROR =
   'Impossible de charger les valeurs depuis ElasticSearch. Vérifiez la connexion à l’index.'
+const EXTENT_ERROR = 'Impossible de calculer l’étendue de la sélection.'
 
 function dataIndexOf(layer: MapLayer): GeoNetworkIndexConnection | undefined {
   if (!isLayerDataIndexed(layer)) return undefined
@@ -42,6 +44,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const count = ref<number | null>(null)
   const totalCount = ref<number | null>(null)
   const loading = ref(false)
+  const zooming = ref(false)
   const error = ref<string | null>(null)
 
   const activeFilters = computed<ActiveFilters>(() => activeFiltersOf(toValue(layer)))
@@ -134,6 +137,26 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     setActiveFilters({})
   }
 
+  // Independent of `requestId`: zooming must not abort an in-flight count refresh.
+  async function zoomToSelection() {
+    const dataIndex = dataIndexOf(toValue(layer))
+    if (!dataIndex) return
+    zooming.value = true
+    try {
+      const extent = await fetchExtent(dataIndex, toFilterState(activeFilters.value))
+      if (extent) {
+        mapStore.setView({ extent })
+      } else {
+        error.value = EXTENT_ERROR
+      }
+    } catch (e) {
+      console.error("Erreur lors du calcul de l'étendue de la sélection:", e)
+      error.value = EXTENT_ERROR
+    } finally {
+      zooming.value = false
+    }
+  }
+
   // Reload on layer change; on a selection change, only refresh the faceted counts. Watching
   // serialized values (not the layer object) keeps unrelated layer updates — opacity, visibility —
   // from superseding an in-flight load.
@@ -151,10 +174,12 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     count: readonly(count),
     totalCount: readonly(totalCount),
     loading: readonly(loading),
+    zooming: readonly(zooming),
     error: readonly(error),
     activeFilters,
     hasActiveFilters,
     toggleValue,
     resetFilters,
+    zoomToSelection,
   }
 }

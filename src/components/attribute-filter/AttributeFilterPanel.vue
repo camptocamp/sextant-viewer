@@ -16,6 +16,8 @@ const {
   hasActiveFilters,
   toggleValue,
   resetFilters,
+  zooming,
+  zoomToSelection,
 } = useAttributeFilter(() => props.layer)
 </script>
 
@@ -52,8 +54,20 @@ const {
 
       <p v-if="!fields.length" class="text-muted text-sm">Aucune colonne filtrable.</p>
 
-      <div v-if="hasActiveFilters" class="flex justify-center">
+      <div class="flex flex-wrap justify-center gap-2">
         <UButton
+          size="sm"
+          variant="soft"
+          color="primary"
+          icon="i-heroicons-arrows-pointing-out"
+          :loading="zooming"
+          :disabled="count === 0"
+          @click="zoomToSelection"
+        >
+          Zoomer sur la sélection
+        </UButton>
+        <UButton
+          v-if="hasActiveFilters"
           size="sm"
           variant="soft"
           color="error"

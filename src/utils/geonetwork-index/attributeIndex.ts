@@ -1,3 +1,4 @@
+import type { Extent } from '@geospatial-sdk/core'
 import type {
   IndexField,
   EsSearchResponse,
@@ -163,4 +164,41 @@ export async function fetchCount(
   )
 
   return readTotal(json)
+}
+
+// A lone point has an empty extent, which OpenLayers would fit at maximum zoom.
+const POINT_EXTENT_BUFFER_DEGREES = 0.05
+
+/**
+ * EPSG:4326 extent of the documents matching the given active `filters`, from the per-feature
+ * `bbox_*` fields the GeoNetwork WFS harvester indexes; null when nothing matched.
+ */
+export async function fetchExtent(
+  index: GeoNetworkIndexConnection,
+  filters: WmsFilterState = [],
+  signal?: AbortSignal,
+): Promise<Extent | null> {
+  const json = await esSearch<EsSearchResponse>(
+    index,
+    {
+      size: 0,
+      query: filteredQuery(index, filters),
+      aggs: {
+        xmin: { min: { field: 'bbox_xmin' } },
+        ymin: { min: { field: 'bbox_ymin' } },
+        xmax: { max: { field: 'bbox_xmax' } },
+        ymax: { max: { field: 'bbox_ymax' } },
+      },
+    },
+    signal,
+  )
+
+  const aggs = json.aggregations
+  const [xmin, ymin, xmax, ymax] = [aggs?.xmin, aggs?.ymin, aggs?.xmax, aggs?.ymax].map(
+    (agg) => agg?.value,
+  )
+  if (xmin == null || ymin == null || xmax == null || ymax == null) return null
+  if (xmin !== xmax || ymin !== ymax) return [xmin, ymin, xmax, ymax]
+  const b = POINT_EXTENT_BUFFER_DEGREES
+  return [xmin - b, ymin - b, xmax + b, ymax + b]
 }
