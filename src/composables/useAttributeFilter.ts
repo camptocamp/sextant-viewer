@@ -209,26 +209,47 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     setActiveFilters({})
   }
 
-  // Independent of `requestId`: zooming must not abort an in-flight count refresh.
+  // Separate from `controller`: zooming must not abort an in-flight count refresh.
+  let zoomController: AbortController | null = null
+
+  function cancelZoom() {
+    zoomController?.abort()
+    zoomController = null
+    zooming.value = false
+    zoomFailed.value = false
+  }
+
   async function zoomToSelection() {
     const dataIndex = dataIndexOf(toValue(layer))
     if (!dataIndex) return
+    cancelZoom()
+    const current = new AbortController()
+    zoomController = current
     zooming.value = true
-    zoomFailed.value = false
     try {
-      const extent = await fetchExtent(dataIndex, toFilterState(activeFilters.value))
+      const filters = toFilterState(activeFilters.value)
+      const extent = await fetchExtent(dataIndex, filters, current.signal)
+      if (current.signal.aborted) return
       if (extent) {
         mapStore.setView({ extent })
       } else {
         zoomFailed.value = true
       }
     } catch (e) {
+      if (current.signal.aborted) return
       console.error("Erreur lors du calcul de l'étendue de la sélection:", e)
       zoomFailed.value = true
     } finally {
-      zooming.value = false
+      if (zoomController === current) {
+        zoomController = null
+        zooming.value = false
+      }
     }
   }
+
+  // A zoom started on another layer must neither move the map nor report its failure here.
+  watch(() => toValue(layer)?.id, cancelZoom)
+  onScopeDispose(cancelZoom)
 
   // Reload on layer change; on a selection change, only refresh the faceted counts. Watching
   // serialized values (not the layer object) keeps unrelated layer updates — opacity, visibility —
