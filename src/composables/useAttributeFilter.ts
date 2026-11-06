@@ -42,7 +42,15 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const count = ref<number | null>(null)
   const totalCount = ref<number | null>(null)
   const loading = ref(false)
-  const error = ref<string | null>(null)
+  const loadFailed = ref(false)
+  // Per-column search term: the values list is capped, so a search must query the index.
+  const searchTerms = ref<Record<string, string>>({})
+  const searching = ref<Record<string, boolean>>({})
+  // Tracked per column so a successful search only clears its own failure.
+  const searchFailed = ref<Record<string, boolean>>({})
+  const error = computed(() =>
+    loadFailed.value || Object.values(searchFailed.value).some(Boolean) ? LOAD_ERROR : null,
+  )
 
   const activeFilters = computed<ActiveFilters>(() => activeFiltersOf(toValue(layer)))
   const hasActiveFilters = computed(() =>
@@ -72,11 +80,18 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     const dataIndex = dataIndexOf(toValue(layer))
     if (!dataIndex) return
     const active = activeFilters.value
+    const terms = searchTerms.value
     try {
       const [results, total, grandTotal] = await Promise.all([
         Promise.all(
           fields.value.map((field) =>
-            fetchFieldValues(dataIndex, field, toFilterState(active, field.esField), signal),
+            fetchFieldValues(
+              dataIndex,
+              field,
+              toFilterState(active, field.esField),
+              signal,
+              terms[field.esField],
+            ),
           ),
         ),
         fetchCount(dataIndex, toFilterState(active), signal),
@@ -86,18 +101,73 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
           : Promise.resolve<number | null>(null),
       ])
       if (id !== requestId) return
-      error.value = null
+      loadFailed.value = false
       count.value = total
       if (grandTotal !== null) totalCount.value = grandTotal
-      fieldValues.value = Object.fromEntries(results.map((result) => [result.esField, result]))
+      // A column searched again meanwhile keeps its newer result.
+      fieldValues.value = Object.fromEntries(
+        results.map((result) => [
+          result.esField,
+          searchTerms.value[result.esField] === terms[result.esField]
+            ? result
+            : fieldValues.value[result.esField],
+        ]),
+      )
     } catch (e) {
       if (signal.aborted || id !== requestId) return
       console.error('Erreur lors du chargement des valeurs ElasticSearch:', e)
-      error.value = LOAD_ERROR
+      loadFailed.value = true
     }
   }
 
+  const searchControllers = new Map<string, AbortController>()
+
+  /** Re-query one column's values for `term`, leaving the other columns untouched. */
+  async function searchValues(esField: string, term: string) {
+    const dataIndex = dataIndexOf(toValue(layer))
+    const field = fields.value.find((f) => f.esField === esField)
+    if (!dataIndex || !field) return
+
+    searchControllers.get(esField)?.abort()
+    const searchController = new AbortController()
+    searchControllers.set(esField, searchController)
+    searchTerms.value = { ...searchTerms.value, [esField]: term }
+    searching.value = { ...searching.value, [esField]: true }
+
+    try {
+      const result = await fetchFieldValues(
+        dataIndex,
+        field,
+        toFilterState(activeFilters.value, esField),
+        searchController.signal,
+        term,
+      )
+      if (searchController.signal.aborted) return
+      fieldValues.value = { ...fieldValues.value, [esField]: result }
+      searchFailed.value = { ...searchFailed.value, [esField]: false }
+    } catch (e) {
+      if (searchController.signal.aborted) return
+      console.error(`Erreur lors de la recherche de valeurs pour ${esField}:`, e)
+      searchFailed.value = { ...searchFailed.value, [esField]: true }
+    } finally {
+      if (searchControllers.get(esField) === searchController) {
+        searchControllers.delete(esField)
+        searching.value = { ...searching.value, [esField]: false }
+      }
+    }
+  }
+
+  /** Cancel in-flight searches and forget their failures; search terms are kept. */
+  function resetSearches() {
+    searchControllers.forEach((c) => c.abort())
+    searchControllers.clear()
+    searching.value = {}
+    searchFailed.value = {}
+  }
+
   async function load() {
+    resetSearches()
+    searchTerms.value = {}
     if (!dataIndexOf(toValue(layer))) {
       fieldValues.value = {}
       count.value = null
@@ -106,7 +176,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     }
     const req = nextRequest()
     loading.value = true
-    error.value = null
+    loadFailed.value = false
     await refreshValues(req, true)
     if (req.id === requestId) loading.value = false
   }
@@ -137,13 +207,19 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   // Reload on layer change; on a selection change, only refresh the faceted counts. Watching
   // serialized values (not the layer object) keeps unrelated layer updates — opacity, visibility —
   // from superseding an in-flight load.
-  watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], ([id], [oldId]) =>
-    id === oldId ? refreshValues(nextRequest()) : load(),
-  )
+  watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], ([id], [oldId]) => {
+    if (id !== oldId) return load()
+    // A search started under the old selection would overwrite the refreshed values; the refresh
+    // re-runs every column with its current term anyway.
+    resetSearches()
+    return refreshValues(nextRequest())
+  })
   load()
 
-  // Cancel any in-flight request when the panel is torn down.
-  onScopeDispose(() => controller?.abort())
+  onScopeDispose(() => {
+    controller?.abort()
+    resetSearches()
+  })
 
   return {
     fields,
@@ -151,10 +227,12 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     count: readonly(count),
     totalCount: readonly(totalCount),
     loading: readonly(loading),
-    error: readonly(error),
+    error,
+    searching: readonly(searching),
     activeFilters,
     hasActiveFilters,
     toggleValue,
     resetFilters,
+    searchValues,
   }
 }

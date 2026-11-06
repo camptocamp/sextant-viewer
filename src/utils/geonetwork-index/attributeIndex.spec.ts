@@ -128,6 +128,27 @@ describe('fetchFieldValues', () => {
     mockFetch({}, false, 503)
     await expect(fetchFieldValues(index, field)).rejects.toThrow(/503/)
   })
+
+  it('omits `include` for a blank search', async () => {
+    const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
+
+    await fetchFieldValues(index, field, [], undefined, '   ')
+    expect(bodyOf(fetchMock).aggs.values.terms).not.toHaveProperty('include')
+  })
+
+  it('restricts buckets to a case-insensitive contains pattern', async () => {
+    const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
+
+    await fetchFieldValues(index, field, [], undefined, ' Bé2 ')
+    expect(bodyOf(fetchMock).aggs.values.terms.include).toBe('.*[bB][éÉ]2.*')
+  })
+
+  it('escapes Lucene regex reserved characters in the search', async () => {
+    const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
+
+    await fetchFieldValues(index, field, [], undefined, 'a.b(c')
+    expect(bodyOf(fetchMock).aggs.values.terms.include).toBe('.*[aA]\\.[bB]\\([cC].*')
+  })
 })
 
 describe('fetchCount', () => {

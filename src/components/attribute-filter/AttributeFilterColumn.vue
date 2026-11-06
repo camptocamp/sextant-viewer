@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref, watch, watchEffect } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import type { FieldValue, IndexField } from '@/utils/geonetwork-index'
 
@@ -8,22 +8,26 @@ const props = defineProps<{
   values: readonly FieldValue[]
   truncated: boolean
   selected: readonly string[]
+  searching: boolean
 }>()
 
-const emit = defineEmits<{ toggle: [value: string] }>()
+const emit = defineEmits<{ toggle: [value: string]; search: [term: string] }>()
 
 const search = ref('')
-// Debounce the term the list filters on so typing stays responsive; the input stays bound to `search`.
-const debouncedSearch = refDebounced(search, 200)
+// Debounced so typing doesn't send one index query per keystroke.
+const debouncedSearch = refDebounced(search, 300)
 
-const filteredValues = computed(() => {
-  const term = debouncedSearch.value.trim().toLowerCase()
-  if (!term) return props.values
-  return props.values.filter((item) => item.value.toLowerCase().includes(term))
+watch(
+  () => debouncedSearch.value.trim(),
+  (term) => emit('search', term),
+)
+
+// Latched: `values` holds search results, so deriving visibility from them would unmount the
+// input mid-search (e.g. while a cleared term is refetching, or for good if that refetch fails).
+const searchable = ref(false)
+watchEffect(() => {
+  if (props.truncated || props.values.length > 8) searchable.value = true
 })
-
-// The cap only applies to the full list; a search shows every client-side match, so it isn't truncated.
-const showTruncated = computed(() => props.truncated && !debouncedSearch.value.trim())
 </script>
 
 <template>
@@ -47,8 +51,9 @@ const showTruncated = computed(() => props.truncated && !debouncedSearch.value.t
     <template #content>
       <div class="space-y-2 px-2 pb-2">
         <UInput
-          v-if="values.length > 8"
+          v-if="searchable"
           v-model="search"
+          :loading="searching"
           size="xs"
           icon="i-heroicons-magnifying-glass"
           placeholder="Rechercher une valeur"
@@ -57,7 +62,7 @@ const showTruncated = computed(() => props.truncated && !debouncedSearch.value.t
 
         <div class="max-h-56 space-y-1 overflow-y-auto">
           <UCheckbox
-            v-for="item in filteredValues"
+            v-for="item in values"
             :key="item.value"
             :model-value="selected.includes(item.value)"
             :ui="{
@@ -73,11 +78,11 @@ const showTruncated = computed(() => props.truncated && !debouncedSearch.value.t
             </template>
           </UCheckbox>
 
-          <p v-if="filteredValues.length === 0" class="text-muted text-xs">Aucune valeur</p>
+          <p v-if="values.length === 0" class="text-muted text-xs">Aucune valeur</p>
         </div>
 
-        <p v-if="showTruncated" class="text-dimmed text-xs">
-          Liste limitée à {{ values.length }} valeurs — affinez avec la recherche.
+        <p v-if="truncated" class="text-dimmed text-xs">
+          Liste limitée à {{ values.length }} valeurs — affinez la recherche.
         </p>
       </div>
     </template>
