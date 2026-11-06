@@ -356,4 +356,44 @@ describe('useAttributeFilter', () => {
     expect(api.error.value).toBeNull()
     scope.stop()
   })
+
+  it('a zoom still pending when the selection changes is dropped', async () => {
+    const layer = ref(makeLayer())
+    let resolveExtent!: (extent: number[]) => void
+    mocks.fetchExtent.mockImplementation(
+      () => new Promise<number[]>((resolve) => (resolveExtent = resolve)),
+    )
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    const zoom = api.zoomToSelection()
+    mocks.fetchCount.mockResolvedValue(4)
+    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    await flush()
+    resolveExtent([0, 0, 1, 1])
+    await zoom
+
+    expect(mocks.setView).not.toHaveBeenCalled()
+    expect(api.zooming.value).toBe(false)
+    // Cancelling the zoom must not cancel the count refresh.
+    expect(api.count.value).toBe(4)
+    scope.stop()
+  })
+
+  it('changing the selection clears a previous zoom failure', async () => {
+    const layer = ref(makeLayer())
+    mocks.fetchExtent.mockResolvedValue(null)
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    await api.zoomToSelection()
+    expect(api.error.value).not.toBeNull()
+
+    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    await flush()
+    expect(api.error.value).toBeNull()
+    scope.stop()
+  })
 })
