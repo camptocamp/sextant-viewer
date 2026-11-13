@@ -4,7 +4,7 @@ import {
   type WmsLayerFull,
   type WmsLayerTimeDimension,
 } from '@camptocamp/ogc-client'
-import type { MapContextLayerWms } from '@geospatial-sdk/core'
+import type { Extent, MapContextLayerWms } from '@geospatial-sdk/core'
 import { and, bbox, equalTo, greaterThanOrEqualTo, lessThan, like, or } from 'ol/format/filter'
 import { writeFilter } from 'ol/format/WFS'
 import type Filter from 'ol/format/filter/Filter'
@@ -344,6 +344,13 @@ export function dayAfter(date: string): string {
   return next.toISOString().slice(0, 10)
 }
 
+const clamp = (value: number, limit: number) => Math.min(limit, Math.max(-limit, value))
+
+/** An EPSG:4326 extent clamped to the globe: an area drawn across the antimeridian overflows it. */
+export function clampToGlobe([minx, miny, maxx, maxy]: Extent): Extent {
+  return [clamp(minx, 180), clamp(miny, 90), clamp(maxx, 180), clamp(maxy, 90)]
+}
+
 // OL types comparison literals as numbers but serializes them with `'' + expression`, so an ISO
 // date goes through untouched.
 const dateLiteral = (date: string) => date as unknown as number
@@ -392,8 +399,10 @@ function serializeFilter(filter: Filter): string {
 }
 
 /**
- * The layer's active selections, keyed by column (`esField` / `attributeName`) — the shape both the
- * filter UI and the WPS profile address them by (`linkedWfsFilter` names the same column).
+ * The layer's active selections, keyed by column (`attributeName`) — the shape the WPS profile
+ * addresses them by (`linkedWfsFilter` names the same column). A date range yields `[from, to]`,
+ * which `.from` / `.to` links read; the area yields `['minx,miny,maxx,maxy']` (EPSG:4326) under
+ * the fixed `geometry` key, whatever the WFS geometry property is named.
  */
 export function activeFiltersOf(layer: MapLayer): Record<string, string[]> {
   const out: Record<string, string[]> = {}
@@ -402,6 +411,8 @@ export function activeFiltersOf(layer: MapLayer): Record<string, string[]> {
   const filter = (layer.type === 'wms' && (layer.extras?.filter as WmsFilterState)) || []
   for (const entry of filter) {
     if (entry.kind === undefined) out[entry.attributeName] = entry.values
+    else if (entry.kind === 'dateRange') out[entry.attributeName] = [entry.from, entry.to]
+    else if (entry.kind === 'bbox') out.geometry = [clampToGlobe(entry.extent).join(',')]
   }
   return out
 }

@@ -111,6 +111,7 @@ function checkState(path: string): boolean | 'indeterminate' {
           <span class="flex" @click.stop @keydown.stop>
             <UCheckbox
               :model-value="checkState(item.path)"
+              :aria-label="item.path"
               :disabled="hasSelectedAncestor(item.path)"
               @update:model-value="emit('toggle', item.path)"
             />

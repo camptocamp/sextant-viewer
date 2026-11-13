@@ -10,7 +10,7 @@ import type {
   TreeIndexField,
 } from './attributeIndex.types'
 import type { GeoNetworkIndexConnection, WmsFilter, WmsFilterState } from '@/types/wms.types'
-import { dayAfter } from '../wms.utils'
+import { clampToGlobe, dayAfter } from '../wms.utils'
 
 // Maximum number of distinct attribute values to fetch for a column.
 const DEFAULT_FIELD_VALUES_LIMIT = 50
@@ -108,14 +108,15 @@ function filteredQuery(
 /**
  * Discover filterable columns from one sample document's `_source` (the index may expose no
  * public `_mapping`): every `ft_<COLUMN>_s` keyword field becomes a `terms` column on `<COLUMN>`,
- * every `ft_<COLUMN>_s_tree` field a `tree` column. Date ranges pair two columns, which only a
- * profile declares.
+ * every `ft_<COLUMN>_s_tree` field a `tree` column — which wins when both exist, a column having a
+ * single facet. Date ranges pair two columns, which only a profile declares.
  */
 export function fieldsFromSource(source: Record<string, unknown>): IndexField[] {
   const fields: IndexField[] = []
   for (const key of Object.keys(source)) {
     const terms = TERMS_FIELD_MATCH.exec(key)?.[1]
     if (terms) {
+      if (`${key}_tree` in source) continue
       fields.push({
         esField: terms,
         label: terms,
@@ -153,13 +154,12 @@ export async function probeIndex(
   return { total: readTotal(json), sampleSource: json.hits?.hits?.[0]?._source ?? {} }
 }
 
-const clamp = (value: number, limit: number) => Math.min(limit, Math.max(-limit, value))
-
 /** `geo_shape` envelope (upper-left, lower-right) of an EPSG:4326 extent, clamped to the globe. */
-function envelope([minx, miny, maxx, maxy]: Extent): number[][] {
+function envelope(extent: Extent): number[][] {
+  const [minx, miny, maxx, maxy] = clampToGlobe(extent)
   return [
-    [clamp(minx, 180), clamp(maxy, 90)],
-    [clamp(maxx, 180), clamp(miny, 90)],
+    [minx, maxy],
+    [maxx, miny],
   ]
 }
 

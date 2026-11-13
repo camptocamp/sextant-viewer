@@ -73,6 +73,9 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const totalCount = ref<number | null>(null)
   const loading = ref(false)
   const loadFailed = ref(false)
+  // Separate from `loadFailed`: bounds load only with the layer, so a later successful count
+  // refresh must not hide their failure.
+  const boundsFailed = ref(false)
   // Per-column search term: the values list is capped, so a search must query the index.
   const searchTerms = ref<Record<string, string>>({})
   // Expanded paths of each tree column: its levels load as they are expanded.
@@ -83,7 +86,9 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const zooming = ref(false)
   const zoomFailed = ref(false)
   const error = computed(() => {
-    if (loadFailed.value || Object.values(searchFailed.value).some(Boolean)) return LOAD_ERROR
+    if (loadFailed.value || boundsFailed.value || Object.values(searchFailed.value).some(Boolean)) {
+      return LOAD_ERROR
+    }
     return zoomFailed.value ? EXTENT_ERROR : null
   })
 
@@ -234,7 +239,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     } catch (e) {
       if (signal.aborted || id !== requestId) return
       console.error('Erreur lors du chargement des bornes de dates ElasticSearch:', e)
-      loadFailed.value = true
+      boundsFailed.value = true
     }
   }
 
@@ -321,6 +326,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     const req = nextRequest()
     loading.value = true
     loadFailed.value = false
+    boundsFailed.value = false
     await Promise.all([refreshValues(req, true), loadDateBounds(req)])
     if (req.id === requestId) loading.value = false
   }
@@ -423,9 +429,10 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
 
   // Reload on layer change; on a selection change, only refresh the faceted counts. Watching
   // serialized values (not the layer object) keeps unrelated layer updates — opacity, visibility —
-  // from superseding an in-flight load.
+  // from superseding an in-flight load. A selection change during the load supersedes it, so the
+  // load restarts: a mere refresh would neither load the date bounds nor end `loading`.
   watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], ([id], [oldId]) => {
-    if (id !== oldId) return load()
+    if (id !== oldId || loading.value) return load()
     // A column query started under the old selection would overwrite the refreshed values; the
     // refresh re-runs every column with its current term and expanded levels anyway.
     resetColumnQueries()

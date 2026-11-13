@@ -403,6 +403,12 @@ describe('fieldsFromSource', () => {
     ])
   })
 
+  it('keeps only the tree column when a column is indexed both ways', () => {
+    expect(fieldsFromSource({ ft_REGION_s: 'a/b', ft_REGION_s_tree: 'a/b' })).toEqual([
+      { esField: 'REGION', label: 'REGION', aggField: 'ft_REGION_s_tree', type: 'tree' },
+    ])
+  })
+
   it('tells whether the sample document carries the feature geometry', () => {
     expect(hasGeometry({ geom: { type: 'Point', coordinates: [0, 0] } })).toBe(true)
     expect(hasGeometry({ ft_THEME_s: 'x' })).toBe(false)

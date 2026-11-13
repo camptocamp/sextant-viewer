@@ -200,14 +200,39 @@ describe('dayAfter', () => {
 })
 
 describe('activeFiltersOf', () => {
-  it('only reads the value selections, not date ranges or areas', () => {
+  it('reads value selections, date ranges as `[from, to]` and the area under `geometry`', () => {
     const layer = {
       type: 'wms',
       extras: {
-        filter: [region(['A']), { kind: 'bbox', geometryName: 'geometry', extent: [0, 0, 1, 1] }],
+        filter: [
+          region(['A']),
+          {
+            kind: 'dateRange',
+            attributeName: 'range_Date',
+            minField: 'DATE_MIN',
+            maxField: 'DATE_MAX',
+            from: '2020-01-01',
+            to: '2021-12-31',
+          },
+          { kind: 'bbox', geometryName: 'msGeometry', extent: [-5.5, 48, -4, 49.25] },
+        ],
       },
     } as unknown as MapLayer
-    expect(activeFiltersOf(layer)).toEqual({ DCSMM_SOUS_REGION: ['A'] })
+    expect(activeFiltersOf(layer)).toEqual({
+      DCSMM_SOUS_REGION: ['A'],
+      range_Date: ['2020-01-01', '2021-12-31'],
+      geometry: ['-5.5,48,-4,49.25'],
+    })
+  })
+
+  it('clamps the area to the globe', () => {
+    const layer = {
+      type: 'wms',
+      extras: {
+        filter: [{ kind: 'bbox', geometryName: 'geometry', extent: [170, -95, 200, 95] }],
+      },
+    } as unknown as MapLayer
+    expect(activeFiltersOf(layer)).toEqual({ geometry: ['170,-90,180,90'] })
   })
 })
 
