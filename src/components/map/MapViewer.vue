@@ -92,6 +92,7 @@ onMounted(() => {
   // own updates internally, so the watcher just diffs and applies.
   const map = createMapFromContext(fullMapContext.value, mapContainer.value)
   mapRef.value = map
+  mapStore.olMap = map
 
   // Set view padding to account for overlay panels (LayerPanel on left)
   map.getView().padding = MAP_VIEW_PADDING
@@ -118,6 +119,7 @@ onBeforeUnmount(() => {
     mapRef.value.setTarget(undefined)
     mapRef.value.dispose()
     mapRef.value = null
+    mapStore.olMap = null
   }
 })
 </script>
