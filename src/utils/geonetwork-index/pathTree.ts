@@ -30,9 +30,18 @@ export function isWithin(path: string, ancestor: string): boolean {
 }
 
 /**
- * Build the tree of `/`-joined paths, siblings sorted by label. A node's children are known when
- * `childrenKnown(path)` says so (its own level and the next one were fetched); otherwise they stay
- * `undefined`. Ancestors missing from `values` are created without a count.
+ * Sort weight of a node: its count, or for an ancestor without one (above search matches) its
+ * best-counted descendant, so the branch holding the most frequent match comes first.
+ */
+function weight(node: PathTreeNode): number {
+  return node.count ?? Math.max(0, ...(node.children ?? []).map(weight))
+}
+
+/**
+ * Build the tree of `/`-joined paths, siblings sorted by decreasing count (then label), like the
+ * values of a list column. A node's children are known when `childrenKnown(path)` says so (its own
+ * level and the next one were fetched); otherwise they stay `undefined`. Ancestors missing from
+ * `values` are created without a count.
  */
 export function buildPathTree(
   values: readonly FieldValue[],
@@ -62,7 +71,7 @@ export function buildPathTree(
   }
 
   const sort = (list: PathTreeNode[]) => {
-    list.sort((a, b) => a.label.localeCompare(b.label, 'fr'))
+    list.sort((a, b) => weight(b) - weight(a) || a.label.localeCompare(b.label, 'fr'))
     list.forEach((child) => child.children && sort(child.children))
   }
   sort(roots)
