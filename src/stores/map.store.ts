@@ -1,5 +1,6 @@
-import { computed, ref, type Ref } from 'vue'
+import { computed, ref, shallowRef, type Ref } from 'vue'
 import { defineStore } from 'pinia'
+import type OlMap from 'ol/Map'
 import {
   addLayerToContext,
   changeLayerPositionInContext,
@@ -49,6 +50,9 @@ export const useMapStore = defineStore('map', () => {
   const layers = computed(() => context.value.layers)
   const view = computed(() => context.value.view)
   const wpsServices = computed<WpsService[]>(() => context.value.wpsServices ?? [])
+
+  // The OpenLayers map, for the user interactions the MapContext can't express (e.g. drawing).
+  const olMap = shallowRef<OlMap | null>(null)
 
   const mapState = ref<ResolvedMapState>({ layers: [], view: null })
   const currentExtent = computed<Extent | null>(() => mapState.value.view?.extent ?? null)
@@ -253,6 +257,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   return {
+    olMap,
     context,
     sdkContext,
     initialContext,

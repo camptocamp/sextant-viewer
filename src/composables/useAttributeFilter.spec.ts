@@ -4,6 +4,8 @@ import type { MapLayer } from '@/utils/layer.utils'
 
 const mocks = vi.hoisted(() => ({
   fetchFieldValues: vi.fn(),
+  fetchTreeValues: vi.fn(),
+  fetchDateBounds: vi.fn(),
   fetchCount: vi.fn(),
   fetchExtent: vi.fn(),
   updateLayer: vi.fn(),
@@ -12,6 +14,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/utils/geonetwork-index', () => ({
   fetchFieldValues: mocks.fetchFieldValues,
+  fetchTreeValues: mocks.fetchTreeValues,
+  fetchDateBounds: mocks.fetchDateBounds,
   fetchCount: mocks.fetchCount,
   fetchExtent: mocks.fetchExtent,
 }))
@@ -33,8 +37,8 @@ function makeLayer(filter: unknown[] = []): MapLayer {
         url: '/es',
         featureTypeId: 'ft',
         fields: [
-          { esField: 'A', label: 'A', aggField: 'ft_A_s', type: 'terms' },
-          { esField: 'B', label: 'B', aggField: 'ft_B_s', type: 'terms' },
+          { esField: 'A', label: 'A', aggField: 'ft_A_s', type: 'terms', matchType: 'equals' },
+          { esField: 'B', label: 'B', aggField: 'ft_B_s', type: 'terms', matchType: 'equals' },
         ],
       },
       filter,
@@ -43,6 +47,12 @@ function makeLayer(filter: unknown[] = []): MapLayer {
 }
 
 beforeEach(() => {
+  mocks.fetchTreeValues.mockReset()
+  mocks.fetchTreeValues.mockImplementation((_index, field) =>
+    Promise.resolve({ esField: field.esField, values: [], truncated: false }),
+  )
+  mocks.fetchDateBounds.mockReset()
+  mocks.fetchDateBounds.mockResolvedValue({ min: '1973-06-18', max: '2026-11-04' })
   mocks.fetchFieldValues.mockReset()
   mocks.fetchCount.mockReset()
   mocks.updateLayer.mockReset()
@@ -394,6 +404,155 @@ describe('useAttributeFilter', () => {
     layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
     await flush()
     expect(api.error.value).toBeNull()
+    scope.stop()
+  })
+})
+
+describe('useAttributeFilter with tree, date-range and area filters', () => {
+  const DATE = {
+    kind: 'dateRange',
+    attributeName: 'D',
+    minField: 'DMIN',
+    maxField: 'DMAX',
+    from: '2020-01-01',
+    to: '2020-12-31',
+  }
+  const AREA = { kind: 'bbox', geometryName: 'geometry', extent: [-5, 48, -4, 49] }
+  const valuesOf = (attributeName: string, values: string[]) => ({
+    attributeName,
+    matchType: 'equals',
+    values,
+  })
+  const pathsOf = (values: string[]) => ({
+    attributeName: 'P',
+    matchType: 'tree',
+    values,
+    tokenSeparator: ';',
+  })
+
+  function makeRichLayer(filter: unknown[] = []): MapLayer {
+    return {
+      type: 'wms',
+      name: 'lyr',
+      version: 0,
+      extras: {
+        dataIndex: {
+          url: '/es',
+          featureTypeIds: ['ft'],
+          geometryName: 'geometry',
+          fields: [
+            { esField: 'A', label: 'A', aggField: 'ft_A_s', type: 'terms', matchType: 'equals' },
+            {
+              esField: 'P',
+              label: 'P',
+              aggField: 'ft_P_s_tree',
+              type: 'tree',
+              tokenSeparator: ';',
+            },
+            { esField: 'D', label: 'D', type: 'dateRange', minField: 'DMIN', maxField: 'DMAX' },
+          ],
+        },
+        filter,
+      },
+    } as unknown as MapLayer
+  }
+
+  function setup(filter: unknown[] = []) {
+    const layer = ref(makeRichLayer(filter))
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    return { layer, scope, api }
+  }
+
+  const writtenFilter = () => mocks.updateLayer.mock.lastCall?.[1].extras.filter
+
+  it('applies the date range and the area to every column, including on faceting', async () => {
+    const { scope } = setup([valuesOf('A', ['x']), DATE, AREA])
+    await flush()
+
+    expect(mocks.fetchFieldValues.mock.calls[0]![2]).toEqual([DATE, AREA])
+    expect(mocks.fetchTreeValues.mock.calls[0]![2]).toEqual([valuesOf('A', ['x']), DATE, AREA])
+    expect(mocks.fetchCount.mock.calls[0]![1]).toEqual([valuesOf('A', ['x']), DATE, AREA])
+    scope.stop()
+  })
+
+  it('loads no value list for a date range, but its bounds with the layer', async () => {
+    const { scope, api } = setup()
+    await flush()
+
+    expect(mocks.fetchFieldValues.mock.calls.map((c) => c[1].esField)).toEqual(['A'])
+    expect(mocks.fetchDateBounds).toHaveBeenCalledTimes(1)
+    expect(api.dateBounds.value).toEqual({ D: { min: '1973-06-18', max: '2026-11-04' } })
+    scope.stop()
+  })
+
+  it('writes tree selections with their match type and token separator', () => {
+    const { scope, api } = setup()
+    api.toggleTreePath('P', 'x/y')
+    expect(writtenFilter()).toEqual([pathsOf(['x/y'])])
+    scope.stop()
+  })
+
+  it('selecting a tree path drops its selected descendants, not its siblings', () => {
+    const { scope, api } = setup([pathsOf(['x/y/z', 'x/yz', 'w'])])
+    api.toggleTreePath('P', 'x/y')
+    expect(writtenFilter()).toEqual([pathsOf(['x/yz', 'w', 'x/y'])])
+    scope.stop()
+  })
+
+  it('writes and clears the date range and the area', () => {
+    const { scope, api } = setup()
+    api.setDateRange('D', { from: '2020-01-01', to: '2020-12-31' })
+    expect(writtenFilter()).toEqual([DATE])
+    api.setBbox([-5, 48, -4, 49])
+    expect(writtenFilter()).toEqual([AREA])
+    scope.stop()
+
+    const cleared = setup([DATE, AREA])
+    cleared.api.setDateRange('D', null)
+    expect(writtenFilter()).toEqual([AREA])
+    cleared.api.setBbox(null)
+    expect(writtenFilter()).toEqual([DATE])
+    expect(cleared.api.hasActiveFilters.value).toBe(true)
+    cleared.scope.stop()
+  })
+
+  it('expanding a tree node refetches that column with its levels; collapsing does not', async () => {
+    const { scope, api } = setup()
+    await flush()
+    mocks.fetchTreeValues.mockClear()
+    mocks.fetchFieldValues.mockClear()
+
+    await api.setExpanded('P', ['x'])
+    expect(mocks.fetchTreeValues).toHaveBeenCalledTimes(1)
+    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toEqual({ expanded: ['x'], search: undefined })
+    expect(mocks.fetchFieldValues).not.toHaveBeenCalled()
+
+    await api.setExpanded('P', [])
+    expect(mocks.fetchTreeValues).toHaveBeenCalledTimes(1)
+    scope.stop()
+  })
+
+  it('a selection change refetches the tree with its expanded levels', async () => {
+    const { layer, scope, api } = setup()
+    await flush()
+    await api.setExpanded('P', ['x'])
+    mocks.fetchTreeValues.mockClear()
+
+    layer.value = makeRichLayer([valuesOf('A', ['a'])])
+    await flush()
+    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toEqual({ expanded: ['x'], search: undefined })
+    scope.stop()
+  })
+
+  it('expands the ancestors of a restored tree selection', async () => {
+    const { scope, api } = setup([pathsOf(['x/y/z'])])
+    await flush()
+    expect(api.expandedPaths.value).toEqual({ P: ['x', 'x/y'] })
+    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toEqual({
+      expanded: ['x', 'x/y'],
+      search: undefined,
+    })
     scope.stop()
   })
 })

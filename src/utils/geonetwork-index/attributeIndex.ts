@@ -1,41 +1,70 @@
 import type { Extent } from '@geospatial-sdk/core'
 import type {
-  IndexField,
+  DateBounds,
+  DateRangeIndexField,
+  DistinctFieldValues,
   EsSearchResponse,
   FieldValue,
-  DistinctFieldValues,
+  IndexField,
+  TermsIndexField,
+  TreeIndexField,
 } from './attributeIndex.types'
-import type {
-  FilterByAttribute,
-  GeoNetworkIndexConnection,
-  WmsFilterState,
-} from '@/types/wms.types'
+import type { GeoNetworkIndexConnection, WmsFilter, WmsFilterState } from '@/types/wms.types'
+import { dayAfter } from '../wms.utils'
 
 // Maximum number of distinct attribute values to fetch for a column.
 const DEFAULT_FIELD_VALUES_LIMIT = 50
+// Maximum number of nodes of the visible tree levels; levels load lazily, so this is a safety cap.
+const TREE_VALUES_LIMIT = 1000
 
-// Each WFS attribute column is indexed as `ft_<COLUMN>_s` (keyword); other variants
-// (`_s_tree`, `_dt`, …) are not value-list filterable.
+// Each WFS attribute column is indexed as `ft_<COLUMN>_s` (keyword), a tree column as
+// `ft_<COLUMN>_s_tree` and a date column as `ft_<COLUMN>_dt`.
 const TERMS_FIELD_MATCH = /^ft_(.+)_s$/
-const aggFieldName = (column: string) => `ft_${column}_s`
+const TREE_FIELD_MATCH = /^ft_(.+)_s_tree$/
+const termsFieldName = (column: string) => `ft_${column}_s`
+const treeFieldName = (column: string) => `ft_${column}_s_tree`
+const dateFieldName = (column: string) => `ft_${column}_dt`
+
+// The harvester indexes each feature geometry, reprojected to CRS84, in this `geo_shape` field.
+const GEOMETRY_FIELD = 'geom'
+const DATE_FORMAT = 'yyyy-MM-dd'
 
 const LUCENE_REGEX_RESERVED = /[.?+*|{}[\]()"\\#@&<>~]/
 
-/**
- * Lucene regex matching values that contain `term`, ignoring case: `include` regexes are
- * case-sensitive and have no flag, so each letter becomes a `[xX]` class.
- */
-function containsPattern(term: string): string {
-  const body = [...term]
+const escapeLuceneChar = (char: string) => (LUCENE_REGEX_RESERVED.test(char) ? `\\${char}` : char)
+
+/** Case-insensitive Lucene regex body for `term`: `include` regexes have no case flag. */
+function caseInsensitive(term: string): string {
+  return [...term]
     .map((char) => {
       const lower = char.toLowerCase()
       const upper = char.toUpperCase()
       // Skip classes for case mappings that change length (e.g. `ß` → `SS`).
       if (lower !== upper && lower.length === 1 && upper.length === 1) return `[${lower}${upper}]`
-      return LUCENE_REGEX_RESERVED.test(char) ? `\\${char}` : char
+      return escapeLuceneChar(char)
     })
     .join('')
-  return `.*${body}.*`
+}
+
+/** Lucene regex matching values that contain `term`, ignoring case. */
+function containsPattern(term: string): string {
+  return `.*${caseInsensitive(term)}.*`
+}
+
+/** Lucene regex matching the paths whose last level contains `term`, ignoring case. */
+function lastLevelContainsPattern(term: string): string {
+  return `(.*/)?[^/]*${caseInsensitive(term)}[^/]*`
+}
+
+/**
+ * Lucene regex matching the visible tree levels — the roots and the children of each `expanded`
+ * path — plus one level ahead, so each visible node is known to have children or not.
+ */
+function visibleLevelsPattern(expanded: readonly string[]): string {
+  const grandchildren = expanded.map(
+    (path) => `${[...path].map(escapeLuceneChar).join('')}/[^/]+/[^/]+`,
+  )
+  return ['[^/]+(/[^/]+)?', ...grandchildren].join('|')
 }
 
 /** POST an ES query to the index URL (itself the search action; no `/_search` is appended). */
@@ -78,20 +107,34 @@ function filteredQuery(
 
 /**
  * Discover filterable columns from one sample document's `_source` (the index may expose no
- * public `_mapping`): every `ft_<COLUMN>_s` keyword field becomes a `terms` column on `<COLUMN>`.
+ * public `_mapping`): every `ft_<COLUMN>_s` keyword field becomes a `terms` column on `<COLUMN>`,
+ * every `ft_<COLUMN>_s_tree` field a `tree` column. Date ranges pair two columns, which only a
+ * profile declares.
  */
 export function fieldsFromSource(source: Record<string, unknown>): IndexField[] {
   const fields: IndexField[] = []
   for (const key of Object.keys(source)) {
-    // TODO: support other types of fields (value trees, date time...)
-
-    const name = TERMS_FIELD_MATCH.exec(key)?.[1]
-    if (!name) continue
-
-    fields.push({ esField: name, label: name, aggField: key, type: 'terms', matchType: 'equals' })
+    const terms = TERMS_FIELD_MATCH.exec(key)?.[1]
+    if (terms) {
+      fields.push({
+        esField: terms,
+        label: terms,
+        aggField: key,
+        type: 'terms',
+        matchType: 'equals',
+      })
+      continue
+    }
+    const tree = TREE_FIELD_MATCH.exec(key)?.[1]
+    if (tree) fields.push({ esField: tree, label: tree, aggField: key, type: 'tree' })
   }
 
   return fields
+}
+
+/** Whether a sample `_source` carries the feature geometry (the geographic-area filter needs it). */
+export function hasGeometry(source: Record<string, unknown>): boolean {
+  return source[GEOMETRY_FIELD] != null
 }
 
 /**
@@ -110,13 +153,57 @@ export async function probeIndex(
   return { total: readTotal(json), sampleSource: json.hits?.hits?.[0]?._source ?? {} }
 }
 
+const clamp = (value: number, limit: number) => Math.min(limit, Math.max(-limit, value))
+
+/** `geo_shape` envelope (upper-left, lower-right) of an EPSG:4326 extent, clamped to the globe. */
+function envelope([minx, miny, maxx, maxy]: Extent): number[][] {
+  return [
+    [clamp(minx, 180), clamp(maxy, 90)],
+    [clamp(maxx, 180), clamp(miny, 90)],
+  ]
+}
+
 /**
- * ES filter clause selecting the documents whose attribute matches any of the selected values.
- * Both match types filter by exact token: tokenized columns are indexed token-per-token, so
- * `contains` only changes the WFS-side comparison (see `wmsFilter.ts`).
+ * ES filter clause for an active filter, matching the WMS-side clause of `buildWmsFilterParam`:
+ * - values: any of the selected values, by exact token (tokenized columns are indexed
+ *   token-per-token, so `contains` only changes the WFS-side comparison). Tree paths match their
+ *   descendants too, since every ancestor path is indexed as a token;
+ * - date range: features whose period overlaps the selected days;
+ * - bbox: features whose geometry intersects the extent.
  */
-export function buildFieldFilter(filter: FilterByAttribute): Record<string, unknown> {
-  return { terms: { [aggFieldName(filter.attributeName)]: filter.values } }
+export function buildFieldFilter(filter: WmsFilter): Record<string, unknown> {
+  switch (filter.kind) {
+    case 'dateRange':
+      return {
+        bool: {
+          filter: [
+            {
+              range: {
+                [dateFieldName(filter.minField)]: { lt: dayAfter(filter.to), format: DATE_FORMAT },
+              },
+            },
+            {
+              range: {
+                [dateFieldName(filter.maxField)]: { gte: filter.from, format: DATE_FORMAT },
+              },
+            },
+          ],
+        },
+      }
+    case 'bbox':
+      return {
+        geo_shape: {
+          [GEOMETRY_FIELD]: {
+            shape: { type: 'envelope', coordinates: envelope(filter.extent) },
+            relation: 'intersects',
+          },
+        },
+      }
+    default: {
+      const field = filter.matchType === 'tree' ? treeFieldName : termsFieldName
+      return { terms: { [field(filter.attributeName)]: filter.values } }
+    }
+  }
 }
 
 /**
@@ -132,29 +219,67 @@ export async function fetchFieldValues(
   signal?: AbortSignal,
   search = '',
 ): Promise<DistinctFieldValues> {
-  // This has to be a 'terms' field; if not, no way to obtain distinct values
+  // Tree columns load level by level (`fetchTreeValues`); date ranges have no value list.
   if (field.type !== 'terms') {
     throw new Error(`Unsupported field type: ${field.type}`)
   }
 
-  const size = DEFAULT_FIELD_VALUES_LIMIT
-  const query = filteredQuery(index, filters)
   const term = search.trim()
+  return fetchBuckets(
+    index,
+    field,
+    filters,
+    DEFAULT_FIELD_VALUES_LIMIT,
+    term ? containsPattern(term) : undefined,
+    signal,
+  )
+}
 
+/**
+ * Nodes of a tree column, with faceted counts. Without `search`, the visible levels (roots and
+ * children of each `expanded` path) plus one level ahead, so levels load as they are expanded;
+ * with it, the paths whose last level contains it, capped like a values list. Ancestors of a match
+ * are implied by its path.
+ */
+export async function fetchTreeValues(
+  index: GeoNetworkIndexConnection,
+  field: TreeIndexField,
+  filters: WmsFilterState,
+  { expanded = [], search = '' }: { expanded?: readonly string[]; search?: string },
+  signal?: AbortSignal,
+): Promise<DistinctFieldValues> {
+  const term = search.trim()
+  return term
+    ? fetchBuckets(
+        index,
+        field,
+        filters,
+        DEFAULT_FIELD_VALUES_LIMIT,
+        lastLevelContainsPattern(term),
+        signal,
+      )
+    : fetchBuckets(index, field, filters, TREE_VALUES_LIMIT, visibleLevelsPattern(expanded), signal)
+}
+
+/** Terms aggregation on `field.aggField`, narrowed to the buckets matching `include`. */
+async function fetchBuckets(
+  index: GeoNetworkIndexConnection,
+  field: TermsIndexField | TreeIndexField,
+  filters: WmsFilterState,
+  size: number,
+  include: string | undefined,
+  signal?: AbortSignal,
+): Promise<DistinctFieldValues> {
   // Request one extra bucket so truncation is "more distinct values than the cap exist",
   // not ES's `sum_other_doc_count` which over-reports on multi-shard indices.
   const json = await esSearch<EsSearchResponse>(
     index,
     {
       size: 0,
-      query,
+      query: filteredQuery(index, filters),
       aggs: {
         values: {
-          terms: {
-            field: field.aggField,
-            size: size + 1,
-            ...(term && { include: containsPattern(term) }),
-          },
+          terms: { field: field.aggField, size: size + 1, ...(include && { include }) },
         },
       },
     },
@@ -172,6 +297,33 @@ export async function fetchFieldValues(
     values,
     truncated: buckets.length > size,
   }
+}
+
+/**
+ * Earliest start and latest end of the features' periods over the whole layer (not faceted, so
+ * the date inputs keep stable bounds); null when no feature has a period.
+ */
+export async function fetchDateBounds(
+  index: GeoNetworkIndexConnection,
+  field: DateRangeIndexField,
+  signal?: AbortSignal,
+): Promise<DateBounds | null> {
+  const json = await esSearch<EsSearchResponse>(
+    index,
+    {
+      size: 0,
+      query: filteredQuery(index),
+      aggs: {
+        dateMin: { min: { field: dateFieldName(field.minField), format: DATE_FORMAT } },
+        dateMax: { max: { field: dateFieldName(field.maxField), format: DATE_FORMAT } },
+      },
+    },
+    signal,
+  )
+
+  const min = json.aggregations?.dateMin?.value_as_string
+  const max = json.aggregations?.dateMax?.value_as_string
+  return min && max ? { min, max } : null
 }
 
 /** Count the documents matching the index's feature type and the given active `filters`. */
