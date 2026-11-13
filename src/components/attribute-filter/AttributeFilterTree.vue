@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import type { TreeItem } from '@nuxt/ui'
+import UTree from '@nuxt/ui/components/Tree.vue'
 import type { FieldValue, TreeIndexField } from '@/utils/geonetwork-index'
 import {
   buildPathTree,
