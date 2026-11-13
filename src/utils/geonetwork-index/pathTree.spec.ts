@@ -19,28 +19,50 @@ describe('path helpers', () => {
 describe('buildPathTree', () => {
   const allKnown = () => true
 
-  it('nests the paths, siblings sorted by label', () => {
+  it('nests the paths, siblings sorted by decreasing count at every level', () => {
     const tree = buildPathTree(
       [
-        { value: 'B', count: 1 },
-        { value: 'A', count: 5 },
-        { value: 'A/y', count: 2 },
-        { value: 'A/x', count: 3 },
+        { value: 'A', count: 1 },
+        { value: 'B', count: 5 },
+        { value: 'B/x', count: 2 },
+        { value: 'B/y', count: 3 },
       ],
       allKnown,
     )
     expect(tree).toEqual([
       {
-        path: 'A',
-        label: 'A',
+        path: 'B',
+        label: 'B',
         count: 5,
         children: [
-          { path: 'A/x', label: 'x', count: 3, children: [] },
-          { path: 'A/y', label: 'y', count: 2, children: [] },
+          { path: 'B/y', label: 'y', count: 3, children: [] },
+          { path: 'B/x', label: 'x', count: 2, children: [] },
         ],
       },
-      { path: 'B', label: 'B', count: 1, children: [] },
+      { path: 'A', label: 'A', count: 1, children: [] },
     ])
+  })
+
+  it('breaks count ties by label', () => {
+    const tree = buildPathTree(
+      [
+        { value: 'b', count: 2 },
+        { value: 'a', count: 2 },
+      ],
+      allKnown,
+    )
+    expect(tree.map((node) => node.path)).toEqual(['a', 'b'])
+  })
+
+  it('ranks countless ancestors of search matches by their best match', () => {
+    const tree = buildPathTree(
+      [
+        { value: 'A/rare', count: 2 },
+        { value: 'B/frequent', count: 50 },
+      ],
+      allKnown,
+    )
+    expect(tree.map((node) => node.path)).toEqual(['B', 'A'])
   })
 
   it('creates the ancestors of a search match without a count', () => {
