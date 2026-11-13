@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import {
   buildFieldFilter,
   fetchCount,
+  fetchExtent,
   fetchFieldValues,
   fieldsFromSource,
   probeIndex,
@@ -190,6 +191,59 @@ describe('fetchCount', () => {
 
     await fetchCount(index, [], signal)
     expect((fetchMock.mock.calls[0]![1] as RequestInit).signal).toBe(signal)
+  })
+})
+
+const bboxAggs = (xmin: number | null, ymin: number | null, xmax: number, ymax: number) => ({
+  aggregations: {
+    xmin: { value: xmin },
+    ymin: { value: ymin },
+    xmax: { value: xmax },
+    ymax: { value: ymax },
+  },
+})
+
+describe('fetchExtent', () => {
+  it('aggregates the bbox fields of the filtered documents', async () => {
+    const fetchMock = mockFetch(bboxAggs(-5, 43, 8, 51))
+
+    expect(
+      await fetchExtent(index, [{ attributeName: 'REGION', matchType: 'equals', values: ['A'] }]),
+    ).toEqual([-5, 43, 8, 51])
+    expect(bodyOf(fetchMock)).toEqual({
+      size: 0,
+      query: {
+        bool: {
+          filter: [{ terms: { featureTypeId: ['ft1'] } }, { terms: { ft_REGION_s: ['A'] } }],
+        },
+      },
+      aggs: {
+        xmin: { min: { field: 'bbox_xmin' } },
+        ymin: { min: { field: 'bbox_ymin' } },
+        xmax: { max: { field: 'bbox_xmax' } },
+        ymax: { max: { field: 'bbox_ymax' } },
+      },
+    })
+  })
+
+  it('keeps a coordinate equal to 0', async () => {
+    mockFetch(bboxAggs(0, 0, 8, 51))
+    expect(await fetchExtent(index)).toEqual([0, 0, 8, 51])
+  })
+
+  it('buffers a single point so the map does not zoom to the maximum', async () => {
+    mockFetch(bboxAggs(2, 48, 2, 48))
+    expect(await fetchExtent(index)).toEqual([1.95, 47.95, 2.05, 48.05])
+  })
+
+  it('returns null when no document matched', async () => {
+    mockFetch(bboxAggs(null, null, 0, 0))
+    expect(await fetchExtent(index)).toBeNull()
+  })
+
+  it('returns null when the response has no bbox aggregations', async () => {
+    mockFetch({})
+    expect(await fetchExtent(index)).toBeNull()
   })
 })
 

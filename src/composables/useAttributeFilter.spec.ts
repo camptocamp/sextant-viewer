@@ -5,14 +5,19 @@ import type { MapLayer } from '@/utils/layer.utils'
 const mocks = vi.hoisted(() => ({
   fetchFieldValues: vi.fn(),
   fetchCount: vi.fn(),
+  fetchExtent: vi.fn(),
   updateLayer: vi.fn(),
+  setView: vi.fn(),
 }))
 
 vi.mock('@/utils/geonetwork-index', () => ({
   fetchFieldValues: mocks.fetchFieldValues,
   fetchCount: mocks.fetchCount,
+  fetchExtent: mocks.fetchExtent,
 }))
-vi.mock('@/stores/map.store', () => ({ useMapStore: () => ({ updateLayer: mocks.updateLayer }) }))
+vi.mock('@/stores/map.store', () => ({
+  useMapStore: () => ({ updateLayer: mocks.updateLayer, setView: mocks.setView }),
+}))
 
 import { useAttributeFilter } from './useAttributeFilter'
 
@@ -41,6 +46,8 @@ beforeEach(() => {
   mocks.fetchFieldValues.mockReset()
   mocks.fetchCount.mockReset()
   mocks.updateLayer.mockReset()
+  mocks.fetchExtent.mockReset()
+  mocks.setView.mockReset()
   mocks.fetchFieldValues.mockImplementation((_index, field) =>
     Promise.resolve({ esField: field.esField, values: [], truncated: false }),
   )
@@ -273,6 +280,119 @@ describe('useAttributeFilter', () => {
     expect(api.error.value).not.toBeNull()
 
     await api.searchValues('B', 'b')
+    expect(api.error.value).toBeNull()
+    scope.stop()
+  })
+
+  it('zooms to the extent of the active selection', async () => {
+    const filter = [{ attributeName: 'A', matchType: 'equals', values: ['x'] }]
+    const layer = ref(makeLayer(filter))
+    mocks.fetchExtent.mockResolvedValue([-5, 43, 8, 51])
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    await api.zoomToSelection()
+
+    expect(mocks.fetchExtent).toHaveBeenCalledWith(
+      layer.value.extras!.dataIndex,
+      filter,
+      expect.any(AbortSignal),
+    )
+    expect(mocks.setView).toHaveBeenCalledWith({ extent: [-5, 43, 8, 51] })
+    expect(api.zooming.value).toBe(false)
+    expect(api.error.value).toBeNull()
+    scope.stop()
+  })
+
+  it('reports an error instead of zooming when the selection has no extent', async () => {
+    const layer = ref(makeLayer())
+    mocks.fetchExtent.mockResolvedValue(null)
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    await api.zoomToSelection()
+
+    expect(mocks.setView).not.toHaveBeenCalled()
+    expect(api.error.value).not.toBeNull()
+    scope.stop()
+  })
+
+  it('a successful zoom clears the previous zoom failure', async () => {
+    const layer = ref(makeLayer())
+    mocks.fetchExtent.mockRejectedValueOnce(new Error('boom')).mockResolvedValue([0, 0, 1, 1])
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    await api.zoomToSelection()
+    expect(api.error.value).not.toBeNull()
+
+    await api.zoomToSelection()
+    expect(api.error.value).toBeNull()
+    scope.stop()
+  })
+
+  it('a zoom still pending when the layer changes is dropped', async () => {
+    const layer = ref({ ...makeLayer(), id: 'a' } as MapLayer)
+    let resolveExtent!: (extent: number[]) => void
+    mocks.fetchExtent.mockImplementation(
+      () => new Promise<number[]>((resolve) => (resolveExtent = resolve)),
+    )
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    const zoom = api.zoomToSelection()
+    layer.value = { ...makeLayer(), id: 'b' } as MapLayer
+    await flush()
+    resolveExtent([0, 0, 1, 1])
+    await zoom
+
+    expect(mocks.setView).not.toHaveBeenCalled()
+    expect(api.zooming.value).toBe(false)
+    expect(api.error.value).toBeNull()
+    scope.stop()
+  })
+
+  it('a zoom still pending when the selection changes is dropped', async () => {
+    const layer = ref(makeLayer())
+    let resolveExtent!: (extent: number[]) => void
+    mocks.fetchExtent.mockImplementation(
+      () => new Promise<number[]>((resolve) => (resolveExtent = resolve)),
+    )
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    const zoom = api.zoomToSelection()
+    mocks.fetchCount.mockResolvedValue(4)
+    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    await flush()
+    resolveExtent([0, 0, 1, 1])
+    await zoom
+
+    expect(mocks.setView).not.toHaveBeenCalled()
+    expect(api.zooming.value).toBe(false)
+    // Cancelling the zoom must not cancel the count refresh.
+    expect(api.count.value).toBe(4)
+    scope.stop()
+  })
+
+  it('changing the selection clears a previous zoom failure', async () => {
+    const layer = ref(makeLayer())
+    mocks.fetchExtent.mockResolvedValue(null)
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    await api.zoomToSelection()
+    expect(api.error.value).not.toBeNull()
+
+    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    await flush()
     expect(api.error.value).toBeNull()
     scope.stop()
   })
