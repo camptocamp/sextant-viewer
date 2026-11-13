@@ -12,7 +12,9 @@ vi.mock('@camptocamp/ogc-client', () => ({
 }))
 
 import {
+  activeFiltersOf,
   buildWmsFilterParam,
+  dayAfter,
   enrichWmsDimensionsLayer,
   getDefaultWmsTime,
   getDimensionDefaultOption,
@@ -23,7 +25,7 @@ import {
   toWmsTime,
   type AnyWmsDimension,
 } from './wms.utils'
-import type { FilterByAttribute } from '@/types/wms.types'
+import type { FilterByAttribute, FilterByBbox, FilterByDateRange } from '@/types/wms.types'
 import type { MapLayer } from './layer.utils'
 import type { WmsLayerDimension, WmsLayerFull, WmsLayerTimeDimension } from '@camptocamp/ogc-client'
 
@@ -116,6 +118,121 @@ describe('buildWmsFilterParam', () => {
   it('emits one parenthesised <Filter> per sublayer (trimmed)', () => {
     const group = `(${filterXml(eq('DCSMM_SOUS_REGION', 'A'))})`
     expect(buildWmsFilterParam('a, b ,c', [region(['A'])])).toBe(group + group + group)
+  })
+
+  it('matches a tree path or its descendants, at token boundaries of a tokenized column', () => {
+    const parametre: FilterByAttribute = {
+      attributeName: 'PARAMETRE',
+      matchType: 'tree',
+      values: ['Microbiologie/Bactéries tests'],
+      tokenSeparator: ';',
+    }
+    const p = 'Microbiologie/Bactéries tests'
+    expect(buildWmsFilterParam('surval_point', [parametre])).toBe(
+      filterXml(
+        '<Or>' +
+          [p, `${p}/*`, `${p};*`, `*;${p}`, `*;${p};*`, `*;${p}/*`]
+            .map((pattern) => isLike('PARAMETRE', pattern))
+            .join('') +
+          '</Or>',
+      ),
+    )
+  })
+
+  it('matches a tree path of an untokenized column without separator patterns', () => {
+    const tree: FilterByAttribute = { attributeName: 'T', matchType: 'tree', values: ['a.b'] }
+    expect(buildWmsFilterParam('surval_point', [tree])).toBe(
+      filterXml(`<Or>${isLike('T', 'a!.b')}${isLike('T', 'a!.b/*')}</Or>`),
+    )
+  })
+
+  it('filters a date range by period overlap, up to the end of its last day', () => {
+    const range: FilterByDateRange = {
+      kind: 'dateRange',
+      attributeName: 'range_Date',
+      minField: 'DATEMIN',
+      maxField: 'DATEMAX',
+      from: '2020-01-01',
+      to: '2020-01-31',
+    }
+    expect(buildWmsFilterParam('surval_point', [range])).toBe(
+      filterXml(
+        '<And>' +
+          '<PropertyIsGreaterThanOrEqualTo><PropertyName>DATEMAX</PropertyName>' +
+          '<Literal>2020-01-01</Literal></PropertyIsGreaterThanOrEqualTo>' +
+          '<PropertyIsLessThan><PropertyName>DATEMIN</PropertyName>' +
+          '<Literal>2020-02-01</Literal></PropertyIsLessThan>' +
+          '</And>',
+      ),
+    )
+  })
+
+  it('filters a geographic area with a lon/lat BBOX on the geometry property', () => {
+    const area: FilterByBbox = { kind: 'bbox', geometryName: 'geometry', extent: [-5, 48, -4, 49] }
+    const xml = buildWmsFilterParam('surval_point', [area])!
+    expect(xml).toContain('<BBOX><PropertyName>geometry</PropertyName>')
+    expect(xml).toMatch(/srsName="EPSG:4326"/)
+    expect(xml).toMatch(/<lowerCorner>-5 48<\/lowerCorner><upperCorner>-4 49<\/upperCorner>/)
+  })
+
+  it('AND-combines values, date range and area', () => {
+    const area: FilterByBbox = { kind: 'bbox', geometryName: 'geometry', extent: [0, 0, 1, 1] }
+    const xml = buildWmsFilterParam('surval_point', [region(['A']), area])!
+    expect(xml.startsWith(`<Filter xmlns="${NS}"><And>${eq('DCSMM_SOUS_REGION', 'A')}<BBOX>`)).toBe(
+      true,
+    )
+  })
+
+  it('skips a filter of unknown kind instead of throwing', () => {
+    const stale = { kind: 'polygon' } as unknown as FilterByBbox
+    expect(buildWmsFilterParam('surval_point', [stale, region(['A'])])).toBe(
+      filterXml(eq('DCSMM_SOUS_REGION', 'A')),
+    )
+  })
+})
+
+describe('dayAfter', () => {
+  it('rolls over months and leap days', () => {
+    expect(dayAfter('2020-01-31')).toBe('2020-02-01')
+    expect(dayAfter('2024-02-28')).toBe('2024-02-29')
+    expect(dayAfter('2023-12-31')).toBe('2024-01-01')
+  })
+})
+
+describe('activeFiltersOf', () => {
+  it('reads value selections, date ranges as `[from, to]` and the area under `geometry`', () => {
+    const layer = {
+      type: 'wms',
+      extras: {
+        filter: [
+          region(['A']),
+          {
+            kind: 'dateRange',
+            attributeName: 'range_Date',
+            minField: 'DATE_MIN',
+            maxField: 'DATE_MAX',
+            from: '2020-01-01',
+            to: '2021-12-31',
+          },
+          { kind: 'bbox', geometryName: 'msGeometry', extent: [-5.5, 48, -4, 49.25] },
+        ],
+      },
+    } as unknown as MapLayer
+    expect(activeFiltersOf(layer)).toEqual({
+      DCSMM_SOUS_REGION: ['A'],
+      range_Date: ['2020-01-01', '2021-12-31'],
+      geometry: ['-5.5,48,-4,49.25'],
+    })
+  })
+
+  it('clamps the area to the globe', () => {
+    const layer = {
+      type: 'wms',
+      extras: {
+        filter: [{ kind: 'bbox', geometryName: 'geometry', extent: [170, -95, 200, 95] }],
+      },
+    } as unknown as MapLayer
+    expect(activeFiltersOf(layer)).toEqual({ geometry: ['170,-90,180,90'] })
   })
 })
 

@@ -1,4 +1,5 @@
-import { fieldsFromSource, probeIndex } from './attributeIndex'
+import { WfsEndpoint } from '@camptocamp/ogc-client'
+import { fieldsFromSource, hasGeometry, probeIndex } from './attributeIndex'
 import { fetchRecordResources } from './gnRecord'
 import { resolveRecordRef } from './recordRef'
 import type { GnWfsApplicationProfile, GnWfsResource } from './gnRecord.types'
@@ -18,7 +19,8 @@ import type { GeoNetworkIndexConnection } from '@/types/wms.types'
  *      resource(s); each WMS sublayer is matched to the WFS resource listing it as a feature type,
  *      yielding one `featureTypeId` per matched resource (the indexer keys documents by the
  *      resource's full comma-joined feature-type name, not by individual sublayer);
- *   3. index scan: the first dataSource whose ES index holds those `featureTypeIds`.
+ *   3. index scan: the first dataSource whose ES index holds those `featureTypeIds`;
+ *   4. when the index holds geometries, the WFS geometry property (geographic-area filter).
  *
  * Filter columns come from the record's `applicationProfile` when present, otherwise they are
  * discovered from a sample index document. Returns `null` when no sublayer maps to a WFS resource
@@ -37,10 +39,21 @@ async function detectAttributeFilter(
   if (!uuid) return null
 
   const resources = await firstResources(sources, uuid)
-  const { featureTypeIds, profile } = matchSublayersToResources(sublayers, resources)
-  if (!featureTypeIds.length) return null
+  const { featureTypeIds, profile, featureType } = matchSublayersToResources(sublayers, resources)
+  if (!featureTypeIds.length || !featureType) return null
 
-  return firstIndexedSource(sources, featureTypeIds, profile)
+  const indexed = await firstIndexedSource(sources, featureTypeIds)
+  if (!indexed) return null
+
+  const { index, sampleSource } = indexed
+  const geometryName = hasGeometry(sampleSource)
+    ? await resolveGeometryName(featureType)
+    : undefined
+  return {
+    ...index,
+    fields: resolveFields(sampleSource, profile),
+    ...(geometryName && { geometryName }),
+  }
 }
 
 /** WFS resources of the first dataSource whose GeoNetwork base returns any for the record. */
@@ -70,9 +83,16 @@ function resourceBacksSublayer(resource: GnWfsResource, sublayer: string): boole
   return resource.featureTypes.some((type) => canonicalName(type) === canonicalName(sublayer))
 }
 
+/** A WFS feature type backing the layer: its service and its name there. */
+interface WfsFeatureTypeRef {
+  wfsUrl: string
+  name: string
+}
+
 /**
  * Match each sublayer to the WFS resource that exposes it, collecting one `featureTypeId` per
- * matched resource and the first profile among them (matched resources share a single profile).
+ * matched resource, the first profile among them (matched resources share a single profile) and
+ * the first matched feature type.
  *
  * The Geonetwork indexer keys documents by the WFS resource's full feature-type name — the
  * `<cit:name>` verbatim, even when it lists several types — so the id is built from the resource's
@@ -81,9 +101,14 @@ function resourceBacksSublayer(resource: GnWfsResource, sublayer: string): boole
 function matchSublayersToResources(
   sublayers: string[],
   resources: GnWfsResource[],
-): { featureTypeIds: string[]; profile?: GnWfsApplicationProfile } {
+): {
+  featureTypeIds: string[]
+  profile?: GnWfsApplicationProfile
+  featureType?: WfsFeatureTypeRef
+} {
   const matched = new Set<GnWfsResource>()
   let profile: GnWfsApplicationProfile | undefined
+  let featureType: WfsFeatureTypeRef | undefined
   for (const sublayer of sublayers) {
     // Prefer a resource explicitly listing the sublayer; a nameless resource backs any sublayer
     // but only as a fallback, so it can't shadow the properly-described one.
@@ -93,31 +118,33 @@ function matchSublayersToResources(
     if (!resource) continue
     matched.add(resource)
     profile ??= resource.profile
+    featureType ??= {
+      wfsUrl: resource.wfsUrl,
+      name:
+        resource.featureTypes.find((t) => canonicalName(t) === canonicalName(sublayer)) ?? sublayer,
+    }
   }
   const featureTypeIds = [...matched].map((r) =>
     encodeURIComponent(`${r.wfsUrl}#${r.name ?? sublayers.join(',')}`),
   )
-  return { featureTypeIds, profile }
+  return { featureTypeIds, profile, featureType }
 }
 
 /**
- * Connection to the first dataSource whose ES index holds the `featureTypeIds`, with its filter
- * columns from the profile when it declares some, otherwise discovered from a sample index
- * document (a profile may only carry tokenizedFields/treeFields — its tokenized markers still
- * apply to the discovered columns).
+ * The first dataSource whose ES index holds the `featureTypeIds`, with one of its documents (to
+ * discover columns and whether geometries are indexed).
  */
 async function firstIndexedSource(
   sources: DataSource[],
   featureTypeIds: string[],
-  profile: GnWfsApplicationProfile | undefined,
-): Promise<GeoNetworkIndexConnection | null> {
+): Promise<{ index: GeoNetworkIndexConnection; sampleSource: Record<string, unknown> } | null> {
   for (const ds of sources) {
     const index: GeoNetworkIndexConnection = { url: ds.url, featureTypeIds }
     // an unreachable index must not stop the scan — the features may be indexed on the next one
     try {
       const { total, sampleSource } = await probeIndex(index)
       if (total === 0) continue
-      return { ...index, fields: resolveFields(sampleSource, profile) }
+      return { index, sampleSource }
     } catch (error) {
       console.error(`Index inaccessible sur ${ds.url}`, error)
     }
@@ -136,10 +163,30 @@ function resolveFields(
 ): IndexField[] {
   const fromProfile = profile ? profileToFields(profile) : []
   if (fromProfile.length) return fromProfile
-  return fieldsFromSource(sampleSource).map((field) => ({
-    ...field,
-    matchType: profile?.tokenizedFields?.[field.esField] ? 'contains' : 'equals',
-  }))
+  return fieldsFromSource(sampleSource).map((field): IndexField => {
+    const tokenSeparator = profile?.tokenizedFields?.[field.esField]
+    if (field.type === 'tree') return { ...field, tokenSeparator }
+    if (field.type === 'terms')
+      return { ...field, matchType: tokenSeparator ? 'contains' : 'equals' }
+    return field
+  })
+}
+
+/**
+ * The WFS geometry property of a feature type backing the layer, which the OGC `BBOX` of the
+ * geographic-area filter names. `undefined` (no area filter) when the WFS can't tell.
+ */
+async function resolveGeometryName({
+  wfsUrl,
+  name,
+}: WfsFeatureTypeRef): Promise<string | undefined> {
+  try {
+    const endpoint = await new WfsEndpoint(wfsUrl).isReady()
+    return (await endpoint.getFeatureTypeFull(name)).geometryName
+  } catch (error) {
+    console.error(`Géométrie WFS introuvable pour ${name} sur ${wfsUrl}`, error)
+    return undefined
+  }
 }
 
 /**
@@ -164,19 +211,29 @@ export function gnBaseFromEsUrl(esUrl: string): string {
 }
 
 /**
- * Translate the profile to filterable columns: visible value-list columns only (date-range and
- * tree facets dropped), French labels, `ft_<COLUMN>_s` aggregation field. Columns declared in
- * `tokenizedFields` compare by substring on the WFS side (`contains`).
+ * Translate the profile to filterable columns (visible ones, French labels):
+ * - `rangeDate` fields become date ranges over their `minField`/`maxField` columns (skipped when
+ *   either is missing);
+ * - `treeFields` columns become trees on `ft_<COLUMN>_s_tree`;
+ * - the others become value lists on `ft_<COLUMN>_s`, compared by substring on the WFS side
+ *   (`contains`) when declared in `tokenizedFields`.
  */
 export function profileToFields(profile: GnWfsApplicationProfile): IndexField[] {
   const treeFields = new Set(profile.treeFields ?? [])
   return (profile.fields ?? [])
-    .filter((f) => !f.hidden && f.type !== 'rangeDate' && !treeFields.has(f.name))
-    .map((f) => ({
-      esField: f.name,
-      label: f.label?.fr ?? f.label?.en ?? f.name,
-      aggField: `ft_${f.name}_s`,
-      type: 'terms' as const,
-      matchType: profile.tokenizedFields?.[f.name] ? ('contains' as const) : ('equals' as const),
-    }))
+    .filter((f) => !f.hidden)
+    .flatMap((f): IndexField[] => {
+      const esField = f.name
+      const label = f.label?.fr ?? f.label?.en ?? f.name
+      const tokenSeparator = profile.tokenizedFields?.[f.name]
+      if (f.type === 'rangeDate') {
+        if (!f.minField || !f.maxField) return []
+        return [{ esField, label, type: 'dateRange', minField: f.minField, maxField: f.maxField }]
+      }
+      if (treeFields.has(f.name)) {
+        return [{ esField, label, type: 'tree', aggField: `ft_${f.name}_s_tree`, tokenSeparator }]
+      }
+      const matchType = tokenSeparator ? 'contains' : 'equals'
+      return [{ esField, label, type: 'terms', aggField: `ft_${f.name}_s`, matchType }]
+    })
 }

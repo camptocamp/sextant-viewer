@@ -1,18 +1,36 @@
 import { computed, onScopeDispose, readonly, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
+import type { Extent } from '@geospatial-sdk/core'
 import { useMapStore } from '@/stores/map.store'
 import {
   fetchCount,
+  fetchDateBounds,
   fetchExtent,
   fetchFieldValues,
+  fetchTreeValues,
+  type DateBounds,
   type DistinctFieldValues,
   type IndexField,
 } from '@/utils/geonetwork-index'
+import { ancestorPaths, isWithin } from '@/utils/geonetwork-index/pathTree'
 import { isLayerDataIndexed, type MapLayer } from '@/utils/layer.utils'
-import { activeFiltersOf } from '@/utils/wms.utils'
 import type { GeoNetworkIndexConnection, WmsFilterState } from '@/types/wms.types'
 
-/** UI-friendly view of the active selections: selected values keyed by column (`esField`). */
-type ActiveFilters = Record<string, string[]>
+/** Selected days of a date-range column, `YYYY-MM-DD`, inclusive. */
+export interface DateRangeSelection {
+  from: string
+  to: string
+}
+
+/** UI-friendly view of the active selections, keyed by column (`esField`). */
+interface ActiveFilters {
+  /** Selected values of value-list columns, selected paths of tree columns. */
+  values: Record<string, string[]>
+  dateRanges: Record<string, DateRangeSelection>
+  /** Geographic area, EPSG:4326. */
+  bbox?: Extent
+}
+
+const NO_FILTERS: ActiveFilters = { values: {}, dateRanges: {} }
 
 const LOAD_ERROR =
   'Impossible de charger les valeurs depuis ElasticSearch. Vérifiez la connexion à l’index.'
@@ -23,11 +41,19 @@ function dataIndexOf(layer: MapLayer): GeoNetworkIndexConnection | undefined {
   return layer.extras?.dataIndex
 }
 
-/** Active selections → an ES query filter, optionally excluding one column (for faceting). */
-function toFilterState(active: ActiveFilters, exclude?: string): WmsFilterState {
-  return Object.entries(active)
-    .filter(([esField, values]) => values.length > 0 && esField !== exclude)
-    .map(([attributeName, values]) => ({ attributeName, matchType: 'equals' as const, values }))
+function activeFiltersOfLayer(layer: MapLayer): ActiveFilters {
+  const state = (isLayerDataIndexed(layer) && layer.extras?.filter) || []
+  const active: ActiveFilters = { values: {}, dateRanges: {} }
+  for (const filter of state) {
+    if (filter.kind === 'dateRange') {
+      active.dateRanges[filter.attributeName] = { from: filter.from, to: filter.to }
+    } else if (filter.kind === 'bbox') {
+      active.bbox = filter.extent
+    } else if (filter.kind === undefined) {
+      active.values[filter.attributeName] = filter.values
+    }
+  }
+  return active
 }
 
 /**
@@ -40,27 +66,106 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
 
   const fields = computed<IndexField[]>(() => dataIndexOf(toValue(layer))?.fields ?? [])
+  const geometryName = computed(() => dataIndexOf(toValue(layer))?.geometryName)
   const fieldValues = ref<Record<string, DistinctFieldValues>>({})
+  const dateBounds = ref<Record<string, DateBounds | null>>({})
   const count = ref<number | null>(null)
   const totalCount = ref<number | null>(null)
   const loading = ref(false)
   const loadFailed = ref(false)
+  // Separate from `loadFailed`: bounds load only with the layer, so a later successful count
+  // refresh must not hide their failure.
+  const boundsFailed = ref(false)
   // Per-column search term: the values list is capped, so a search must query the index.
   const searchTerms = ref<Record<string, string>>({})
+  // Expanded paths of each tree column: its levels load as they are expanded.
+  const expandedPaths = ref<Record<string, string[]>>({})
   const searching = ref<Record<string, boolean>>({})
   // Tracked per column so a successful search only clears its own failure.
   const searchFailed = ref<Record<string, boolean>>({})
   const zooming = ref(false)
   const zoomFailed = ref(false)
   const error = computed(() => {
-    if (loadFailed.value || Object.values(searchFailed.value).some(Boolean)) return LOAD_ERROR
+    if (loadFailed.value || boundsFailed.value || Object.values(searchFailed.value).some(Boolean)) {
+      return LOAD_ERROR
+    }
     return zoomFailed.value ? EXTENT_ERROR : null
   })
 
-  const activeFilters = computed<ActiveFilters>(() => activeFiltersOf(toValue(layer)))
-  const hasActiveFilters = computed(() =>
-    Object.values(activeFilters.value).some((values) => values.length > 0),
-  )
+  const activeFilters = computed<ActiveFilters>(() => activeFiltersOfLayer(toValue(layer)))
+  const hasActiveFilters = computed(() => {
+    const { values, dateRanges, bbox } = activeFilters.value
+    return (
+      Object.values(values).some((selected) => selected.length > 0) ||
+      Object.keys(dateRanges).length > 0 ||
+      !!bbox
+    )
+  })
+
+  /**
+   * Active selections → filter state, optionally excluding one column (for faceting: a column's
+   * counts ignore its own selection). The bbox and date ranges are never excluded.
+   */
+  function toFilterState(active: ActiveFilters, exclude?: string): WmsFilterState {
+    const state: WmsFilterState = []
+    for (const field of fields.value) {
+      if (field.esField === exclude) continue
+      if (field.type === 'dateRange') {
+        const range = active.dateRanges[field.esField]
+        if (!range) continue
+        const { minField, maxField } = field
+        state.push({
+          kind: 'dateRange',
+          attributeName: field.esField,
+          minField,
+          maxField,
+          ...range,
+        })
+        continue
+      }
+      const values = active.values[field.esField] ?? []
+      if (values.length === 0) continue
+      state.push(
+        field.type === 'tree'
+          ? {
+              attributeName: field.esField,
+              matchType: 'tree',
+              values,
+              ...(field.tokenSeparator && { tokenSeparator: field.tokenSeparator }),
+            }
+          : { attributeName: field.esField, matchType: field.matchType, values },
+      )
+    }
+    if (active.bbox && geometryName.value) {
+      state.push({ kind: 'bbox', geometryName: geometryName.value, extent: active.bbox })
+    }
+    return state
+  }
+
+  /** The index query behind a column's list: a result for an older one must not be shown. */
+  const columnQuery = (esField: string) =>
+    JSON.stringify([searchTerms.value[esField] ?? '', expandedPaths.value[esField] ?? []])
+
+  /** One column's faceted values, for its current search term (and expanded levels for a tree). */
+  function fetchColumn(
+    dataIndex: GeoNetworkIndexConnection,
+    field: IndexField,
+    active: ActiveFilters,
+    signal: AbortSignal,
+  ): Promise<DistinctFieldValues> | null {
+    const filters = toFilterState(active, field.esField)
+    const search = searchTerms.value[field.esField]
+    switch (field.type) {
+      case 'terms':
+        return fetchFieldValues(dataIndex, field, filters, signal, search)
+      case 'tree': {
+        const expanded = expandedPaths.value[field.esField]
+        return fetchTreeValues(dataIndex, field, filters, { expanded, search }, signal)
+      }
+      default:
+        return null
+    }
+  }
 
   // Each new request supersedes the previous one: the previous is aborted, and async writes are
   // gated on `id === requestId` so a stale request can neither clobber newer state nor wipe a fresh
@@ -85,20 +190,13 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     const dataIndex = dataIndexOf(toValue(layer))
     if (!dataIndex) return
     const active = activeFilters.value
-    const terms = searchTerms.value
+    const columns = fields.value.flatMap((field) => {
+      const request = fetchColumn(dataIndex, field, active, signal)
+      return request ? [{ esField: field.esField, query: columnQuery(field.esField), request }] : []
+    })
     try {
       const [results, total, grandTotal] = await Promise.all([
-        Promise.all(
-          fields.value.map((field) =>
-            fetchFieldValues(
-              dataIndex,
-              field,
-              toFilterState(active, field.esField),
-              signal,
-              terms[field.esField],
-            ),
-          ),
-        ),
+        Promise.all(columns.map((column) => column.request)),
         fetchCount(dataIndex, toFilterState(active), signal),
         // Refetch the grand total whenever it is still unknown, so a failed initial load recovers.
         withTotal || totalCount.value === null
@@ -109,11 +207,11 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
       loadFailed.value = false
       count.value = total
       if (grandTotal !== null) totalCount.value = grandTotal
-      // A column searched again meanwhile keeps its newer result.
+      // A column searched or expanded again meanwhile keeps its newer result.
       fieldValues.value = Object.fromEntries(
-        results.map((result) => [
+        results.map((result, i) => [
           result.esField,
-          searchTerms.value[result.esField] === terms[result.esField]
+          columnQuery(result.esField) === columns[i]!.query
             ? result
             : fieldValues.value[result.esField],
         ]),
@@ -125,56 +223,102 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     }
   }
 
-  const searchControllers = new Map<string, AbortController>()
+  /** Date bounds of the date-range columns; whole layer, so only loaded with the layer. */
+  async function loadDateBounds({ id, signal }: { id: number; signal: AbortSignal }) {
+    const dataIndex = dataIndexOf(toValue(layer))
+    if (!dataIndex) return
+    try {
+      const entries = await Promise.all(
+        fields.value.flatMap((field) =>
+          field.type === 'dateRange'
+            ? [fetchDateBounds(dataIndex, field, signal).then((b) => [field.esField, b] as const)]
+            : [],
+        ),
+      )
+      if (id === requestId) dateBounds.value = Object.fromEntries(entries)
+    } catch (e) {
+      if (signal.aborted || id !== requestId) return
+      console.error('Erreur lors du chargement des bornes de dates ElasticSearch:', e)
+      boundsFailed.value = true
+    }
+  }
 
-  /** Re-query one column's values for `term`, leaving the other columns untouched. */
-  async function searchValues(esField: string, term: string) {
+  const columnControllers = new Map<string, AbortController>()
+
+  /** Re-query one column for its current search term and expanded levels, leaving the others. */
+  async function requeryColumn(esField: string) {
     const dataIndex = dataIndexOf(toValue(layer))
     const field = fields.value.find((f) => f.esField === esField)
     if (!dataIndex || !field) return
 
-    searchControllers.get(esField)?.abort()
-    const searchController = new AbortController()
-    searchControllers.set(esField, searchController)
-    searchTerms.value = { ...searchTerms.value, [esField]: term }
+    columnControllers.get(esField)?.abort()
+    const columnController = new AbortController()
+    columnControllers.set(esField, columnController)
     searching.value = { ...searching.value, [esField]: true }
 
     try {
-      const result = await fetchFieldValues(
+      const result = await fetchColumn(
         dataIndex,
         field,
-        toFilterState(activeFilters.value, esField),
-        searchController.signal,
-        term,
+        activeFilters.value,
+        columnController.signal,
       )
-      if (searchController.signal.aborted) return
+      if (!result || columnController.signal.aborted) return
       fieldValues.value = { ...fieldValues.value, [esField]: result }
       searchFailed.value = { ...searchFailed.value, [esField]: false }
     } catch (e) {
-      if (searchController.signal.aborted) return
-      console.error(`Erreur lors de la recherche de valeurs pour ${esField}:`, e)
+      if (columnController.signal.aborted) return
+      console.error(`Erreur lors du chargement des valeurs de ${esField}:`, e)
       searchFailed.value = { ...searchFailed.value, [esField]: true }
     } finally {
-      if (searchControllers.get(esField) === searchController) {
-        searchControllers.delete(esField)
+      if (columnControllers.get(esField) === columnController) {
+        columnControllers.delete(esField)
         searching.value = { ...searching.value, [esField]: false }
       }
     }
   }
 
-  /** Cancel in-flight searches and forget their failures; search terms are kept. */
-  function resetSearches() {
-    searchControllers.forEach((c) => c.abort())
-    searchControllers.clear()
+  /** Re-query one column's values for `term`, leaving the other columns untouched. */
+  function searchValues(esField: string, term: string) {
+    searchTerms.value = { ...searchTerms.value, [esField]: term }
+    return requeryColumn(esField)
+  }
+
+  /** Set a tree column's expanded paths; newly expanded levels load (collapsing needs nothing). */
+  function setExpanded(esField: string, paths: string[]) {
+    const previous = new Set(expandedPaths.value[esField] ?? [])
+    expandedPaths.value = { ...expandedPaths.value, [esField]: paths }
+    // While searching, the matches come with all their ancestors already.
+    if (searchTerms.value[esField]) return
+    if (paths.some((path) => !previous.has(path))) return requeryColumn(esField)
+  }
+
+  /** Cancel in-flight column queries and forget their failures; terms are kept. */
+  function resetColumnQueries() {
+    columnControllers.forEach((c) => c.abort())
+    columnControllers.clear()
     searching.value = {}
     searchFailed.value = {}
   }
 
+  /** Expand the ancestors of the selected tree paths, so a restored selection shows. */
+  function expandSelectedPaths(): Record<string, string[]> {
+    const expanded: Record<string, string[]> = {}
+    for (const field of fields.value) {
+      if (field.type !== 'tree') continue
+      const selected = activeFilters.value.values[field.esField] ?? []
+      expanded[field.esField] = [...new Set(selected.flatMap(ancestorPaths))]
+    }
+    return expanded
+  }
+
   async function load() {
-    resetSearches()
+    resetColumnQueries()
     searchTerms.value = {}
+    expandedPaths.value = expandSelectedPaths()
     if (!dataIndexOf(toValue(layer))) {
       fieldValues.value = {}
+      dateBounds.value = {}
       count.value = null
       totalCount.value = null
       return
@@ -182,7 +326,8 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     const req = nextRequest()
     loading.value = true
     loadFailed.value = false
-    await refreshValues(req, true)
+    boundsFailed.value = false
+    await Promise.all([refreshValues(req, true), loadDateBounds(req)])
     if (req.id === requestId) loading.value = false
   }
 
@@ -195,18 +340,49 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     })
   }
 
+  function setValues(esField: string, values: string[]) {
+    const active = activeFilters.value
+    setActiveFilters({ ...active, values: { ...active.values, [esField]: values } })
+  }
+
   function toggleValue(esField: string, value: string) {
-    const selected = new Set(activeFilters.value[esField] ?? [])
+    const selected = new Set(activeFilters.value.values[esField] ?? [])
     if (selected.has(value)) {
       selected.delete(value)
     } else {
       selected.add(value)
     }
-    setActiveFilters({ ...activeFilters.value, [esField]: [...selected] })
+    setValues(esField, [...selected])
+  }
+
+  /**
+   * Toggle a tree path. Selecting it drops its selected descendants, which it already matches (in
+   * the index and on the WMS), keeping the WMS filter short.
+   */
+  function toggleTreePath(esField: string, path: string) {
+    const selected = activeFilters.value.values[esField] ?? []
+    setValues(
+      esField,
+      selected.includes(path)
+        ? selected.filter((p) => p !== path)
+        : [...selected.filter((p) => !isWithin(p, path)), path],
+    )
+  }
+
+  function setDateRange(esField: string, range: DateRangeSelection | null) {
+    const { [esField]: _, ...dateRanges } = activeFilters.value.dateRanges
+    setActiveFilters({
+      ...activeFilters.value,
+      dateRanges: range ? { ...dateRanges, [esField]: range } : dateRanges,
+    })
+  }
+
+  function setBbox(bbox: Extent | null) {
+    setActiveFilters({ ...activeFilters.value, bbox: bbox ?? undefined })
   }
 
   function resetFilters() {
-    setActiveFilters({})
+    setActiveFilters(NO_FILTERS)
   }
 
   // Separate from `controller`: zooming must not abort an in-flight count refresh.
@@ -253,35 +429,44 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
 
   // Reload on layer change; on a selection change, only refresh the faceted counts. Watching
   // serialized values (not the layer object) keeps unrelated layer updates — opacity, visibility —
-  // from superseding an in-flight load.
+  // from superseding an in-flight load. A selection change during the load supersedes it, so the
+  // load restarts: a mere refresh would neither load the date bounds nor end `loading`.
   watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], ([id], [oldId]) => {
-    if (id !== oldId) return load()
-    // A search started under the old selection would overwrite the refreshed values; the refresh
-    // re-runs every column with its current term anyway.
-    resetSearches()
+    if (id !== oldId || loading.value) return load()
+    // A column query started under the old selection would overwrite the refreshed values; the
+    // refresh re-runs every column with its current term and expanded levels anyway.
+    resetColumnQueries()
     return refreshValues(nextRequest())
   })
   load()
 
   onScopeDispose(() => {
     controller?.abort()
-    resetSearches()
+    resetColumnQueries()
   })
 
   return {
     fields,
+    geometryName,
     fieldValues: readonly(fieldValues),
+    dateBounds: readonly(dateBounds),
     count: readonly(count),
     totalCount: readonly(totalCount),
     loading: readonly(loading),
     error,
     searching: readonly(searching),
+    searchTerms: readonly(searchTerms),
+    expandedPaths: readonly(expandedPaths),
     zooming: readonly(zooming),
     activeFilters,
     hasActiveFilters,
     toggleValue,
+    toggleTreePath,
+    setDateRange,
+    setBbox,
     resetFilters,
     searchValues,
+    setExpanded,
     zoomToSelection,
   }
 }

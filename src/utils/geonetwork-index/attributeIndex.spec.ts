@@ -2,12 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import {
   buildFieldFilter,
   fetchCount,
+  fetchDateBounds,
   fetchExtent,
   fetchFieldValues,
+  fetchTreeValues,
   fieldsFromSource,
+  hasGeometry,
   probeIndex,
 } from './attributeIndex'
-import type { IndexField } from './attributeIndex.types'
+import type { DateRangeIndexField, IndexField, TreeIndexField } from './attributeIndex.types'
 import type { GeoNetworkIndexConnection } from '@/types/wms.types'
 
 const index: GeoNetworkIndexConnection = { url: 'https://host/es', featureTypeIds: ['ft1'] }
@@ -55,6 +58,129 @@ describe('buildFieldFilter', () => {
     expect(
       buildFieldFilter({ attributeName: 'THEME', matchType: 'contains', values: ['Benthos'] }),
     ).toEqual({ terms: { ft_THEME_s: ['Benthos'] } })
+  })
+
+  it('filters tree paths on the path-tokenized field, which covers their descendants', () => {
+    expect(
+      buildFieldFilter({ attributeName: 'PARAMETRE', matchType: 'tree', values: ['A/B'] }),
+    ).toEqual({ terms: { ft_PARAMETRE_s_tree: ['A/B'] } })
+  })
+
+  it('filters a date range by period overlap, up to the end of its last day', () => {
+    expect(
+      buildFieldFilter({
+        kind: 'dateRange',
+        attributeName: 'range_Date',
+        minField: 'DATEMIN',
+        maxField: 'DATEMAX',
+        from: '2020-01-01',
+        to: '2020-01-31',
+      }),
+    ).toEqual({
+      bool: {
+        filter: [
+          { range: { ft_DATEMIN_dt: { lt: '2020-02-01', format: 'yyyy-MM-dd' } } },
+          { range: { ft_DATEMAX_dt: { gte: '2020-01-01', format: 'yyyy-MM-dd' } } },
+        ],
+      },
+    })
+  })
+
+  it('filters an area by geometry intersection, as an envelope clamped to the globe', () => {
+    expect(
+      buildFieldFilter({ kind: 'bbox', geometryName: 'geometry', extent: [-200, 48, -4, 95] }),
+    ).toEqual({
+      geo_shape: {
+        geom: {
+          shape: {
+            type: 'envelope',
+            coordinates: [
+              [-180, 90],
+              [-4, 48],
+            ],
+          },
+          relation: 'intersects',
+        },
+      },
+    })
+  })
+})
+
+describe('fetchTreeValues', () => {
+  const tree: TreeIndexField = {
+    esField: 'PARAMETRE',
+    label: 'Paramètre',
+    aggField: 'ft_PARAMETRE_s_tree',
+    type: 'tree',
+  }
+  const termsAgg = (fetchMock: Mock) => bodyOf(fetchMock).aggs.values.terms
+
+  it('loads the root level and one level ahead', async () => {
+    const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
+    await fetchTreeValues(index, tree, [], {})
+    expect(termsAgg(fetchMock)).toEqual({
+      field: 'ft_PARAMETRE_s_tree',
+      size: 1001,
+      include: '[^/]+(/[^/]+)?',
+    })
+  })
+
+  it('adds the level below each expanded path, escaping regex characters', async () => {
+    const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
+    await fetchTreeValues(index, tree, [], { expanded: ['A', 'A/B (x)'] })
+    expect(termsAgg(fetchMock).include).toBe('[^/]+(/[^/]+)?|A/[^/]+/[^/]+|A/B \\(x\\)/[^/]+/[^/]+')
+  })
+
+  it('searches the last level of any path, case-insensitively and capped like a list', async () => {
+    const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
+    await fetchTreeValues(index, tree, [], { expanded: ['A'], search: ' Coli ' })
+    expect(termsAgg(fetchMock)).toEqual({
+      field: 'ft_PARAMETRE_s_tree',
+      size: 51,
+      include: '(.*/)?[^/]*[cC][oO][lL][iI][^/]*',
+    })
+  })
+
+  it('maps the buckets like a values list', async () => {
+    mockFetch({ aggregations: { values: { buckets: [{ key: 'A/B', doc_count: 3 }] } } })
+    expect(await fetchTreeValues(index, tree, [], {})).toEqual({
+      esField: 'PARAMETRE',
+      values: [{ value: 'A/B', count: 3 }],
+      truncated: false,
+    })
+  })
+})
+
+describe('fetchDateBounds', () => {
+  const range: DateRangeIndexField = {
+    esField: 'range_Date',
+    label: 'Date',
+    type: 'dateRange',
+    minField: 'DATEMIN',
+    maxField: 'DATEMAX',
+  }
+
+  it('reads the earliest start and latest end over the whole layer', async () => {
+    const fetchMock = mockFetch({
+      aggregations: {
+        dateMin: { value: 109209600000, value_as_string: '1973-06-18' },
+        dateMax: { value: 1793795580000, value_as_string: '2026-11-04' },
+      },
+    })
+    expect(await fetchDateBounds(index, range)).toEqual({ min: '1973-06-18', max: '2026-11-04' })
+    expect(bodyOf(fetchMock)).toEqual({
+      size: 0,
+      query: { terms: { featureTypeId: ['ft1'] } },
+      aggs: {
+        dateMin: { min: { field: 'ft_DATEMIN_dt', format: 'yyyy-MM-dd' } },
+        dateMax: { max: { field: 'ft_DATEMAX_dt', format: 'yyyy-MM-dd' } },
+      },
+    })
+  })
+
+  it('returns null when no feature has a period', async () => {
+    mockFetch({ aggregations: { dateMin: { value: null }, dateMax: { value: null } } })
+    expect(await fetchDateBounds(index, range)).toBeNull()
   })
 })
 
@@ -248,7 +374,7 @@ describe('fetchExtent', () => {
 })
 
 describe('fieldsFromSource', () => {
-  it('discovers `ft_<COLUMN>_s` columns from a sample document', () => {
+  it('discovers `ft_<COLUMN>_s` and `ft_<COLUMN>_s_tree` columns from a sample document', () => {
     expect(
       fieldsFromSource({
         ft_THEME_s: 'Microbiologie',
@@ -273,7 +399,19 @@ describe('fieldsFromSource', () => {
         type: 'terms',
         matchType: 'equals',
       },
+      { esField: 'REGION', label: 'REGION', aggField: 'ft_REGION_s_tree', type: 'tree' },
     ])
+  })
+
+  it('keeps only the tree column when a column is indexed both ways', () => {
+    expect(fieldsFromSource({ ft_REGION_s: 'a/b', ft_REGION_s_tree: 'a/b' })).toEqual([
+      { esField: 'REGION', label: 'REGION', aggField: 'ft_REGION_s_tree', type: 'tree' },
+    ])
+  })
+
+  it('tells whether the sample document carries the feature geometry', () => {
+    expect(hasGeometry({ geom: { type: 'Point', coordinates: [0, 0] } })).toBe(true)
+    expect(hasGeometry({ ft_THEME_s: 'x' })).toBe(false)
   })
 
   it('returns an empty list when the sample document has no filterable column', () => {
