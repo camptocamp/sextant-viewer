@@ -460,7 +460,7 @@ describe('useAttributeFilter', () => {
     scope.stop()
   })
 
-  it('reports an error instead of zooming when the selection has no extent', async () => {
+  it('does nothing when the selection has no extent', async () => {
     const layer = ref(makeLayer())
     mocks.fetchExtent.mockResolvedValue(null)
     const scope = effectScope()
@@ -470,7 +470,8 @@ describe('useAttributeFilter', () => {
     await api.zoomToSelection()
 
     expect(mocks.setView).not.toHaveBeenCalled()
-    expect(api.zoomError.value).not.toBeNull()
+    expect(api.zooming.value).toBe(false)
+    expect(api.zoomError.value).toBeNull()
     scope.stop()
   })
 
@@ -538,7 +539,8 @@ describe('useAttributeFilter', () => {
 
   it('changing the selection clears a previous zoom failure', async () => {
     const layer = ref(makeLayer())
-    mocks.fetchExtent.mockResolvedValue(null)
+    mocks.fetchExtent.mockRejectedValue(new Error('boom'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     const scope = effectScope()
     const api = scope.run(() => useAttributeFilter(() => layer.value))!
     await flush()

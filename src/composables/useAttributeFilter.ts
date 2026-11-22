@@ -236,12 +236,8 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     try {
       const filters = toFilterState(activeFilters.value)
       const extent = await fetchExtent(dataIndex, filters, current.signal)
-      if (current.signal.aborted) return
-      if (extent) {
-        mapStore.setView({ extent })
-      } else {
-        zoomFailed.value = true
-      }
+      // No extent means nothing matched: the count, refreshed alongside, already says so.
+      if (extent && !current.signal.aborted) mapStore.setView({ extent })
     } catch (e) {
       if (current.signal.aborted) return
       console.error("Erreur lors du calcul de l'étendue de la sélection:", e)
