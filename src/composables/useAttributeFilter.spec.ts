@@ -151,6 +151,28 @@ describe('useAttributeFilter', () => {
     scope.stop()
   })
 
+  it('a selection change during the initial load still ends the loading state', async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+    mocks.fetchCount
+      .mockImplementationOnce(() => new Promise<number>(() => {}))
+      .mockImplementationOnce(() => new Promise<number>(() => {}))
+      .mockResolvedValue(7)
+
+    let api!: ReturnType<typeof useAttributeFilter>
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+    expect(api.loading.value).toBe(true)
+
+    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    await flush()
+    expect(api.loading.value).toBe(false)
+    expect(api.count.value).toBe(7)
+    scope.stop()
+  })
+
   it('a search refetches only the searched column, with its own faceting', async () => {
     const layer = ref(makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }]))
     const scope = effectScope()

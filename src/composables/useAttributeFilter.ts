@@ -143,8 +143,11 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     }
   }
 
-  /** Reload every column and the counts; returns the counts' signal, aborted once superseded. */
-  async function refresh(withTotal = false): Promise<AbortSignal | undefined> {
+  /**
+   * Reload every column and the counts. The refresh that isn't superseded ends `loading`, so a
+   * selection change during the initial load takes over ending it.
+   */
+  async function refresh(withTotal = false) {
     const dataIndex = dataIndexOf(toValue(layer))
     if (!dataIndex) return
     countsController?.abort()
@@ -154,7 +157,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
       ...fields.value.map((field) => fetchColumn(dataIndex, field)),
       fetchCounts(dataIndex, signal, withTotal),
     ])
-    return signal
+    if (!signal.aborted) loading.value = false
   }
 
   /** Re-query one column's values for `term`, leaving the other columns untouched. */
@@ -182,8 +185,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     }
     loading.value = true
     countsFailed.value = false
-    const signal = await refresh(true)
-    if (signal && !signal.aborted) loading.value = false
+    await refresh(true)
   }
 
   function setActiveFilters(active: ActiveFilters) {
