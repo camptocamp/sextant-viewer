@@ -157,6 +157,22 @@ describe('fetchTreeValues', () => {
     })
   })
 
+  it('finds an intermediate node without its subtree, and follows a search across levels', async () => {
+    // Lucene `include` regexes match the whole term: anchored, like this JS equivalent.
+    const matcher = async (search: string) => {
+      const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
+      await fetchTreeValues(index, tree, [], { search })
+      return new RegExp(`^(?:${termsAgg(fetchMock).include})$`)
+    }
+    const byAncestor = await matcher('chimie')
+    expect(byAncestor.test('Chimie (eau)')).toBe(true)
+    expect(byAncestor.test('Chimie (eau)/Métaux')).toBe(false)
+
+    const acrossLevels = await matcher('eau)/mé')
+    expect(acrossLevels.test('Chimie (eau)/Métaux')).toBe(true)
+    expect(acrossLevels.test('Chimie (eau)')).toBe(false)
+  })
+
   it('maps the buckets like a values list', async () => {
     mockFetch({ aggregations: { values: { buckets: [{ key: 'A/B', doc_count: 3 }] } } })
     expect(await fetchTreeValues(index, tree, [], {})).toEqual({

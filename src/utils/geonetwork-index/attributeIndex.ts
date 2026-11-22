@@ -79,7 +79,12 @@ function containsPattern(term: string): string {
   return `.*${caseAndAccentInsensitive(term)}.*`
 }
 
-/** Lucene regex matching the paths whose last level contains `term`, ignoring case and accents. */
+/**
+ * Lucene regex matching the paths whose last level contains `term`, ignoring case and accents, so
+ * a match on an ancestor doesn't bring back its whole subtree. A `term` holding the separator
+ * spans the last levels it crosses, like a path (`eau)/mé` matches `Chimie (eau)/Métaux`), as in
+ * the previous Sextant viewer.
+ */
 function lastLevelContainsPattern(term: string): string {
   return `(.*/)?[^/]*${caseAndAccentInsensitive(term)}[^/]*`
 }
