@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import type { Extent } from '@geospatial-sdk/core'
 import { useBboxDraw } from '@/composables/useBboxDraw'
 import AttributeFilterSection from './AttributeFilterSection.vue'
@@ -8,10 +8,16 @@ const props = defineProps<{ bbox: Extent | undefined }>()
 
 const emit = defineEmits<{ update: [bbox: Extent | null] }>()
 
-const { drawing, toggleDrawing } = useBboxDraw(
+const { drawing, toggleDrawing, stopDrawing } = useBboxDraw(
   () => props.bbox,
   (extent) => emit('update', extent),
 )
+
+// Collapsing hides the draw button: an armed drawing would then turn the next map pan into an area.
+const open = ref(false)
+watch(open, (isOpen) => {
+  if (!isOpen) stopDrawing()
+})
 
 // Extent order, laid out as a compass: north on top, west/east in the middle, south below.
 const SIDES = [
@@ -45,7 +51,11 @@ function apply() {
 </script>
 
 <template>
-  <AttributeFilterSection label="Zone géographique" :active-count="bbox ? 1 : 0">
+  <AttributeFilterSection
+    v-model:open="open"
+    label="Zone géographique"
+    :active-count="bbox ? 1 : 0"
+  >
     <div class="grid grid-cols-3 gap-1">
       <UFormField
         v-for="side in SIDES"

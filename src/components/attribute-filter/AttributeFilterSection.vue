@@ -4,10 +4,12 @@ defineProps<{
   /** Number shown in the header badge; the badge is hidden when 0. */
   activeCount: number
 }>()
+
+const open = defineModel<boolean>('open', { default: false })
 </script>
 
 <template>
-  <UCollapsible class="border-default rounded border">
+  <UCollapsible v-model:open="open" class="border-default rounded border">
     <template #default="{ open }">
       <UButton variant="ghost" color="neutral" block class="justify-between font-medium">
         <span class="truncate">{{ label }}</span>

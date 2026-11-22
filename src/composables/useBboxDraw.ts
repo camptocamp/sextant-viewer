@@ -99,5 +99,5 @@ export function useBboxDraw(
     mapStore.olMap?.removeLayer(outline)
   })
 
-  return { drawing: readonly(drawing), toggleDrawing }
+  return { drawing: readonly(drawing), toggleDrawing, stopDrawing }
 }
