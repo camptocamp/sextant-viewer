@@ -13,9 +13,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{ toggle: [value: string]; search: [term: string] }>()
 
-const search = ref('')
 // Debounced so typing doesn't send one index query per keystroke.
-const debouncedSearch = refDebounced(search, 300)
+const SEARCH_DEBOUNCE_MS = 300
+
+const search = ref('')
+const debouncedSearch = refDebounced(search, SEARCH_DEBOUNCE_MS)
 
 watch(
   () => debouncedSearch.value.trim(),

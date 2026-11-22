@@ -84,7 +84,7 @@ describe('useAttributeFilter', () => {
     scope.stop()
   })
 
-  it('replacing the layer object with identical content neither aborts the load nor refetches', async () => {
+  it('an identical layer replacement neither aborts the load nor refetches', async () => {
     const layer = ref(makeLayer())
     const scope = effectScope()
 
@@ -222,7 +222,7 @@ describe('useAttributeFilter', () => {
     scope.stop()
   })
 
-  it('a search started before a selection change does not overwrite the refreshed values', async () => {
+  it('a search started before a selection change leaves the refreshed values', async () => {
     const layer = ref(makeLayer())
     const scope = effectScope()
     let api!: ReturnType<typeof useAttributeFilter>
