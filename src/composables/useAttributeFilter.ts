@@ -81,6 +81,9 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     if (!dataIndex) return
     const active = activeFilters.value
     const terms = searchTerms.value
+    // The refresh re-runs searched columns with their term, so they are loading until it lands.
+    const searched = Object.keys(terms).filter((esField) => terms[esField])
+    setSearching(searched, true)
     try {
       const [results, total, grandTotal] = await Promise.all([
         Promise.all(
@@ -117,6 +120,22 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
       if (signal.aborted || id !== requestId) return
       console.error('Erreur lors du chargement des valeurs ElasticSearch:', e)
       loadFailed.value = true
+    } finally {
+      // A column searched again meanwhile owns its flag until its own search settles.
+      if (id === requestId) {
+        setSearching(
+          searched.filter((esField) => !searchControllers.has(esField)),
+          false,
+        )
+      }
+    }
+  }
+
+  function setSearching(esFields: string[], value: boolean) {
+    if (esFields.length === 0) return
+    searching.value = {
+      ...searching.value,
+      ...Object.fromEntries(esFields.map((esField) => [esField, value])),
     }
   }
 

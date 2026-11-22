@@ -253,6 +253,31 @@ describe('useAttributeFilter', () => {
     scope.stop()
   })
 
+  it('a searched column stays searching until the selection refresh lands', async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+    let api!: ReturnType<typeof useAttributeFilter>
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+    await api.searchValues('A', 'foo')
+
+    let releaseRefresh!: () => void
+    mocks.fetchCount.mockImplementationOnce(
+      () => new Promise<number>((resolve) => (releaseRefresh = () => resolve(1))),
+    )
+    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    await flush()
+    expect(api.searching.value.A).toBe(true)
+    expect(api.searching.value.B).toBeFalsy()
+
+    releaseRefresh()
+    await flush()
+    expect(api.searching.value.A).toBe(false)
+    scope.stop()
+  })
+
   it("a successful search clears its column's error but not another column's", async () => {
     const layer = ref(makeLayer())
     const scope = effectScope()
