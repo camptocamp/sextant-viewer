@@ -24,6 +24,10 @@ watch(
   { immediate: true },
 )
 
+// Date-only bounds parse as UTC midnight; formatting them in local time shows the day before
+// west of UTC.
+const formatDay = (day: string) => new Date(day).toLocaleDateString('fr-FR', { timeZone: 'UTC' })
+
 const inverted = computed(() => !!from.value && !!to.value && from.value > to.value)
 
 function apply() {
@@ -77,8 +81,7 @@ function clear() {
       La date de début est postérieure à la date de fin.
     </p>
     <p v-else-if="bounds" class="text-dimmed text-xs">
-      Données du {{ new Date(bounds.min).toLocaleDateString('fr-FR') }} au
-      {{ new Date(bounds.max).toLocaleDateString('fr-FR') }}.
+      Données du {{ formatDay(bounds.min) }} au {{ formatDay(bounds.max) }}.
     </p>
 
     <div class="flex gap-2">
