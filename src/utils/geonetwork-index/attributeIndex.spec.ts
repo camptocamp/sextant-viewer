@@ -133,14 +133,14 @@ describe('fetchFieldValues', () => {
   it('omits `include` for a blank search', async () => {
     const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
 
-    await fetchFieldValues(index, field, [], undefined, '   ')
+    await fetchFieldValues(index, field, [], { search: '   ' })
     expect(bodyOf(fetchMock).aggs.values.terms).not.toHaveProperty('include')
   })
 
   it('restricts buckets to a case-insensitive contains pattern', async () => {
     const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
 
-    await fetchFieldValues(index, field, [], undefined, ' Bx2 ')
+    await fetchFieldValues(index, field, [], { search: ' Bx2 ' })
     expect(bodyOf(fetchMock).aggs.values.terms.include).toBe('.*[bB][xX]2.*')
   })
 
@@ -148,7 +148,7 @@ describe('fetchFieldValues', () => {
     // Lucene regexes are anchored; these patterns only use syntax JS reads the same way.
     async function matcher(term: string) {
       const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
-      await fetchFieldValues(index, field, [], undefined, term)
+      await fetchFieldValues(index, field, [], { search: term })
       const pattern = new RegExp(`^${bodyOf(fetchMock).aggs.values.terms.include}$`)
       return (value: string) => pattern.test(value)
     }
@@ -177,7 +177,7 @@ describe('fetchFieldValues', () => {
     it('stays under the default max_regex_length for the longest term', async () => {
       const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
       // `a` has the most accented forms.
-      await fetchFieldValues(index, field, [], undefined, 'a'.repeat(SEARCH_MAX_LENGTH))
+      await fetchFieldValues(index, field, [], { search: 'a'.repeat(SEARCH_MAX_LENGTH) })
       expect(bodyOf(fetchMock).aggs.values.terms.include.length).toBeLessThanOrEqual(1000)
     })
   })
@@ -185,7 +185,7 @@ describe('fetchFieldValues', () => {
   it('escapes Lucene regex reserved characters in the search', async () => {
     const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
 
-    await fetchFieldValues(index, field, [], undefined, 'b.x(z')
+    await fetchFieldValues(index, field, [], { search: 'b.x(z' })
     expect(bodyOf(fetchMock).aggs.values.terms.include).toBe('.*[bB]\\.[xX]\\([zZ].*')
   })
 })

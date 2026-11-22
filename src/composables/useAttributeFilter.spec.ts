@@ -155,10 +155,10 @@ describe('useAttributeFilter', () => {
     await api.searchValues('A', 'foo')
 
     expect(mocks.fetchFieldValues).toHaveBeenCalledTimes(1)
-    const [, field, filters, , term] = mocks.fetchFieldValues.mock.calls[0]!
+    const [, field, filters, options] = mocks.fetchFieldValues.mock.calls[0]!
     expect(field.esField).toBe('A')
     expect(filters).toEqual([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
-    expect(term).toBe('foo')
+    expect(options.search).toBe('foo')
     expect(mocks.fetchCount).not.toHaveBeenCalled()
     scope.stop()
   })
@@ -184,7 +184,7 @@ describe('useAttributeFilter', () => {
     await flush()
 
     const termOf = (esField: string) =>
-      mocks.fetchFieldValues.mock.calls.find((c) => c[1].esField === esField)?.[4]
+      mocks.fetchFieldValues.mock.calls.find((c) => c[1].esField === esField)?.[3].search
     expect(termOf('A')).toBe('foo')
     expect(termOf('B')).toBeUndefined()
     scope.stop()

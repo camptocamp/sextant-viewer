@@ -88,13 +88,10 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
       const [results, total, grandTotal] = await Promise.all([
         Promise.all(
           fields.value.map((field) =>
-            fetchFieldValues(
-              dataIndex,
-              field,
-              toFilterState(active, field.esField),
+            fetchFieldValues(dataIndex, field, toFilterState(active, field.esField), {
               signal,
-              terms[field.esField],
-            ),
+              search: terms[field.esField],
+            }),
           ),
         ),
         fetchCount(dataIndex, toFilterState(active), signal),
@@ -158,8 +155,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
         dataIndex,
         field,
         toFilterState(activeFilters.value, esField),
-        searchController.signal,
-        term,
+        { signal: searchController.signal, search: term },
       )
       if (searchController.signal.aborted) return
       fieldValues.value = { ...fieldValues.value, [esField]: result }

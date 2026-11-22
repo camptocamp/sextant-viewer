@@ -144,15 +144,14 @@ export function buildFieldFilter(filter: FilterByAttribute): Record<string, unkn
 /**
  * Distinct values and counts of a column via a terms aggregation. `filters` (active selections)
  * narrow the counts to give faceted counts. Buckets come back ordered by descending count.
- * `search` keeps only the values containing it (case-insensitive); it filters buckets, not
+ * `search` keeps only the values containing it (ignoring case and accents); it filters buckets, not
  * documents, so a tokenized column doesn't bring back the other tokens of matching documents.
  */
 export async function fetchFieldValues(
   index: GeoNetworkIndexConnection,
   field: IndexField,
   filters: WmsFilterState = [],
-  signal?: AbortSignal,
-  search = '',
+  { signal, search = '' }: { signal?: AbortSignal; search?: string } = {},
 ): Promise<DistinctFieldValues> {
   // This has to be a 'terms' field; if not, no way to obtain distinct values
   if (field.type !== 'terms') {
