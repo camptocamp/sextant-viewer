@@ -53,7 +53,7 @@ function clear() {
 <template>
   <AttributeFilterSection :label="field.label" :active-count="selected ? 1 : 0">
     <div class="grid grid-cols-2 gap-2">
-      <UFormField label="Du" size="xs">
+      <UFormField label="Du" size="xs" :error="inverted">
         <UInput
           v-model="from"
           type="date"
@@ -64,7 +64,7 @@ function clear() {
           @keydown.stop
         />
       </UFormField>
-      <UFormField label="Au" size="xs">
+      <UFormField label="Au" size="xs" :error="inverted">
         <UInput
           v-model="to"
           type="date"
@@ -77,7 +77,7 @@ function clear() {
       </UFormField>
     </div>
 
-    <p v-if="inverted" class="text-error text-xs">
+    <p v-if="inverted" role="alert" class="text-error text-xs">
       La date de début est postérieure à la date de fin.
     </p>
     <p v-else-if="bounds" class="text-dimmed text-xs">

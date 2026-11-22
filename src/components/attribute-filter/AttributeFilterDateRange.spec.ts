@@ -33,4 +33,18 @@ describe('AttributeFilterDateRange', () => {
     })
     expect(wrapper.text()).toContain('Données du 01/03/2024 au 31/12/2024.')
   })
+
+  it('marks both days when the period is inverted', () => {
+    const wrapper = mount(AttributeFilterDateRange, {
+      props: { field, bounds: null, selected: { from: '2024-12-01', to: '2024-01-01' } },
+      global: {
+        stubs: {
+          Collapsible: { template: '<div><slot :open="true" /><slot name="content" /></div>' },
+        },
+      },
+    })
+    const invalid = wrapper.findAll('input').map((input) => input.attributes('aria-invalid'))
+    expect(invalid).toEqual(['true', 'true'])
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+  })
 })

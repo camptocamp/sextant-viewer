@@ -37,18 +37,21 @@ watch(
 )
 
 const complete = computed(() => draft.every((value) => value !== null))
-const invalid = computed(() => {
-  if (!complete.value) return false
+
+/** Extent indices of the sides to correct: out of the globe, or west/east or south/north swapped. */
+const invalidSides = computed(() => {
+  const sides = new Set<number>()
+  if (!complete.value) return sides
   const [w, s, e, n] = draft as number[]
-  return (
-    w! >= e! ||
-    s! >= n! ||
-    w! < -MAX_LONGITUDE ||
-    e! > MAX_LONGITUDE ||
-    s! < -MAX_LATITUDE ||
-    n! > MAX_LATITUDE
-  )
+  if (Math.abs(w!) > MAX_LONGITUDE) sides.add(0)
+  if (Math.abs(s!) > MAX_LATITUDE) sides.add(1)
+  if (Math.abs(e!) > MAX_LONGITUDE) sides.add(2)
+  if (Math.abs(n!) > MAX_LATITUDE) sides.add(3)
+  if (w! >= e!) sides.add(0).add(2)
+  if (s! >= n!) sides.add(1).add(3)
+  return sides
 })
+const invalid = computed(() => invalidSides.value.size > 0)
 
 function apply() {
   if (!complete.value || invalid.value) return
@@ -71,6 +74,7 @@ function apply() {
         :label="side.label"
         size="xs"
         :class="side.class"
+        :error="invalidSides.has(side.index)"
       >
         <UInputNumber
           v-model="draft[side.index]"
@@ -85,7 +89,7 @@ function apply() {
       </UFormField>
     </div>
 
-    <p v-if="invalid" class="text-error text-xs">
+    <p v-if="invalid" role="alert" class="text-error text-xs">
       Coordonnées invalides : l’ouest doit être inférieur à l’est et le sud au nord (degrés WGS 84).
     </p>
 

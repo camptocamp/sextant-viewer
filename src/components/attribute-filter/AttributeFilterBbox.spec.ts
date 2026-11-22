@@ -53,4 +53,20 @@ describe('AttributeFilterBbox', () => {
     await wrapper.vm.$nextTick()
     expect(dragBoxes()).toHaveLength(0)
   })
+
+  it('marks only the sides to correct', async () => {
+    const wrapper = mount(AttributeFilterBbox, {
+      props: { bbox: [10, 48, 5, 49] },
+      global: { stubs: { Collapsible } },
+    })
+    wrapper.findComponent(Collapsible).vm.$emit('update:open', true)
+    await wrapper.vm.$nextTick()
+
+    const invalid = wrapper
+      .findAll('input')
+      .map((input) => input.attributes('aria-invalid') === 'true')
+    // Compass order: north, west, east, south.
+    expect(invalid).toEqual([false, true, true, false])
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+  })
 })
