@@ -20,13 +20,36 @@ const aggFieldName = (column: string) => `ft_${column}_s`
 
 const LUCENE_REGEX_RESERVED = /[.?+*|{}[\]()"\\#@&<>~]/
 
+const stripAccents = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '')
+
 /**
- * Lucene regex matching values that contain `term`, ignoring case: `include` regexes are
- * case-sensitive and have no flag, so each letter becomes a `[xX]` class.
+ * Base letter → class content of its cases and accented forms (`e` → `eEèéêëÈÉÊË`). Latin-1
+ * covers French; wider ranges would push a {@link SEARCH_MAX_LENGTH} term past ES's default
+ * `index.max_regex_length` (1000). Letters without a decomposition (`æ`, `ø`, `ß`) are left out.
+ */
+const ACCENT_CLASSES = (() => {
+  const classes = new Map<string, string>()
+  for (let code = 0xc0; code <= 0xff; code++) {
+    const char = String.fromCodePoint(code)
+    const base = stripAccents(char).toLowerCase()
+    if (base === char.toLowerCase()) continue
+    classes.set(base, (classes.get(base) ?? base + base.toUpperCase()) + char)
+  }
+  return classes
+})()
+
+/** Longest search term, keeping the generated pattern under `index.max_regex_length`. */
+export const SEARCH_MAX_LENGTH = 50
+
+/**
+ * Lucene regex matching values that contain `term`, ignoring case and accents: `include` regexes
+ * have no flag for either, so each letter becomes a class of all its forms (`e` → `[eEèéÈÉ…]`).
  */
 function containsPattern(term: string): string {
-  const body = [...term]
+  const body = [...stripAccents(term)]
     .map((char) => {
+      const accented = ACCENT_CLASSES.get(char.toLowerCase())
+      if (accented) return `[${accented}]`
       const lower = char.toLowerCase()
       const upper = char.toUpperCase()
       // Skip classes for case mappings that change length (e.g. `ß` → `SS`).

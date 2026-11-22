@@ -5,6 +5,7 @@ import {
   fetchFieldValues,
   fieldsFromSource,
   probeIndex,
+  SEARCH_MAX_LENGTH,
 } from './attributeIndex'
 import type { IndexField } from './attributeIndex.types'
 import type { GeoNetworkIndexConnection } from '@/types/wms.types'
@@ -139,15 +140,53 @@ describe('fetchFieldValues', () => {
   it('restricts buckets to a case-insensitive contains pattern', async () => {
     const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
 
-    await fetchFieldValues(index, field, [], undefined, ' Bé2 ')
-    expect(bodyOf(fetchMock).aggs.values.terms.include).toBe('.*[bB][éÉ]2.*')
+    await fetchFieldValues(index, field, [], undefined, ' Bx2 ')
+    expect(bodyOf(fetchMock).aggs.values.terms.include).toBe('.*[bB][xX]2.*')
+  })
+
+  describe('accent-insensitive search', () => {
+    // Lucene regexes are anchored; these patterns only use syntax JS reads the same way.
+    async function matcher(term: string) {
+      const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
+      await fetchFieldValues(index, field, [], undefined, term)
+      const pattern = new RegExp(`^${bodyOf(fetchMock).aggs.values.terms.include}$`)
+      return (value: string) => pattern.test(value)
+    }
+
+    it('matches accented values from an unaccented term', async () => {
+      const matches = await matcher('ecole')
+      expect(matches('École Navale')).toBe(true)
+      expect(matches('ÉCOLE')).toBe(true)
+      expect(matches('Collège')).toBe(false)
+    })
+
+    it('matches unaccented values from an accented term', async () => {
+      const matches = await matcher('côte')
+      expect(matches('COTE')).toBe(true)
+      expect(matches('Côtes-d’Armor')).toBe(true)
+      expect(matches('Cité')).toBe(false)
+    })
+
+    it('matches letters without a decomposition literally, ignoring case', async () => {
+      const matches = await matcher('æ')
+      expect(matches('Cæsar')).toBe(true)
+      expect(matches('CÆSAR')).toBe(true)
+      expect(matches('Caesar')).toBe(false)
+    })
+
+    it('stays under the default max_regex_length for the longest term', async () => {
+      const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
+      // `a` has the most accented forms.
+      await fetchFieldValues(index, field, [], undefined, 'a'.repeat(SEARCH_MAX_LENGTH))
+      expect(bodyOf(fetchMock).aggs.values.terms.include.length).toBeLessThanOrEqual(1000)
+    })
   })
 
   it('escapes Lucene regex reserved characters in the search', async () => {
     const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
 
-    await fetchFieldValues(index, field, [], undefined, 'a.b(c')
-    expect(bodyOf(fetchMock).aggs.values.terms.include).toBe('.*[aA]\\.[bB]\\([cC].*')
+    await fetchFieldValues(index, field, [], undefined, 'b.x(z')
+    expect(bodyOf(fetchMock).aggs.values.terms.include).toBe('.*[bB]\\.[xX]\\([zZ].*')
   })
 })
 

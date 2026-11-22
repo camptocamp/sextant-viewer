@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, watchEffect } from 'vue'
 import { refDebounced } from '@vueuse/core'
-import type { FieldValue, IndexField } from '@/utils/geonetwork-index'
+import { SEARCH_MAX_LENGTH, type FieldValue, type IndexField } from '@/utils/geonetwork-index'
 
 const props = defineProps<{
   field: IndexField
@@ -53,6 +53,7 @@ watchEffect(() => {
         <UInput
           v-if="searchable"
           v-model="search"
+          :maxlength="SEARCH_MAX_LENGTH"
           :loading="searching"
           size="xs"
           icon="i-heroicons-magnifying-glass"

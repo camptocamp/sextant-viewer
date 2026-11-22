@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import AttributeFilterColumn from './AttributeFilterColumn.vue'
-import type { FieldValue, IndexField } from '@/utils/geonetwork-index'
+import { SEARCH_MAX_LENGTH, type FieldValue, type IndexField } from '@/utils/geonetwork-index'
 
 const field = { esField: 'ft_NAME_s', label: 'Nom' } as IndexField
 const valuesOf = (count: number): FieldValue[] =>
@@ -62,6 +62,11 @@ describe('AttributeFilterColumn', () => {
 
     await wrapper.setProps({ searching: true })
     expect(spinner()).toContain('animate-spin')
+  })
+
+  it('caps the term length so the generated pattern stays valid', () => {
+    const wrapper = mountColumn(valuesOf(3), true)
+    expect(wrapper.find(SEARCH_INPUT).attributes('maxlength')).toBe(String(SEARCH_MAX_LENGTH))
   })
 
   it('keeps the truncation hint while a term is entered', async () => {
