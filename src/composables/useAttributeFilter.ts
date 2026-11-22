@@ -13,6 +13,14 @@ import type { GeoNetworkIndexConnection, WmsFilterState } from '@/types/wms.type
 /** UI-friendly view of the active selections: selected values keyed by column (`esField`). */
 type ActiveFilters = Record<string, string[]>
 
+interface ColumnState {
+  // The values list is capped, so a search must query the index rather than filter the list.
+  term: string
+  values?: DistinctFieldValues
+  searching: boolean
+  failed: boolean
+}
+
 const LOAD_ERROR =
   'Impossible de charger les valeurs depuis ElasticSearch. Vérifiez la connexion à l’index.'
 
@@ -38,18 +46,28 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
 
   const fields = computed<IndexField[]>(() => dataIndexOf(toValue(layer))?.fields ?? [])
-  const fieldValues = ref<Record<string, DistinctFieldValues>>({})
+  const columns = ref<Record<string, ColumnState>>({})
   const count = ref<number | null>(null)
   const totalCount = ref<number | null>(null)
   const loading = ref(false)
-  const loadFailed = ref(false)
-  // Per-column search term: the values list is capped, so a search must query the index.
-  const searchTerms = ref<Record<string, string>>({})
-  const searching = ref<Record<string, boolean>>({})
-  // Tracked per column so a successful search only clears its own failure.
-  const searchFailed = ref<Record<string, boolean>>({})
+  const countsFailed = ref(false)
+
+  const fieldValues = computed<Record<string, DistinctFieldValues>>(() =>
+    Object.fromEntries(
+      Object.entries(columns.value).flatMap(([esField, column]) =>
+        column.values ? [[esField, column.values]] : [],
+      ),
+    ),
+  )
+  const searching = computed<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      Object.entries(columns.value).map(([esField, column]) => [esField, column.searching]),
+    ),
+  )
   const error = computed(() =>
-    loadFailed.value || Object.values(searchFailed.value).some(Boolean) ? LOAD_ERROR : null,
+    countsFailed.value || Object.values(columns.value).some((column) => column.failed)
+      ? LOAD_ERROR
+      : null,
   )
 
   const activeFilters = computed<ActiveFilters>(() => activeFiltersOf(toValue(layer)))
@@ -57,143 +75,115 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     Object.values(activeFilters.value).some((values) => values.length > 0),
   )
 
-  // Each new request supersedes the previous one: the previous is aborted, and async writes are
-  // gated on `id === requestId` so a stale request can neither clobber newer state nor wipe a fresh
-  // error.
-  let requestId = 0
-  let controller: AbortController | null = null
+  const columnOf = (esField: string): ColumnState =>
+    columns.value[esField] ?? { term: '', searching: false, failed: false }
 
-  function nextRequest(): { id: number; signal: AbortSignal } {
-    controller?.abort()
-    controller = new AbortController()
-    return { id: ++requestId, signal: controller.signal }
+  function patchColumn(esField: string, patch: Partial<ColumnState>) {
+    columns.value = { ...columns.value, [esField]: { ...columnOf(esField), ...patch } }
   }
 
+  // Kept out of `columns`: a reactive proxy breaks the native `abort()`.
+  const columnControllers = new Map<string, AbortController>()
+  let countsController: AbortController | null = null
+
   /**
-   * Refresh faceted value counts: each column's counts exclude its own selection so its other
-   * values stay visible. Sole owner of `count`/`totalCount`/`fieldValues` so the paths never race.
+   * (Re)load one column's faceted values with its current term, superseding its previous request
+   * whether a refresh or a search started it. Counts exclude the column's own selection so its
+   * other values stay visible.
    */
-  async function refreshValues(
-    { id, signal }: { id: number; signal: AbortSignal },
-    withTotal = false,
-  ) {
-    const dataIndex = dataIndexOf(toValue(layer))
-    if (!dataIndex) return
-    const active = activeFilters.value
-    const terms = searchTerms.value
-    // The refresh re-runs searched columns with their term, so they are loading until it lands.
-    const searched = Object.keys(terms).filter((esField) => terms[esField])
-    setSearching(searched, true)
+  async function fetchColumn(dataIndex: GeoNetworkIndexConnection, field: IndexField) {
+    const { esField } = field
+    columnControllers.get(esField)?.abort()
+    const controller = new AbortController()
+    columnControllers.set(esField, controller)
+    patchColumn(esField, { searching: true })
+
     try {
-      const [results, total, grandTotal] = await Promise.all([
-        Promise.all(
-          fields.value.map((field) =>
-            fetchFieldValues(dataIndex, field, toFilterState(active, field.esField), {
-              signal,
-              search: terms[field.esField],
-            }),
-          ),
-        ),
-        fetchCount(dataIndex, toFilterState(active), signal),
+      const values = await fetchFieldValues(
+        dataIndex,
+        field,
+        toFilterState(activeFilters.value, esField),
+        { signal: controller.signal, search: columnOf(esField).term },
+      )
+      if (controller.signal.aborted) return
+      patchColumn(esField, { values, failed: false })
+    } catch (e) {
+      if (controller.signal.aborted) return
+      console.error(`Erreur lors du chargement des valeurs de ${esField}:`, e)
+      patchColumn(esField, { failed: true })
+    } finally {
+      if (columnControllers.get(esField) === controller) {
+        columnControllers.delete(esField)
+        patchColumn(esField, { searching: false })
+      }
+    }
+  }
+
+  async function fetchCounts(
+    dataIndex: GeoNetworkIndexConnection,
+    signal: AbortSignal,
+    withTotal: boolean,
+  ) {
+    try {
+      const [total, grandTotal] = await Promise.all([
+        fetchCount(dataIndex, toFilterState(activeFilters.value), signal),
         // Refetch the grand total whenever it is still unknown, so a failed initial load recovers.
         withTotal || totalCount.value === null
           ? fetchCount(dataIndex, [], signal)
           : Promise.resolve<number | null>(null),
       ])
-      if (id !== requestId) return
-      loadFailed.value = false
+      if (signal.aborted) return
+      countsFailed.value = false
       count.value = total
       if (grandTotal !== null) totalCount.value = grandTotal
-      // A column searched again meanwhile keeps its newer result.
-      fieldValues.value = Object.fromEntries(
-        results.map((result) => [
-          result.esField,
-          searchTerms.value[result.esField] === terms[result.esField]
-            ? result
-            : fieldValues.value[result.esField],
-        ]),
-      )
     } catch (e) {
-      if (signal.aborted || id !== requestId) return
+      if (signal.aborted) return
       console.error('Erreur lors du chargement des valeurs ElasticSearch:', e)
-      loadFailed.value = true
-    } finally {
-      // A column searched again meanwhile owns its flag until its own search settles.
-      if (id === requestId) {
-        setSearching(
-          searched.filter((esField) => !searchControllers.has(esField)),
-          false,
-        )
-      }
+      countsFailed.value = true
     }
   }
 
-  function setSearching(esFields: string[], value: boolean) {
-    if (esFields.length === 0) return
-    searching.value = {
-      ...searching.value,
-      ...Object.fromEntries(esFields.map((esField) => [esField, value])),
-    }
+  /** Reload every column and the counts; returns the counts' signal, aborted once superseded. */
+  async function refresh(withTotal = false): Promise<AbortSignal | undefined> {
+    const dataIndex = dataIndexOf(toValue(layer))
+    if (!dataIndex) return
+    countsController?.abort()
+    countsController = new AbortController()
+    const { signal } = countsController
+    await Promise.all([
+      ...fields.value.map((field) => fetchColumn(dataIndex, field)),
+      fetchCounts(dataIndex, signal, withTotal),
+    ])
+    return signal
   }
-
-  const searchControllers = new Map<string, AbortController>()
 
   /** Re-query one column's values for `term`, leaving the other columns untouched. */
   async function searchValues(esField: string, term: string) {
     const dataIndex = dataIndexOf(toValue(layer))
     const field = fields.value.find((f) => f.esField === esField)
     if (!dataIndex || !field) return
-
-    searchControllers.get(esField)?.abort()
-    const searchController = new AbortController()
-    searchControllers.set(esField, searchController)
-    searchTerms.value = { ...searchTerms.value, [esField]: term }
-    searching.value = { ...searching.value, [esField]: true }
-
-    try {
-      const result = await fetchFieldValues(
-        dataIndex,
-        field,
-        toFilterState(activeFilters.value, esField),
-        { signal: searchController.signal, search: term },
-      )
-      if (searchController.signal.aborted) return
-      fieldValues.value = { ...fieldValues.value, [esField]: result }
-      searchFailed.value = { ...searchFailed.value, [esField]: false }
-    } catch (e) {
-      if (searchController.signal.aborted) return
-      console.error(`Erreur lors de la recherche de valeurs pour ${esField}:`, e)
-      searchFailed.value = { ...searchFailed.value, [esField]: true }
-    } finally {
-      if (searchControllers.get(esField) === searchController) {
-        searchControllers.delete(esField)
-        searching.value = { ...searching.value, [esField]: false }
-      }
-    }
+    patchColumn(esField, { term })
+    await fetchColumn(dataIndex, field)
   }
 
-  /** Abort in-flight searches and forget their failures. */
-  function cancelSearches() {
-    searchControllers.forEach((c) => c.abort())
-    searchControllers.clear()
-    searching.value = {}
-    searchFailed.value = {}
+  function cancelAll() {
+    countsController?.abort()
+    columnControllers.forEach((c) => c.abort())
+    columnControllers.clear()
   }
 
   async function load() {
-    cancelSearches()
-    searchTerms.value = {}
+    cancelAll()
+    columns.value = {}
     if (!dataIndexOf(toValue(layer))) {
-      fieldValues.value = {}
       count.value = null
       totalCount.value = null
       return
     }
-    const req = nextRequest()
     loading.value = true
-    loadFailed.value = false
-    await refreshValues(req, true)
-    if (req.id === requestId) loading.value = false
+    countsFailed.value = false
+    const signal = await refresh(true)
+    if (signal && !signal.aborted) loading.value = false
   }
 
   function setActiveFilters(active: ActiveFilters) {
@@ -224,26 +214,20 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   // from superseding an in-flight load.
   watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], ([id], [oldId]) => {
     if (id !== oldId) return load()
-    // A search started under the old selection would overwrite the refreshed values; the refresh
-    // re-runs every column with its current term anyway.
-    cancelSearches()
-    return refreshValues(nextRequest())
+    return refresh()
   })
   load()
 
-  onScopeDispose(() => {
-    controller?.abort()
-    cancelSearches()
-  })
+  onScopeDispose(cancelAll)
 
   return {
     fields,
-    fieldValues: readonly(fieldValues),
+    fieldValues,
     count: readonly(count),
     totalCount: readonly(totalCount),
     loading: readonly(loading),
     error,
-    searching: readonly(searching),
+    searching,
     activeFilters,
     hasActiveFilters,
     toggleValue,

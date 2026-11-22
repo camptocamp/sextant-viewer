@@ -18,6 +18,16 @@ import { useAttributeFilter } from './useAttributeFilter'
 
 const flush = () => new Promise((resolve) => setTimeout(resolve))
 
+/** A `fetchFieldValues` implementation that resolves with `value` only once released. */
+function heldValues(value: string) {
+  let resolveValues!: () => void
+  const impl = (_index: unknown, field: { esField: string }) =>
+    new Promise((resolve) => {
+      resolveValues = () => resolve({ esField: field.esField, values: [{ value, count: 1 }] })
+    })
+  return { impl, release: () => resolveValues() }
+}
+
 function makeLayer(filter: unknown[] = []): MapLayer {
   return {
     type: 'wms',
@@ -186,7 +196,7 @@ describe('useAttributeFilter', () => {
     const termOf = (esField: string) =>
       mocks.fetchFieldValues.mock.calls.find((c) => c[1].esField === esField)?.[3].search
     expect(termOf('A')).toBe('foo')
-    expect(termOf('B')).toBeUndefined()
+    expect(termOf('B')).toBe('')
     scope.stop()
   })
 
@@ -253,7 +263,7 @@ describe('useAttributeFilter', () => {
     scope.stop()
   })
 
-  it('a searched column stays searching until the selection refresh lands', async () => {
+  it('a column stays searching until its refresh lands', async () => {
     const layer = ref(makeLayer())
     const scope = effectScope()
     let api!: ReturnType<typeof useAttributeFilter>
@@ -263,16 +273,14 @@ describe('useAttributeFilter', () => {
     await flush()
     await api.searchValues('A', 'foo')
 
-    let releaseRefresh!: () => void
-    mocks.fetchCount.mockImplementationOnce(
-      () => new Promise<number>((resolve) => (releaseRefresh = () => resolve(1))),
-    )
+    const refreshA = heldValues('refresh')
+    mocks.fetchFieldValues.mockImplementationOnce(refreshA.impl)
     layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
     await flush()
     expect(api.searching.value.A).toBe(true)
-    expect(api.searching.value.B).toBeFalsy()
+    expect(api.searching.value.B).toBe(false)
 
-    releaseRefresh()
+    refreshA.release()
     await flush()
     expect(api.searching.value.A).toBe(false)
     scope.stop()
@@ -287,13 +295,12 @@ describe('useAttributeFilter', () => {
     })
     await flush()
 
-    let releaseRefresh!: () => void
-    mocks.fetchCount.mockImplementationOnce(
-      () => new Promise<number>((resolve) => (releaseRefresh = () => resolve(1))),
-    )
-    mocks.fetchFieldValues.mockImplementation((_index, field) =>
-      Promise.resolve({ esField: field.esField, values: [{ value: 'refresh', count: 1 }] }),
-    )
+    const refreshA = heldValues('refresh')
+    mocks.fetchFieldValues
+      .mockImplementation((_index, field) =>
+        Promise.resolve({ esField: field.esField, values: [{ value: 'refresh', count: 1 }] }),
+      )
+      .mockImplementationOnce(refreshA.impl)
     layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
     await flush()
 
@@ -301,7 +308,7 @@ describe('useAttributeFilter', () => {
       Promise.resolve({ esField: field.esField, values: [{ value: 'new', count: 1 }] }),
     )
     await api.searchValues('A', 'new')
-    releaseRefresh()
+    refreshA.release()
     await flush()
 
     expect(api.fieldValues.value.A?.values).toEqual([{ value: 'new', count: 1 }])
@@ -309,7 +316,7 @@ describe('useAttributeFilter', () => {
     scope.stop()
   })
 
-  it('a selection refresh landing does not end a search started during it', async () => {
+  it('a refresh landing does not end a search started during it', async () => {
     const layer = ref(makeLayer())
     const scope = effectScope()
     let api!: ReturnType<typeof useAttributeFilter>
@@ -319,30 +326,46 @@ describe('useAttributeFilter', () => {
     await flush()
     await api.searchValues('A', 'old')
 
-    let releaseRefresh!: () => void
-    mocks.fetchCount.mockImplementationOnce(
-      () => new Promise<number>((resolve) => (releaseRefresh = () => resolve(1))),
-    )
+    const refreshA = heldValues('refresh')
+    mocks.fetchFieldValues.mockImplementationOnce(refreshA.impl)
     layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
     await flush()
 
-    let releaseSearch!: () => void
-    mocks.fetchFieldValues.mockImplementationOnce(
-      (_index, field) =>
-        new Promise((resolve) => {
-          releaseSearch = () =>
-            resolve({ esField: field.esField, values: [{ value: 'new', count: 1 }] })
-        }),
-    )
+    const searchA = heldValues('new')
+    mocks.fetchFieldValues.mockImplementationOnce(searchA.impl)
     const search = api.searchValues('A', 'new')
-    releaseRefresh()
+    refreshA.release()
     await flush()
     expect(api.searching.value.A).toBe(true)
 
-    releaseSearch()
+    searchA.release()
     await search
     expect(api.searching.value.A).toBe(false)
     expect(api.fieldValues.value.A?.values).toEqual([{ value: 'new', count: 1 }])
+    scope.stop()
+  })
+
+  it('a column failing to load does not keep the other columns or the counts', async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+    let api!: ReturnType<typeof useAttributeFilter>
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mocks.fetchCount.mockResolvedValue(5)
+    mocks.fetchFieldValues
+      .mockImplementation((_index, field) =>
+        Promise.resolve({ esField: field.esField, values: [{ value: 'ok', count: 1 }] }),
+      )
+      .mockRejectedValueOnce(new Error('A down'))
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+
+    expect(api.error.value).not.toBeNull()
+    expect(api.fieldValues.value.A).toBeUndefined()
+    expect(api.fieldValues.value.B?.values).toEqual([{ value: 'ok', count: 1 }])
+    expect(api.count.value).toBe(5)
+    expect(api.loading.value).toBe(false)
     scope.stop()
   })
 
