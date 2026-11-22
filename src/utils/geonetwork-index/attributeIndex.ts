@@ -227,7 +227,7 @@ export function buildFieldFilter(filter: WmsFilter): Record<string, unknown> {
           },
         },
       }
-    default: {
+    case 'values': {
       const field = filter.matchType === 'tree' ? treeFieldName : termsFieldName
       return { terms: { [field(filter.attributeName)]: filter.values } }
     }

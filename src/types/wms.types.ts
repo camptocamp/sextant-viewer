@@ -28,9 +28,9 @@ export interface GeoNetworkIndexConnection {
   geometryName?: string
 }
 
-/** Selected values of a column. Has no `kind`, so filters persisted before the others read on. */
+/** Selected values of a column. */
 export interface FilterByAttribute {
-  kind?: never
+  kind: 'values'
   attributeName: string
   matchType: MatchType
   values: string[]

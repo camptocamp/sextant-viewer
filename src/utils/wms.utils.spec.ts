@@ -30,16 +30,19 @@ import type { MapLayer } from './layer.utils'
 import type { WmsLayerDimension, WmsLayerFull, WmsLayerTimeDimension } from '@camptocamp/ogc-client'
 
 const region = (values: string[]): FilterByAttribute => ({
+  kind: 'values',
   attributeName: 'DCSMM_SOUS_REGION',
   matchType: 'equals',
   values,
 })
 const theme = (values: string[]): FilterByAttribute => ({
+  kind: 'values',
   attributeName: 'THEME',
   matchType: 'equals',
   values,
 })
 const tokenizedTheme = (values: string[]): FilterByAttribute => ({
+  kind: 'values',
   attributeName: 'THEME',
   matchType: 'contains',
   values,
@@ -103,6 +106,7 @@ describe('buildWmsFilterParam', () => {
 
   it('XML-escapes the attribute name and values (via CDATA)', () => {
     const field: FilterByAttribute = {
+      kind: 'values',
       attributeName: 'A&B',
       matchType: 'equals',
       values: [`a<'&"`],
@@ -122,6 +126,7 @@ describe('buildWmsFilterParam', () => {
 
   it('matches a tree path or its descendants, at token boundaries of a tokenized column', () => {
     const parametre: FilterByAttribute = {
+      kind: 'values',
       attributeName: 'PARAMETRE',
       matchType: 'tree',
       values: ['Microbiologie/Bactéries tests'],
@@ -140,7 +145,12 @@ describe('buildWmsFilterParam', () => {
   })
 
   it('matches a tree path of an untokenized column without separator patterns', () => {
-    const tree: FilterByAttribute = { attributeName: 'T', matchType: 'tree', values: ['a.b'] }
+    const tree: FilterByAttribute = {
+      kind: 'values',
+      attributeName: 'T',
+      matchType: 'tree',
+      values: ['a.b'],
+    }
     expect(buildWmsFilterParam('surval_point', [tree])).toBe(
       filterXml(`<Or>${isLike('T', 'a!.b')}${isLike('T', 'a!.b/*')}</Or>`),
     )

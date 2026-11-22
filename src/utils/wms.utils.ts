@@ -370,7 +370,7 @@ function buildClause(filter: WmsFilter): Filter | null {
     case 'bbox':
       // Lon/lat order: QGIS Server reads an `EPSG:4326` envelope in a 1.1.0 filter as x/y.
       return bbox(filter.geometryName, filter.extent, 'EPSG:4326')
-    case undefined: {
+    case 'values': {
       const values = filter.values.filter((value) => value != null && value !== '')
       return values.length > 0 ? buildFieldGroup(filter, values) : null
     }
@@ -410,7 +410,7 @@ export function activeFiltersOf(layer: MapLayer): Record<string, string[]> {
   // a value back from it would close a runtime cycle (same reason as `getWmsTimeDimension` above).
   const filter = (layer.type === 'wms' && (layer.extras?.filter as WmsFilterState)) || []
   for (const entry of filter) {
-    if (entry.kind === undefined) out[entry.attributeName] = entry.values
+    if (entry.kind === 'values') out[entry.attributeName] = entry.values
     else if (entry.kind === 'dateRange') out[entry.attributeName] = [entry.from, entry.to]
     else if (entry.kind === 'bbox') out.geometry = [clampToGlobe(entry.extent).join(',')]
   }

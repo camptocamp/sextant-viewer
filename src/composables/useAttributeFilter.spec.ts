@@ -89,7 +89,7 @@ describe('useAttributeFilter', () => {
       layer.value,
       expect.objectContaining({
         extras: expect.objectContaining({
-          filter: [{ attributeName: 'A', matchType: 'equals', values: ['x'] }],
+          filter: [{ kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] }],
         }),
         version: 1,
       }),
@@ -98,7 +98,9 @@ describe('useAttributeFilter', () => {
   })
 
   it("faceting excludes each column's own selection", async () => {
-    const layer = ref(makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }]))
+    const layer = ref(
+      makeLayer([{ kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] }]),
+    )
     const scope = effectScope()
     scope.run(() => useAttributeFilter(() => layer.value))
     await flush()
@@ -107,7 +109,9 @@ describe('useAttributeFilter', () => {
     const callB = mocks.fetchFieldValues.mock.calls.find((c) => c[1].esField === 'B')
     // Column A drops its own selection so its other values stay visible; column B keeps it.
     expect(callA?.[2]).toEqual([])
-    expect(callB?.[2]).toEqual([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    expect(callB?.[2]).toEqual([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     scope.stop()
   })
 
@@ -157,7 +161,9 @@ describe('useAttributeFilter', () => {
     expect(api.count.value).toBeNull()
 
     // A newer request supersedes the first via the activeFilters watch.
-    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     await flush()
     expect(api.count.value).toBe(7)
 
@@ -183,7 +189,9 @@ describe('useAttributeFilter', () => {
     await flush()
     expect(api.loading.value).toBe(true)
 
-    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     await flush()
     expect(api.loading.value).toBe(false)
     expect(api.count.value).toBe(7)
@@ -191,7 +199,9 @@ describe('useAttributeFilter', () => {
   })
 
   it('a search refetches only the searched column, with its own faceting', async () => {
-    const layer = ref(makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }]))
+    const layer = ref(
+      makeLayer([{ kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] }]),
+    )
     const scope = effectScope()
     let api!: ReturnType<typeof useAttributeFilter>
     scope.run(() => {
@@ -206,7 +216,9 @@ describe('useAttributeFilter', () => {
     expect(mocks.fetchFieldValues).toHaveBeenCalledTimes(1)
     const [, field, filters, options] = mocks.fetchFieldValues.mock.calls[0]!
     expect(field.esField).toBe('A')
-    expect(filters).toEqual([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    expect(filters).toEqual([
+      { kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] },
+    ])
     expect(options.search).toBe('foo')
     expect(mocks.fetchCount).not.toHaveBeenCalled()
     scope.stop()
@@ -227,7 +239,7 @@ describe('useAttributeFilter', () => {
       ...layer.value,
       extras: {
         ...layer.value.extras,
-        filter: [{ attributeName: 'B', matchType: 'equals', values: ['y'] }],
+        filter: [{ kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] }],
       },
     } as MapLayer
     await flush()
@@ -293,7 +305,9 @@ describe('useAttributeFilter', () => {
     mocks.fetchFieldValues.mockImplementation((_index, field) =>
       Promise.resolve({ esField: field.esField, values: [{ value: 'fresh', count: 1 }] }),
     )
-    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] },
+    ])
     await flush()
     releaseSearch()
     await search
@@ -314,7 +328,9 @@ describe('useAttributeFilter', () => {
 
     const refreshA = heldValues('refresh')
     mocks.fetchFieldValues.mockImplementationOnce(refreshA.impl)
-    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] },
+    ])
     await flush()
     expect(api.searching.value.A).toBe(true)
     expect(api.searching.value.B).toBe(false)
@@ -340,7 +356,9 @@ describe('useAttributeFilter', () => {
         Promise.resolve({ esField: field.esField, values: [{ value: 'refresh', count: 1 }] }),
       )
       .mockImplementationOnce(refreshA.impl)
-    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] },
+    ])
     await flush()
 
     mocks.fetchFieldValues.mockImplementationOnce((_index, field) =>
@@ -367,7 +385,9 @@ describe('useAttributeFilter', () => {
 
     const refreshA = heldValues('refresh')
     mocks.fetchFieldValues.mockImplementationOnce(refreshA.impl)
-    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] },
+    ])
     await flush()
 
     const searchA = heldValues('new')
@@ -450,7 +470,7 @@ describe('useAttributeFilter', () => {
   })
 
   it('zooms to the extent of the active selection', async () => {
-    const filter = [{ attributeName: 'A', matchType: 'equals', values: ['x'] }]
+    const filter = [{ kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] }]
     const layer = ref(makeLayer(filter))
     mocks.fetchExtent.mockResolvedValue([-5, 43, 8, 51])
     const scope = effectScope()
@@ -553,7 +573,9 @@ describe('useAttributeFilter', () => {
     mocks.fetchCount.mockImplementation(
       () => new Promise<number>((resolve) => (resolveCount = resolve)),
     )
-    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     await flush()
     await api.zoomToSelection()
     resolveCount(4)
@@ -576,7 +598,9 @@ describe('useAttributeFilter', () => {
 
     const zoom = api.zoomToSelection()
     mocks.fetchCount.mockResolvedValue(4)
-    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     await flush()
     resolveExtent([0, 0, 1, 1])
     await zoom
@@ -599,7 +623,9 @@ describe('useAttributeFilter', () => {
     await api.zoomToSelection()
     expect(api.zoomError.value).not.toBeNull()
 
-    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     await flush()
     expect(api.zoomError.value).toBeNull()
     scope.stop()
@@ -617,11 +643,13 @@ describe('useAttributeFilter with tree, date-range and area filters', () => {
   }
   const AREA = { kind: 'bbox', geometryName: 'geometry', extent: [-5, 48, -4, 49] }
   const valuesOf = (attributeName: string, values: string[]) => ({
+    kind: 'values',
     attributeName,
     matchType: 'equals',
     values,
   })
   const pathsOf = (values: string[]) => ({
+    kind: 'values',
     attributeName: 'P',
     matchType: 'tree',
     values,

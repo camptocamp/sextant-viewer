@@ -59,7 +59,7 @@ function activeFiltersOfLayer(layer: MapLayer): ActiveFilters {
       active.dateRanges[filter.attributeName] = { from: filter.from, to: filter.to }
     } else if (filter.kind === 'bbox') {
       active.bbox = filter.extent
-    } else if (filter.kind === undefined) {
+    } else if (filter.kind === 'values') {
       active.values[filter.attributeName] = filter.values
     }
   }
@@ -163,12 +163,13 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
       state.push(
         field.type === 'tree'
           ? {
+              kind: 'values',
               attributeName: field.esField,
               matchType: 'tree',
               values,
               ...(field.tokenSeparator && { tokenSeparator: field.tokenSeparator }),
             }
-          : { attributeName: field.esField, matchType: field.matchType, values },
+          : { kind: 'values', attributeName: field.esField, matchType: field.matchType, values },
       )
     }
     if (active.bbox && geometryName.value) {

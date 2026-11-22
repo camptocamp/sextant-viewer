@@ -51,19 +51,34 @@ afterEach(() => {
 describe('buildFieldFilter', () => {
   it('builds a terms clause for equals filters', () => {
     expect(
-      buildFieldFilter({ attributeName: 'REGION', matchType: 'equals', values: ['A', 'B'] }),
+      buildFieldFilter({
+        kind: 'values',
+        attributeName: 'REGION',
+        matchType: 'equals',
+        values: ['A', 'B'],
+      }),
     ).toEqual({ terms: { ft_REGION_s: ['A', 'B'] } })
   })
 
   it('filters contains (tokenized) attributes by exact token too', () => {
     expect(
-      buildFieldFilter({ attributeName: 'THEME', matchType: 'contains', values: ['Benthos'] }),
+      buildFieldFilter({
+        kind: 'values',
+        attributeName: 'THEME',
+        matchType: 'contains',
+        values: ['Benthos'],
+      }),
     ).toEqual({ terms: { ft_THEME_s: ['Benthos'] } })
   })
 
   it('filters tree paths on the path-tokenized field, which covers their descendants', () => {
     expect(
-      buildFieldFilter({ attributeName: 'PARAMETRE', matchType: 'tree', values: ['A/B'] }),
+      buildFieldFilter({
+        kind: 'values',
+        attributeName: 'PARAMETRE',
+        matchType: 'tree',
+        values: ['A/B'],
+      }),
     ).toEqual({ terms: { ft_PARAMETRE_s_tree: ['A/B'] } })
   })
 
@@ -243,7 +258,7 @@ describe('fetchFieldValues', () => {
     const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
 
     await fetchFieldValues(index, field, [
-      { attributeName: 'REGION', matchType: 'equals', values: ['Manche'] },
+      { kind: 'values', attributeName: 'REGION', matchType: 'equals', values: ['Manche'] },
     ])
     expect(bodyOf(fetchMock).query).toEqual({
       bool: {
@@ -342,7 +357,9 @@ describe('fetchCount', () => {
   it('scopes the count by feature type and active filters', async () => {
     const fetchMock = mockFetch({ hits: { total: { value: 0 } } })
 
-    await fetchCount(index, [{ attributeName: 'REGION', matchType: 'equals', values: ['Manche'] }])
+    await fetchCount(index, [
+      { kind: 'values', attributeName: 'REGION', matchType: 'equals', values: ['Manche'] },
+    ])
     expect(bodyOf(fetchMock).query).toEqual({
       bool: {
         filter: [{ terms: { featureTypeId: ['ft1'] } }, { terms: { ft_REGION_s: ['Manche'] } }],
@@ -373,7 +390,9 @@ describe('fetchExtent', () => {
     const fetchMock = mockFetch(bboxAggs(-5, 43, 8, 51))
 
     expect(
-      await fetchExtent(index, [{ attributeName: 'REGION', matchType: 'equals', values: ['A'] }]),
+      await fetchExtent(index, [
+        { kind: 'values', attributeName: 'REGION', matchType: 'equals', values: ['A'] },
+      ]),
     ).toEqual([-5, 43, 8, 51])
     expect(bodyOf(fetchMock)).toEqual({
       size: 0,
