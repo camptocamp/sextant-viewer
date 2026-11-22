@@ -11,10 +11,9 @@ import { get as getProjection, transformExtent, type ProjectionLike } from 'ol/p
 import VectorSource from 'ol/source/Vector'
 import { Fill, Stroke, Style } from 'ol/style'
 import { useMapStore } from '@/stores/map.store'
-import { clampToGlobe } from '@/utils/geo.utils'
+import { clampToGlobe, COORDINATE_DECIMALS } from '@/utils/geo.utils'
 
 const LON_LAT = 'EPSG:4326'
-const COORDINATE_DECIMALS = 4
 
 const AREA_STYLE = new Style({
   stroke: new Stroke({ color: '#ef4444', width: 2 }),
@@ -38,7 +37,7 @@ export function drawnArea(extent: OlExtent, projection: ProjectionLike): Extent 
  * a drawing interaction and its outline are transient UI, not map state the MapContext holds.
  *
  * @param area - The area to outline, EPSG:4326.
- * @param onDrawn - Receives each drawn area, EPSG:4326 (see `drawnArea`), rounded to 4 decimals.
+ * @param onDrawn - Receives each drawn area, EPSG:4326 (see `drawnArea`), rounded to `COORDINATE_DECIMALS`.
  */
 export function useBboxDraw(
   area: MaybeRefOrGetter<Extent | undefined>,

@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import type { Extent } from '@geospatial-sdk/core'
 import { useBboxDraw } from '@/composables/useBboxDraw'
-import { MAX_LATITUDE, MAX_LONGITUDE } from '@/utils/geo.utils'
+import { COORDINATE_DECIMALS, MAX_LATITUDE, MAX_LONGITUDE } from '@/utils/geo.utils'
 import AttributeFilterSection from './AttributeFilterSection.vue'
 
 const props = defineProps<{ bbox: Extent | undefined }>()
@@ -75,8 +75,8 @@ function apply() {
         <UInputNumber
           v-model="draft[side.index]"
           size="xs"
-          :step="0.0001"
-          :format-options="{ maximumFractionDigits: 4 }"
+          :step="10 ** -COORDINATE_DECIMALS"
+          :format-options="{ maximumFractionDigits: COORDINATE_DECIMALS }"
           :increment="false"
           :decrement="false"
           @blur="apply"

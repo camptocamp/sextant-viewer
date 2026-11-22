@@ -4,6 +4,9 @@ import type { Extent } from '@geospatial-sdk/core'
 export const MAX_LONGITUDE = 180
 export const MAX_LATITUDE = 90
 
+/** Decimals kept on an area's coordinates, drawn or typed: about 10 m, plenty for a filter. */
+export const COORDINATE_DECIMALS = 4
+
 const clamp = (value: number, limit: number) => Math.min(limit, Math.max(-limit, value))
 
 /** An EPSG:4326 extent clamped to the globe: an area drawn across the antimeridian overflows it. */
