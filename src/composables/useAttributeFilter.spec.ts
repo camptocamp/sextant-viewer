@@ -513,6 +513,47 @@ describe('useAttributeFilter', () => {
     scope.stop()
   })
 
+  it('a zoom still pending when the panel closes is dropped', async () => {
+    const layer = ref(makeLayer())
+    let resolveExtent!: (extent: number[]) => void
+    mocks.fetchExtent.mockImplementation(
+      () => new Promise<number[]>((resolve) => (resolveExtent = resolve)),
+    )
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    const zoom = api.zoomToSelection()
+    scope.stop()
+    resolveExtent([0, 0, 1, 1])
+    await zoom
+
+    expect(mocks.setView).not.toHaveBeenCalled()
+  })
+
+  it('a count refresh landing after a zoom failure does not hide it', async () => {
+    const layer = ref(makeLayer())
+    mocks.fetchExtent.mockRejectedValue(new Error('boom'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+
+    let resolveCount!: (count: number) => void
+    mocks.fetchCount.mockImplementation(
+      () => new Promise<number>((resolve) => (resolveCount = resolve)),
+    )
+    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    await flush()
+    await api.zoomToSelection()
+    resolveCount(4)
+    await flush()
+
+    expect(api.count.value).toBe(4)
+    expect(api.zoomError.value).not.toBeNull()
+    scope.stop()
+  })
+
   it('a zoom still pending when the selection changes is dropped', async () => {
     const layer = ref(makeLayer())
     let resolveExtent!: (extent: number[]) => void
