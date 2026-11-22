@@ -390,7 +390,7 @@ describe('useAttributeFilter', () => {
     })
     await flush()
 
-    expect(api.error.value).not.toBeNull()
+    expect(api.loadError.value).not.toBeNull()
     expect(api.fieldValues.value.A).toBeUndefined()
     expect(api.fieldValues.value.B?.values).toEqual([{ value: 'ok', count: 1 }])
     expect(api.count.value).toBe(5)
@@ -412,13 +412,30 @@ describe('useAttributeFilter', () => {
     await api.searchValues('A', 'a')
     mocks.fetchFieldValues.mockRejectedValueOnce(new Error('B down'))
     await api.searchValues('B', 'b')
-    expect(api.error.value).not.toBeNull()
+    expect(api.loadError.value).not.toBeNull()
 
     await api.searchValues('A', 'a')
-    expect(api.error.value).not.toBeNull()
+    expect(api.loadError.value).not.toBeNull()
 
     await api.searchValues('B', 'b')
-    expect(api.error.value).toBeNull()
+    expect(api.loadError.value).toBeNull()
+    scope.stop()
+  })
+
+  it('reports a zoom failure alongside a search failure', async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    await flush()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mocks.fetchFieldValues.mockRejectedValueOnce(new Error('A down'))
+    await api.searchValues('A', 'a')
+    mocks.fetchExtent.mockRejectedValueOnce(new Error('boom'))
+    await api.zoomToSelection()
+
+    expect(api.loadError.value).not.toBeNull()
+    expect(api.zoomError.value).not.toBeNull()
     scope.stop()
   })
 
@@ -439,7 +456,7 @@ describe('useAttributeFilter', () => {
     )
     expect(mocks.setView).toHaveBeenCalledWith({ extent: [-5, 43, 8, 51] })
     expect(api.zooming.value).toBe(false)
-    expect(api.error.value).toBeNull()
+    expect(api.zoomError.value).toBeNull()
     scope.stop()
   })
 
@@ -453,7 +470,7 @@ describe('useAttributeFilter', () => {
     await api.zoomToSelection()
 
     expect(mocks.setView).not.toHaveBeenCalled()
-    expect(api.error.value).not.toBeNull()
+    expect(api.zoomError.value).not.toBeNull()
     scope.stop()
   })
 
@@ -466,10 +483,10 @@ describe('useAttributeFilter', () => {
     await flush()
 
     await api.zoomToSelection()
-    expect(api.error.value).not.toBeNull()
+    expect(api.zoomError.value).not.toBeNull()
 
     await api.zoomToSelection()
-    expect(api.error.value).toBeNull()
+    expect(api.zoomError.value).toBeNull()
     scope.stop()
   })
 
@@ -491,7 +508,7 @@ describe('useAttributeFilter', () => {
 
     expect(mocks.setView).not.toHaveBeenCalled()
     expect(api.zooming.value).toBe(false)
-    expect(api.error.value).toBeNull()
+    expect(api.zoomError.value).toBeNull()
     scope.stop()
   })
 
@@ -527,11 +544,11 @@ describe('useAttributeFilter', () => {
     await flush()
 
     await api.zoomToSelection()
-    expect(api.error.value).not.toBeNull()
+    expect(api.zoomError.value).not.toBeNull()
 
     layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
     await flush()
-    expect(api.error.value).toBeNull()
+    expect(api.zoomError.value).toBeNull()
     scope.stop()
   })
 })

@@ -68,12 +68,12 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   )
   const zooming = ref(false)
   const zoomFailed = ref(false)
-  const error = computed(() => {
-    if (countsFailed.value || Object.values(columns.value).some((column) => column.failed)) {
-      return LOAD_ERROR
-    }
-    return zoomFailed.value ? EXTENT_ERROR : null
-  })
+  const loadError = computed(() =>
+    countsFailed.value || Object.values(columns.value).some((column) => column.failed)
+      ? LOAD_ERROR
+      : null,
+  )
+  const zoomError = computed(() => (zoomFailed.value ? EXTENT_ERROR : null))
 
   const activeFilters = computed<ActiveFilters>(() => activeFiltersOf(toValue(layer)))
   const hasActiveFilters = computed(() =>
@@ -275,7 +275,8 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     count: readonly(count),
     totalCount: readonly(totalCount),
     loading: readonly(loading),
-    error,
+    loadError,
+    zoomError,
     searching,
     zooming: readonly(zooming),
     activeFilters,

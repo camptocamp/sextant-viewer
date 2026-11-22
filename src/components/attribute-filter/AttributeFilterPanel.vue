@@ -11,7 +11,8 @@ const {
   count,
   totalCount,
   loading,
-  error,
+  loadError,
+  zoomError,
   searching,
   activeFilters,
   hasActiveFilters,
@@ -26,11 +27,11 @@ const {
 <template>
   <div class="space-y-3">
     <UAlert
-      v-if="error"
+      v-if="loadError"
       color="error"
       variant="soft"
       icon="i-heroicons-exclamation-triangle"
-      :title="error"
+      :title="loadError"
     />
 
     <div v-if="loading" class="space-y-2">
@@ -81,6 +82,14 @@ const {
           Réinitialiser les filtres
         </UButton>
       </div>
+
+      <UAlert
+        v-if="zoomError"
+        color="error"
+        variant="soft"
+        icon="i-heroicons-exclamation-triangle"
+        :title="zoomError"
+      />
     </template>
   </div>
 </template>
