@@ -278,6 +278,74 @@ describe('useAttributeFilter', () => {
     scope.stop()
   })
 
+  it('a search started during a refresh keeps its result when the refresh lands', async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+    let api!: ReturnType<typeof useAttributeFilter>
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+
+    let releaseRefresh!: () => void
+    mocks.fetchCount.mockImplementationOnce(
+      () => new Promise<number>((resolve) => (releaseRefresh = () => resolve(1))),
+    )
+    mocks.fetchFieldValues.mockImplementation((_index, field) =>
+      Promise.resolve({ esField: field.esField, values: [{ value: 'refresh', count: 1 }] }),
+    )
+    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    await flush()
+
+    mocks.fetchFieldValues.mockImplementationOnce((_index, field) =>
+      Promise.resolve({ esField: field.esField, values: [{ value: 'new', count: 1 }] }),
+    )
+    await api.searchValues('A', 'new')
+    releaseRefresh()
+    await flush()
+
+    expect(api.fieldValues.value.A?.values).toEqual([{ value: 'new', count: 1 }])
+    expect(api.fieldValues.value.B?.values).toEqual([{ value: 'refresh', count: 1 }])
+    scope.stop()
+  })
+
+  it('a selection refresh landing does not end a search started during it', async () => {
+    const layer = ref(makeLayer())
+    const scope = effectScope()
+    let api!: ReturnType<typeof useAttributeFilter>
+    scope.run(() => {
+      api = useAttributeFilter(() => layer.value)
+    })
+    await flush()
+    await api.searchValues('A', 'old')
+
+    let releaseRefresh!: () => void
+    mocks.fetchCount.mockImplementationOnce(
+      () => new Promise<number>((resolve) => (releaseRefresh = () => resolve(1))),
+    )
+    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    await flush()
+
+    let releaseSearch!: () => void
+    mocks.fetchFieldValues.mockImplementationOnce(
+      (_index, field) =>
+        new Promise((resolve) => {
+          releaseSearch = () =>
+            resolve({ esField: field.esField, values: [{ value: 'new', count: 1 }] })
+        }),
+    )
+    const search = api.searchValues('A', 'new')
+    releaseRefresh()
+    await flush()
+    expect(api.searching.value.A).toBe(true)
+
+    releaseSearch()
+    await search
+    expect(api.searching.value.A).toBe(false)
+    expect(api.fieldValues.value.A?.values).toEqual([{ value: 'new', count: 1 }])
+    scope.stop()
+  })
+
   it("a successful search clears its column's error but not another column's", async () => {
     const layer = ref(makeLayer())
     const scope = effectScope()
