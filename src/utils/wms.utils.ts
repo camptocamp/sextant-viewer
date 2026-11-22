@@ -15,6 +15,7 @@ import type {
   WmsFilterState,
 } from '@/types/wms.types'
 import type { MapLayer } from './layer.utils'
+import { PATH_SEPARATOR } from './geonetwork-index/pathTree'
 
 export type AnyWmsDimension = WmsLayerDimension | WmsLayerTimeDimension
 
@@ -290,13 +291,21 @@ const escapeLikeValue = (value: string) => value.replaceAll(/[*.!]/g, (c) => `${
  * `PropertyIsLike` patterns matching `path` or a descendant as a whole token of a hierarchical
  * column: `A/B` must neither match `A/BC` nor, in a `;`-tokenized column, `X/A/B`.
  */
-function treePathPatterns(path: string, separator?: string): string[] {
-  const p = escapeLikeValue(path)
-  const w = WILD_CARD
-  const patterns = [p, `${p}/${w}`]
-  if (!separator) return patterns
-  const s = escapeLikeValue(separator)
-  return [...patterns, `${p}${s}${w}`, `${w}${s}${p}`, `${w}${s}${p}${s}${w}`, `${w}${s}${p}/${w}`]
+function treePathPatterns(path: string, tokenSeparator?: string): string[] {
+  const escapedPath = escapeLikeValue(path)
+  const descendants = `${escapedPath}${escapeLikeValue(PATH_SEPARATOR)}${WILD_CARD}`
+  const patterns = [escapedPath, descendants]
+  if (!tokenSeparator) return patterns
+  const escapedToken = escapeLikeValue(tokenSeparator)
+  const afterOtherTokens = `${WILD_CARD}${escapedToken}`
+  const beforeOtherTokens = `${escapedToken}${WILD_CARD}`
+  return [
+    ...patterns,
+    `${escapedPath}${beforeOtherTokens}`,
+    `${afterOtherTokens}${escapedPath}`,
+    `${afterOtherTokens}${escapedPath}${beforeOtherTokens}`,
+    `${afterOtherTokens}${descendants}`,
+  ]
 }
 
 function buildComparison(attribute: FilterByAttribute, value: string): Filter | null {

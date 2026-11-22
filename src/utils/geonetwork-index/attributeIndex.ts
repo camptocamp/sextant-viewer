@@ -13,6 +13,7 @@ import type {
 } from './attributeIndex.types'
 import type { GeoNetworkIndexConnection, WmsFilter, WmsFilterState } from '@/types/wms.types'
 import { clampToGlobe, dayAfter } from '../wms.utils'
+import { PATH_SEPARATOR } from './pathTree'
 
 // Maximum number of distinct attribute values to fetch for a column.
 const DEFAULT_FIELD_VALUES_LIMIT = 50
@@ -34,6 +35,12 @@ const DATE_FORMAT = 'yyyy-MM-dd'
 const LUCENE_REGEX_RESERVED = /[.?+*|{}[\]()"\\#@&<>~]/
 
 const escapeLuceneChar = (char: string) => (LUCENE_REGEX_RESERVED.test(char) ? `\\${char}` : char)
+const escapeLucene = (text: string) => [...text].map(escapeLuceneChar).join('')
+
+// Building blocks of the tree path patterns.
+const SEPARATOR = escapeLucene(PATH_SEPARATOR)
+const LEVEL_CHAR = `[^${SEPARATOR}]`
+const LEVEL = `${LEVEL_CHAR}+`
 
 const stripAccents = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '')
 
@@ -86,7 +93,7 @@ function containsPattern(term: string): string {
  * the previous Sextant viewer.
  */
 function lastLevelContainsPattern(term: string): string {
-  return `(.*/)?[^/]*${caseAndAccentInsensitive(term)}[^/]*`
+  return `(.*${SEPARATOR})?${LEVEL_CHAR}*${caseAndAccentInsensitive(term)}${LEVEL_CHAR}*`
 }
 
 /**
@@ -94,10 +101,11 @@ function lastLevelContainsPattern(term: string): string {
  * path — plus one level ahead, so each visible node is known to have children or not.
  */
 function visibleLevelsPattern(expanded: readonly string[]): string {
+  const rootsAndChildren = `${LEVEL}(${SEPARATOR}${LEVEL})?`
   const grandchildren = expanded.map(
-    (path) => `${[...path].map(escapeLuceneChar).join('')}/[^/]+/[^/]+`,
+    (path) => `${escapeLucene(path)}${SEPARATOR}${LEVEL}${SEPARATOR}${LEVEL}`,
   )
-  return ['[^/]+(/[^/]+)?', ...grandchildren].join('|')
+  return [rootsAndChildren, ...grandchildren].join('|')
 }
 
 /** POST an ES query to the index URL (itself the search action; no `/_search` is appended). */

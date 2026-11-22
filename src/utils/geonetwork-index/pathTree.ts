@@ -1,6 +1,7 @@
 import type { FieldValue } from './attributeIndex.types'
 
-const PATH_SEPARATOR = '/'
+/** Separator between the levels of a tree column's paths, as the GeoNetwork indexer writes them. */
+export const PATH_SEPARATOR = '/'
 
 export interface PathTreeNode {
   /** Full `/`-joined path; also the value stored in the selection. */
