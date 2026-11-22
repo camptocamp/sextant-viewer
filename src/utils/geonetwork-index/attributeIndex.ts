@@ -175,7 +175,7 @@ export function fieldsFromSource(source: Record<string, unknown>): IndexField[] 
   return fields
 }
 
-/** Whether a sample `_source` carries the feature geometry (the geographic-area filter needs it). */
+/** Whether a sample `_source` carries the feature geometry, which the area filter needs. */
 export function hasGeometry(source: Record<string, unknown>): boolean {
   return source[GEOMETRY_FIELD] != null
 }

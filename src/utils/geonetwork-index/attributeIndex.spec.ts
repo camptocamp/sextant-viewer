@@ -147,7 +147,7 @@ describe('fetchTreeValues', () => {
     expect(termsAgg(fetchMock).include).toBe('[^/]+(/[^/]+)?|A/[^/]+/[^/]+|A/B \\(x\\)/[^/]+/[^/]+')
   })
 
-  it('searches the last level of any path, ignoring case and accents, capped like a list', async () => {
+  it('searches the last level of paths, ignoring case and accents, capped', async () => {
     const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })
     await fetchTreeValues(index, tree, [], { expanded: ['A'], search: ' Coli ' })
     expect(termsAgg(fetchMock)).toEqual({
@@ -157,7 +157,7 @@ describe('fetchTreeValues', () => {
     })
   })
 
-  it('finds an intermediate node without its subtree, and follows a search across levels', async () => {
+  it('finds an intermediate node without its subtree, and searches across levels', async () => {
     // Lucene `include` regexes match the whole term: anchored, like this JS equivalent.
     const matcher = async (search: string) => {
       const fetchMock = mockFetch({ aggregations: { values: { buckets: [] } } })

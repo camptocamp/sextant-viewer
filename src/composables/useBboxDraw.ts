@@ -37,7 +37,8 @@ export function drawnArea(extent: OlExtent, projection: ProjectionLike): Extent 
  * a drawing interaction and its outline are transient UI, not map state the MapContext holds.
  *
  * @param area - The area to outline, EPSG:4326.
- * @param onDrawn - Receives each drawn area, EPSG:4326 (see `drawnArea`), rounded to `COORDINATE_DECIMALS`.
+ * @param onDrawn - Receives each drawn area, EPSG:4326 (see `drawnArea`), rounded to
+ *   `COORDINATE_DECIMALS`.
  */
 export function useBboxDraw(
   area: MaybeRefOrGetter<Extent | undefined>,

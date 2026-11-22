@@ -44,7 +44,7 @@ describe('resolveAttributeFilter', () => {
     mocks.getFeatureTypeFull.mockResolvedValue({ name: 'surval_point', geometryName: 'geometry' })
   })
 
-  it('reads the WFS geometry property of the matched feature type when geometries are indexed', async () => {
+  it('reads the WFS geometry property of the feature type if geometries are indexed', async () => {
     const connection = await resolveAttributeFilter(layer, dataSources as never)
     expect(mocks.getFeatureTypeFull).toHaveBeenCalledWith('surval_point')
     expect(connection?.geometryName).toBe('geometry')

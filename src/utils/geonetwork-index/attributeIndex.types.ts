@@ -44,7 +44,7 @@ export interface TreeIndexField extends BaseIndexField {
  */
 export interface DateRangeIndexField extends BaseIndexField {
   type: 'dateRange'
-  /** WFS columns holding the start and end of each feature's period (`ft_<COLUMN>_dt` in the index). */
+  /** WFS columns of the start and end of each feature's period, indexed as `ft_<COLUMN>_dt`. */
   minField: string
   maxField: string
 }

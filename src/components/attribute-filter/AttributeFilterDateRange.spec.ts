@@ -14,7 +14,7 @@ const field: DateRangeIndexField = {
 describe('AttributeFilterDateRange', () => {
   const initialTz = process.env.TZ
 
-  // West of UTC, where parsing a day as UTC midnight then formatting it locally gives the day before.
+  // West of UTC, where a day parsed as UTC midnight then formatted locally shows the day before.
   beforeEach(() => {
     process.env.TZ = 'America/Guadeloupe'
   })

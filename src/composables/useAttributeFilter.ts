@@ -319,7 +319,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     columnControllers.clear()
   }
 
-  /** Fresh columns, tree ones expanded down to their selected paths so a restored selection shows. */
+  /** Fresh columns, trees expanded down to their selected paths so a restored selection shows. */
   function initialColumns(): Record<string, ColumnState> {
     const initial: Record<string, ColumnState> = {}
     for (const field of fields.value) {

@@ -791,7 +791,7 @@ describe('useAttributeFilter with tree, date-range and area filters', () => {
     scope.stop()
   })
 
-  it('expanding a tree node refetches that column with its levels; collapsing does not', async () => {
+  it('expanding a tree node refetches its column and levels; collapsing does not', async () => {
     const { scope, api } = setup()
     await flush()
     mocks.fetchTreeValues.mockClear()

@@ -38,7 +38,7 @@ watch(
 
 const complete = computed(() => draft.every((value) => value !== null))
 
-/** Extent indices of the sides to correct: out of the globe, or west/east or south/north swapped. */
+/** Extent indices of the sides to correct: out of the globe, or west/east, south/north swapped. */
 const invalidSides = computed(() => {
   const sides = new Set<number>()
   if (!complete.value) return sides
