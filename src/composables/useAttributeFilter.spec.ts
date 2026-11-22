@@ -715,6 +715,20 @@ describe('useAttributeFilter with tree, date-range and area filters', () => {
     cleared.scope.stop()
   })
 
+  it('keeps a persisted area when the geometry name could not be detected', async () => {
+    const layer = makeRichLayer([AREA])
+    delete (layer.extras as { dataIndex: { geometryName?: string } }).dataIndex.geometryName
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer))!
+    await flush()
+
+    expect(api.geometryName.value).toBe('geometry')
+    expect(mocks.fetchCount.mock.calls[0]![1]).toEqual([AREA])
+    api.toggleValue('A', 'a')
+    expect(writtenFilter()).toEqual([valuesOf('A', ['a']), AREA])
+    scope.stop()
+  })
+
   it('expanding a tree node refetches that column with its levels; collapsing does not', async () => {
     const { scope, api } = setup()
     await flush()

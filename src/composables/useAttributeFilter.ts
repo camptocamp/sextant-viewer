@@ -67,6 +67,16 @@ function activeFiltersOfLayer(layer: MapLayer): ActiveFilters {
 }
 
 /**
+ * The geometry property the area filter names. Detection reads it from the WFS; when that fails,
+ * a persisted area still names it, and dropping that area would leave it on the WMS only.
+ */
+function geometryNameOf(layer: MapLayer): string | undefined {
+  if (!isLayerDataIndexed(layer)) return undefined
+  const persisted = layer.extras?.filter?.find((filter) => filter.kind === 'bbox')
+  return layer.extras?.dataIndex?.geometryName ?? persisted?.geometryName
+}
+
+/**
  * Drives the attribute-filter UI for a WMS layer whose ES index has been resolved (detection stored
  * `extras.dataIndex`): renders the discovered columns, loads each column's faceted values/counts,
  * and persists the user's selections on the layer's `extras.filter` (which re-renders the WMS layer
@@ -76,7 +86,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
 
   const fields = computed<IndexField[]>(() => dataIndexOf(toValue(layer))?.fields ?? [])
-  const geometryName = computed(() => dataIndexOf(toValue(layer))?.geometryName)
+  const geometryName = computed(() => geometryNameOf(toValue(layer)))
   const columns = ref<Record<string, ColumnState>>({})
   const dateBounds = ref<Record<string, DateBounds | null>>({})
   const count = ref<number | null>(null)
