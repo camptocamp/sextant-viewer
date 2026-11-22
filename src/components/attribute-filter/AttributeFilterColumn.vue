@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, watchEffect } from 'vue'
-import { refDebounced } from '@vueuse/core'
+import { useDebouncedSearch } from '@/composables/useDebouncedSearch'
 import { SEARCH_MAX_LENGTH, type FieldValue, type IndexField } from '@/utils/geonetwork-index'
 import AttributeFilterSection from './AttributeFilterSection.vue'
 
@@ -14,16 +14,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ toggle: [value: string]; search: [term: string] }>()
 
-// Debounced so typing doesn't send one index query per keystroke.
-const SEARCH_DEBOUNCE_MS = 300
-
-const search = ref('')
-const debouncedSearch = refDebounced(search, SEARCH_DEBOUNCE_MS)
-
-watch(
-  () => debouncedSearch.value.trim(),
-  (term) => emit('search', term),
-)
+const { search, term } = useDebouncedSearch()
+watch(term, (value) => emit('search', value))
 
 // Latched: `values` holds search results, so deriving visibility from them would unmount the
 // input mid-search (e.g. while a cleared term is refetching, or for good if that refetch fails).

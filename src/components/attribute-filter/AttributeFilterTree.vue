@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { refDebounced } from '@vueuse/core'
 import type { TreeItem } from '@nuxt/ui'
 import UTree from '@nuxt/ui/components/Tree.vue'
 import { SEARCH_MAX_LENGTH, type FieldValue, type TreeIndexField } from '@/utils/geonetwork-index'
@@ -10,6 +9,7 @@ import {
   parentPath,
   type PathTreeNode,
 } from '@/utils/geonetwork-index/pathTree'
+import { useDebouncedSearch } from '@/composables/useDebouncedSearch'
 import AttributeFilterSection from './AttributeFilterSection.vue'
 
 const props = defineProps<{
@@ -33,11 +33,7 @@ interface PathTreeItem extends TreeItem {
   children?: PathTreeItem[]
 }
 
-const search = ref('')
-// Debounced so typing doesn't send one index query per keystroke.
-const debouncedSearch = refDebounced(search, 300)
-const searchTerm = computed(() => debouncedSearch.value.trim())
-
+const { search, term: searchTerm } = useDebouncedSearch()
 watch(searchTerm, (term) => emit('search', term))
 
 const nodes = computed(() =>
