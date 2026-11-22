@@ -275,6 +275,13 @@ describe('fetchExtent', () => {
     expect(await fetchExtent(index)).toEqual([1.95, 47.95, 2.05, 48.05])
   })
 
+  it('keeps the buffer of a point at a pole within ±90° latitude', async () => {
+    mockFetch(bboxAggs(10, 90, 10, 90))
+    expect(await fetchExtent(index)).toEqual([9.95, 89.95, 10.05, 90])
+    mockFetch(bboxAggs(10, -90, 10, -90))
+    expect(await fetchExtent(index)).toEqual([9.95, -90, 10.05, -89.95])
+  })
+
   it('returns null when no document matched', async () => {
     mockFetch(bboxAggs(null, null, 0, 0))
     expect(await fetchExtent(index)).toBeNull()

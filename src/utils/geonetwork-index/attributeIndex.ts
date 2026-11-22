@@ -245,6 +245,7 @@ export async function fetchExtent(
   )
   if (xmin == null || ymin == null || xmax == null || ymax == null) return null
   if (xmin !== xmax || ymin !== ymax) return [xmin, ymin, xmax, ymax]
-  const b = POINT_EXTENT_BUFFER_DEGREES
-  return [xmin - b, ymin - b, xmax + b, ymax + b]
+  const buffer = POINT_EXTENT_BUFFER_DEGREES
+  // Past ±90°, the Web Mercator transform yields NaN; longitude overflow is harmless.
+  return [xmin - buffer, Math.max(ymin - buffer, -90), xmax + buffer, Math.min(ymax + buffer, 90)]
 }
