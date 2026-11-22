@@ -216,7 +216,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     setActiveFilters({})
   }
 
-  // Separate from `controller`: zooming must not abort an in-flight count refresh.
+  // Separate from the count and column controllers: zooming must not abort an in-flight refresh.
   let zoomController: AbortController | null = null
 
   function cancelZoom() {
@@ -250,20 +250,19 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     }
   }
 
-  // A zoom started on another layer or selection must neither move the map nor report its failure.
-  watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], cancelZoom)
-  onScopeDispose(cancelZoom)
-
-  // Reload on layer change; on a selection change, only refresh the faceted counts. Watching
-  // serialized values (not the layer object) keeps unrelated layer updates — opacity, visibility —
-  // from superseding an in-flight load.
+  // Serialized values, not the layer object: opacity or visibility updates must not supersede an
+  // in-flight load. Either change drops a pending zoom, which must not move the map or report.
   watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], ([id], [oldId]) => {
+    cancelZoom()
     if (id !== oldId) return load()
     return refresh()
   })
   load()
 
-  onScopeDispose(cancelAll)
+  onScopeDispose(() => {
+    cancelAll()
+    cancelZoom()
+  })
 
   return {
     fields,
