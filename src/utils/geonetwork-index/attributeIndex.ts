@@ -2,6 +2,7 @@ import type { Extent } from '@geospatial-sdk/core'
 import type {
   IndexField,
   EsSearchResponse,
+  EsExtentResponse,
   FieldValue,
   DistinctFieldValues,
 } from './attributeIndex.types'
@@ -224,7 +225,7 @@ export async function fetchExtent(
   filters: WmsFilterState = [],
   signal?: AbortSignal,
 ): Promise<Extent | null> {
-  const json = await esSearch<EsSearchResponse>(
+  const json = await esSearch<EsExtentResponse>(
     index,
     {
       size: 0,
