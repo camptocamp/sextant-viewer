@@ -97265,10 +97265,10 @@ function OBe(t) {
     if (!D) return;
     I?.abort(), I = new AbortController();
     const { signal: S } = I;
-    return await Promise.all([
+    await Promise.all([
       ...i.value.map((N) => C(D, N)),
       E(D, S, x)
-    ]), S;
+    ]), S.aborted || (s.value = !1);
   }
   async function m(x, D) {
     const S = LI(je(t)), N = i.value.find((L) => L.esField === x);
@@ -97282,9 +97282,7 @@ function OBe(t) {
       n.value = null, a.value = null;
       return;
     }
-    s.value = !0, o.value = !1;
-    const x = await y(!0);
-    x && !x.aborted && (s.value = !1);
+    s.value = !0, o.value = !1, await y(!0);
   }
   function Q(x) {
     const D = je(t);
