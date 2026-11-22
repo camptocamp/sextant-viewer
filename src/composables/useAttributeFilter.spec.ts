@@ -799,7 +799,11 @@ describe('useAttributeFilter with tree, date-range and area filters', () => {
 
     await api.setExpanded('P', ['x'])
     expect(mocks.fetchTreeValues).toHaveBeenCalledTimes(1)
-    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toEqual({ expanded: ['x'], search: '' })
+    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toMatchObject({
+      expanded: ['x'],
+      search: '',
+      signal: expect.any(AbortSignal),
+    })
     expect(mocks.fetchFieldValues).not.toHaveBeenCalled()
 
     await api.setExpanded('P', [])
@@ -815,7 +819,7 @@ describe('useAttributeFilter with tree, date-range and area filters', () => {
 
     layer.value = makeRichLayer([valuesOf('A', ['a'])])
     await flush()
-    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toEqual({ expanded: ['x'], search: '' })
+    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toMatchObject({ expanded: ['x'], search: '' })
     scope.stop()
   })
 
@@ -866,7 +870,10 @@ describe('useAttributeFilter with tree, date-range and area filters', () => {
     const { scope, api } = setup([pathsOf(['x/y/z'])])
     await flush()
     expect(api.expandedPaths.value).toEqual({ P: ['x', 'x/y'] })
-    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toEqual({ expanded: ['x', 'x/y'], search: '' })
+    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toMatchObject({
+      expanded: ['x', 'x/y'],
+      search: '',
+    })
     scope.stop()
   })
 })

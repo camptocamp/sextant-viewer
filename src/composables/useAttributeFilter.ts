@@ -207,7 +207,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
       const { term: search, expanded } = columnOf(esField)
       const filters = toFilterState(activeFilters.value, esField)
       const values = await (field.type === 'tree'
-        ? fetchTreeValues(dataIndex, field, filters, { expanded, search }, signal)
+        ? fetchTreeValues(dataIndex, field, filters, { expanded, search, signal })
         : fetchFieldValues(dataIndex, field, filters, { signal, search }))
       if (controller.signal.aborted) return
       patchColumn(esField, { values, failed: false })

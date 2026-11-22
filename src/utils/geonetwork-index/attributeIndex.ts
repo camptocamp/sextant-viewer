@@ -266,14 +266,11 @@ export async function fetchFieldValues(
   }
 
   const term = search.trim()
-  return fetchBuckets(
-    index,
-    field,
-    filters,
-    DEFAULT_FIELD_VALUES_LIMIT,
-    term ? containsPattern(term) : undefined,
+  return fetchBuckets(index, field, filters, {
+    size: DEFAULT_FIELD_VALUES_LIMIT,
+    include: term ? containsPattern(term) : undefined,
     signal,
-  )
+  })
 }
 
 /**
@@ -286,20 +283,21 @@ export async function fetchTreeValues(
   index: GeoNetworkIndexConnection,
   field: TreeIndexField,
   filters: WmsFilterState,
-  { expanded = [], search = '' }: { expanded?: readonly string[]; search?: string },
-  signal?: AbortSignal,
+  {
+    expanded = [],
+    search = '',
+    signal,
+  }: { expanded?: readonly string[]; search?: string; signal?: AbortSignal } = {},
 ): Promise<DistinctFieldValues> {
   const term = search.trim()
-  return term
-    ? fetchBuckets(
-        index,
-        field,
-        filters,
-        DEFAULT_FIELD_VALUES_LIMIT,
-        lastLevelContainsPattern(term),
-        signal,
-      )
-    : fetchBuckets(index, field, filters, TREE_VALUES_LIMIT, visibleLevelsPattern(expanded), signal)
+  return fetchBuckets(
+    index,
+    field,
+    filters,
+    term
+      ? { size: DEFAULT_FIELD_VALUES_LIMIT, include: lastLevelContainsPattern(term), signal }
+      : { size: TREE_VALUES_LIMIT, include: visibleLevelsPattern(expanded), signal },
+  )
 }
 
 /** Terms aggregation on `field.aggField`, narrowed to the buckets matching `include`. */
@@ -307,9 +305,7 @@ async function fetchBuckets(
   index: GeoNetworkIndexConnection,
   field: TermsIndexField | TreeIndexField,
   filters: WmsFilterState,
-  size: number,
-  include: string | undefined,
-  signal?: AbortSignal,
+  { size, include, signal }: { size: number; include?: string; signal?: AbortSignal },
 ): Promise<DistinctFieldValues> {
   // Request one extra bucket so truncation is "more distinct values than the cap exist",
   // not ES's `sum_other_doc_count` which over-reports on multi-shard indices.
