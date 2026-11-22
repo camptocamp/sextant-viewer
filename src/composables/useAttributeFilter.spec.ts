@@ -743,6 +743,49 @@ describe('useAttributeFilter with tree, date-range and area filters', () => {
     scope.stop()
   })
 
+  it('reports a date-bounds failure until a refresh loads them', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mocks.fetchDateBounds
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockRejectedValueOnce(new Error('boom'))
+    const { layer, scope, api } = setup()
+    await flush()
+    expect(api.loadError.value).not.toBeNull()
+
+    layer.value = makeRichLayer([valuesOf('A', ['a'])])
+    await flush()
+    expect(api.loadError.value).not.toBeNull()
+
+    layer.value = makeRichLayer([valuesOf('A', ['b'])])
+    await flush()
+    expect(api.loadError.value).toBeNull()
+    expect(api.dateBounds.value).toEqual({ D: { min: '1973-06-18', max: '2026-11-04' } })
+    scope.stop()
+  })
+
+  it('a selection change during the initial load still loads the date bounds', async () => {
+    let releaseBounds!: () => void
+    mocks.fetchDateBounds.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseBounds = () => resolve({ min: '1900-01-01', max: '1900-12-31' })
+        }),
+    )
+    const { layer, scope, api } = setup()
+    await flush()
+    expect(api.loading.value).toBe(true)
+
+    layer.value = makeRichLayer([valuesOf('A', ['a'])])
+    await flush()
+    expect(api.loading.value).toBe(false)
+    expect(api.dateBounds.value).toEqual({ D: { min: '1973-06-18', max: '2026-11-04' } })
+
+    releaseBounds()
+    await flush()
+    expect(api.dateBounds.value).toEqual({ D: { min: '1973-06-18', max: '2026-11-04' } })
+    scope.stop()
+  })
+
   it('expands the ancestors of a restored tree selection', async () => {
     const { scope, api } = setup([pathsOf(['x/y/z'])])
     await flush()

@@ -83,6 +83,9 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const totalCount = ref<number | null>(null)
   const loading = ref(false)
   const countsFailed = ref(false)
+  // Separate from `countsFailed`: bounds load only with the layer, so a later successful count
+  // refresh must not hide their failure.
+  const boundsFailed = ref(false)
 
   const fieldValues = computed<Record<string, DistinctFieldValues>>(() =>
     Object.fromEntries(
@@ -106,7 +109,9 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const zooming = ref(false)
   const zoomFailed = ref(false)
   const loadError = computed(() =>
-    countsFailed.value || Object.values(columns.value).some((column) => column.failed)
+    countsFailed.value ||
+    boundsFailed.value ||
+    Object.values(columns.value).some((column) => column.failed)
       ? LOAD_ERROR
       : null,
   )
@@ -247,10 +252,11 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
       if (signal.aborted) return
       dateBounds.value = Object.fromEntries(entries)
       boundsLoaded = true
+      boundsFailed.value = false
     } catch (e) {
       if (signal.aborted) return
       console.error('Erreur lors du chargement des bornes de dates ElasticSearch:', e)
-      countsFailed.value = true
+      boundsFailed.value = true
     }
   }
 
@@ -328,6 +334,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     }
     loading.value = true
     countsFailed.value = false
+    boundsFailed.value = false
     await refresh(true)
   }
 
