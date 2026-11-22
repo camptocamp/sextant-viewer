@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import type Map from 'ol/Map'
-import { inject, type ShallowRef } from 'vue'
+import { useMapStore } from '@/stores/map.store'
 import { useLayerLoadingState } from '@/composables/useLayerLoadingState'
 
-const mapRef = inject<ShallowRef<Map | null>>('map')!
-const { isLoading } = useLayerLoadingState(mapRef)
+const mapStore = useMapStore()
+const { isLoading } = useLayerLoadingState(() => mapStore.olMap)
 </script>
 
 <template>
