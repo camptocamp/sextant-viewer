@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import type { Extent } from '@geospatial-sdk/core'
 import { useBboxDraw } from '@/composables/useBboxDraw'
+import { MAX_LATITUDE, MAX_LONGITUDE } from '@/utils/geo.utils'
 import AttributeFilterSection from './AttributeFilterSection.vue'
 
 const props = defineProps<{ bbox: Extent | undefined }>()
@@ -39,7 +40,14 @@ const complete = computed(() => draft.every((value) => value !== null))
 const invalid = computed(() => {
   if (!complete.value) return false
   const [w, s, e, n] = draft as number[]
-  return w! >= e! || s! >= n! || w! < -180 || e! > 180 || s! < -90 || n! > 90
+  return (
+    w! >= e! ||
+    s! >= n! ||
+    w! < -MAX_LONGITUDE ||
+    e! > MAX_LONGITUDE ||
+    s! < -MAX_LATITUDE ||
+    n! > MAX_LATITUDE
+  )
 })
 
 function apply() {

@@ -11,7 +11,7 @@ import { get as getProjection, transformExtent, type ProjectionLike } from 'ol/p
 import VectorSource from 'ol/source/Vector'
 import { Fill, Stroke, Style } from 'ol/style'
 import { useMapStore } from '@/stores/map.store'
-import { clampToGlobe } from '@/utils/wms.utils'
+import { clampToGlobe } from '@/utils/geo.utils'
 
 const LON_LAT = 'EPSG:4326'
 const COORDINATE_DECIMALS = 4

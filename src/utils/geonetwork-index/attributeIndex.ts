@@ -12,7 +12,8 @@ import type {
   TreeIndexField,
 } from './attributeIndex.types'
 import type { GeoNetworkIndexConnection, WmsFilter, WmsFilterState } from '@/types/wms.types'
-import { clampToGlobe, dayAfter } from '../wms.utils'
+import { dayAfter } from '../date.utils'
+import { clampToGlobe, MAX_LATITUDE } from '../geo.utils'
 import { PATH_SEPARATOR } from './pathTree'
 
 // Maximum number of distinct attribute values to fetch for a column.
@@ -417,5 +418,10 @@ export async function fetchExtent(
   if (xmin !== xmax || ymin !== ymax) return [xmin, ymin, xmax, ymax]
   const buffer = POINT_EXTENT_BUFFER_DEGREES
   // Past ±90°, the Web Mercator transform yields NaN; longitude overflow is harmless.
-  return [xmin - buffer, Math.max(ymin - buffer, -90), xmax + buffer, Math.min(ymax + buffer, 90)]
+  return [
+    xmin - buffer,
+    Math.max(ymin - buffer, -MAX_LATITUDE),
+    xmax + buffer,
+    Math.min(ymax + buffer, MAX_LATITUDE),
+  ]
 }

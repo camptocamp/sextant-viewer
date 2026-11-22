@@ -4,7 +4,7 @@ import {
   type WmsLayerFull,
   type WmsLayerTimeDimension,
 } from '@camptocamp/ogc-client'
-import type { Extent, MapContextLayerWms } from '@geospatial-sdk/core'
+import type { MapContextLayerWms } from '@geospatial-sdk/core'
 import { and, bbox, equalTo, greaterThanOrEqualTo, lessThan, like, or } from 'ol/format/filter'
 import { writeFilter } from 'ol/format/WFS'
 import type Filter from 'ol/format/filter/Filter'
@@ -16,6 +16,8 @@ import type {
 } from '@/types/wms.types'
 import type { MapLayer } from './layer.utils'
 import { PATH_SEPARATOR } from './geonetwork-index/pathTree'
+import { dayAfter } from './date.utils'
+import { clampToGlobe } from './geo.utils'
 
 export type AnyWmsDimension = WmsLayerDimension | WmsLayerTimeDimension
 
@@ -340,24 +342,6 @@ function buildFieldGroup(attribute: FilterByAttribute, values: string[]): Filter
     .filter((comparison): comparison is Filter => comparison !== null)
   if (comparisons.length === 0) return null
   return comparisons.length > 1 ? or(...comparisons) : comparisons[0]!
-}
-
-/**
- * The day after a `YYYY-MM-DD` date. Period filters are inclusive of their end day, but the
- * compared columns hold date-times: comparing strictly against the next day keeps the features
- * later on the end day.
- */
-export function dayAfter(date: string): string {
-  const next = new Date(`${date}T00:00:00Z`)
-  next.setUTCDate(next.getUTCDate() + 1)
-  return next.toISOString().slice(0, 10)
-}
-
-const clamp = (value: number, limit: number) => Math.min(limit, Math.max(-limit, value))
-
-/** An EPSG:4326 extent clamped to the globe: an area drawn across the antimeridian overflows it. */
-export function clampToGlobe([minx, miny, maxx, maxy]: Extent): Extent {
-  return [clamp(minx, 180), clamp(miny, 90), clamp(maxx, 180), clamp(maxy, 90)]
 }
 
 // OL types comparison literals as numbers but serializes them with `'' + expression`, so an ISO
