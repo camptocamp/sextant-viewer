@@ -342,10 +342,26 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
       totalCount.value = null
       return
     }
+    normalizePersistedFilter()
     loading.value = true
     countsFailed.value = false
     boundsFailed.value = false
     await refresh(true)
+  }
+
+  /**
+   * Rewrite a persisted filter that differs from what this panel writes for the same selections
+   * (e.g. `equals` saved on a tokenized column before match types were kept), so the WMS matches
+   * the counts without waiting for the user to touch the panel.
+   */
+  function normalizePersistedFilter() {
+    const currentLayer = toValue(layer)
+    if (!isLayerDataIndexed(currentLayer)) return
+    const persisted = currentLayer.extras?.filter ?? []
+    const normalized = toFilterState(activeFilters.value)
+    if (JSON.stringify(persisted) !== JSON.stringify(normalized)) {
+      setActiveFilters(activeFilters.value)
+    }
   }
 
   function setActiveFilters(active: ActiveFilters) {

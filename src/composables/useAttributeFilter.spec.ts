@@ -715,6 +715,40 @@ describe('useAttributeFilter with tree, date-range and area filters', () => {
     cleared.scope.stop()
   })
 
+  describe('on a tokenized column', () => {
+    const containsOf = (values: string[]) => ({ ...valuesOf('A', values), matchType: 'contains' })
+
+    function setupTokenized(filter: unknown[] = []) {
+      const layer = makeRichLayer(filter)
+      const { fields } = (layer.extras as { dataIndex: { fields: { matchType?: string }[] } })
+        .dataIndex
+      fields[0]!.matchType = 'contains'
+      const scope = effectScope()
+      const api = scope.run(() => useAttributeFilter(() => layer))!
+      return { scope, api }
+    }
+
+    it('writes selections with the contains match type', () => {
+      const { scope, api } = setupTokenized()
+      api.toggleValue('A', 'a')
+      expect(writtenFilter()).toEqual([containsOf(['a'])])
+      scope.stop()
+    })
+
+    it('rewrites a selection persisted as equals once loaded', () => {
+      const { scope } = setupTokenized([valuesOf('A', ['a']), AREA])
+      expect(mocks.updateLayer).toHaveBeenCalledTimes(1)
+      expect(writtenFilter()).toEqual([containsOf(['a']), AREA])
+      scope.stop()
+    })
+
+    it('leaves a filter already written as this panel would untouched', () => {
+      const { scope } = setupTokenized([containsOf(['a']), AREA])
+      expect(mocks.updateLayer).not.toHaveBeenCalled()
+      scope.stop()
+    })
+  })
+
   it('keeps a persisted area when the geometry name could not be detected', async () => {
     const layer = makeRichLayer([AREA])
     delete (layer.extras as { dataIndex: { geometryName?: string } }).dataIndex.geometryName
