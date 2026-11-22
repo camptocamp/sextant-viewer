@@ -176,8 +176,8 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     }
   }
 
-  /** Cancel in-flight searches and forget their failures; search terms are kept. */
-  function resetSearches() {
+  /** Abort in-flight searches and forget their failures. */
+  function cancelSearches() {
     searchControllers.forEach((c) => c.abort())
     searchControllers.clear()
     searching.value = {}
@@ -185,7 +185,7 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   }
 
   async function load() {
-    resetSearches()
+    cancelSearches()
     searchTerms.value = {}
     if (!dataIndexOf(toValue(layer))) {
       fieldValues.value = {}
@@ -230,14 +230,14 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
     if (id !== oldId) return load()
     // A search started under the old selection would overwrite the refreshed values; the refresh
     // re-runs every column with its current term anyway.
-    resetSearches()
+    cancelSearches()
     return refreshValues(nextRequest())
   })
   load()
 
   onScopeDispose(() => {
     controller?.abort()
-    resetSearches()
+    cancelSearches()
   })
 
   return {
