@@ -18,6 +18,48 @@ const DEFAULT_FIELD_VALUES_LIMIT = 50
 const TERMS_FIELD_MATCH = /^ft_(.+)_s$/
 const aggFieldName = (column: string) => `ft_${column}_s`
 
+const LUCENE_REGEX_RESERVED = /[.?+*|{}[\]()"\\#@&<>~]/
+
+const stripAccents = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '')
+
+/**
+ * Base letter → class content of its cases and accented forms (`e` → `eEèéêëÈÉÊË`). Latin-1
+ * covers French; wider ranges would push a {@link SEARCH_MAX_LENGTH} term past ES's default
+ * `index.max_regex_length` (1000). Letters without a decomposition (`æ`, `ø`, `ß`) are left out.
+ */
+const ACCENT_CLASSES = (() => {
+  const classes = new Map<string, string>()
+  for (let code = 0xc0; code <= 0xff; code++) {
+    const char = String.fromCodePoint(code)
+    const base = stripAccents(char).toLowerCase()
+    if (base === char.toLowerCase()) continue
+    classes.set(base, (classes.get(base) ?? base + base.toUpperCase()) + char)
+  }
+  return classes
+})()
+
+/** Longest search term, keeping the generated pattern under `index.max_regex_length`. */
+export const SEARCH_MAX_LENGTH = 50
+
+/**
+ * Lucene regex matching values that contain `term`, ignoring case and accents: `include` regexes
+ * have no flag for either, so each letter becomes a class of all its forms (`e` → `[eEèéÈÉ…]`).
+ */
+function containsPattern(term: string): string {
+  const body = [...stripAccents(term)]
+    .map((char) => {
+      const accented = ACCENT_CLASSES.get(char.toLowerCase())
+      if (accented) return `[${accented}]`
+      const lower = char.toLowerCase()
+      const upper = char.toUpperCase()
+      // Skip classes for case mappings that change length (e.g. `ß` → `SS`).
+      if (lower !== upper && lower.length === 1 && upper.length === 1) return `[${lower}${upper}]`
+      return LUCENE_REGEX_RESERVED.test(char) ? `\\${char}` : char
+    })
+    .join('')
+  return `.*${body}.*`
+}
+
 /** POST an ES query to the index URL (itself the search action; no `/_search` is appended). */
 async function esSearch<T>(
   index: GeoNetworkIndexConnection,
@@ -102,12 +144,14 @@ export function buildFieldFilter(filter: FilterByAttribute): Record<string, unkn
 /**
  * Distinct values and counts of a column via a terms aggregation. `filters` (active selections)
  * narrow the counts to give faceted counts. Buckets come back ordered by descending count.
+ * `search` keeps only the values containing it (ignoring case and accents); it filters buckets, not
+ * documents, so a tokenized column doesn't bring back the other tokens of matching documents.
  */
 export async function fetchFieldValues(
   index: GeoNetworkIndexConnection,
   field: IndexField,
   filters: WmsFilterState = [],
-  signal?: AbortSignal,
+  { signal, search = '' }: { signal?: AbortSignal; search?: string } = {},
 ): Promise<DistinctFieldValues> {
   // This has to be a 'terms' field; if not, no way to obtain distinct values
   if (field.type !== 'terms') {
@@ -116,6 +160,7 @@ export async function fetchFieldValues(
 
   const size = DEFAULT_FIELD_VALUES_LIMIT
   const query = filteredQuery(index, filters)
+  const term = search.trim()
 
   // Request one extra bucket so truncation is "more distinct values than the cap exist",
   // not ES's `sum_other_doc_count` which over-reports on multi-shard indices.
@@ -129,6 +174,7 @@ export async function fetchFieldValues(
           terms: {
             field: field.aggField,
             size: size + 1,
+            ...(term && { include: containsPattern(term) }),
           },
         },
       },

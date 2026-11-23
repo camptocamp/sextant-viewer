@@ -13,6 +13,14 @@ import type { GeoNetworkIndexConnection, WmsFilterState } from '@/types/wms.type
 /** UI-friendly view of the active selections: selected values keyed by column (`esField`). */
 type ActiveFilters = Record<string, string[]>
 
+interface ColumnState {
+  // The values list is capped, so a search must query the index rather than filter the list.
+  term: string
+  values?: DistinctFieldValues
+  searching: boolean
+  failed: boolean
+}
+
 const LOAD_ERROR =
   'Impossible de charger les valeurs depuis ElasticSearch. Vérifiez la connexion à l’index.'
 
@@ -38,77 +46,146 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   const mapStore = useMapStore()
 
   const fields = computed<IndexField[]>(() => dataIndexOf(toValue(layer))?.fields ?? [])
-  const fieldValues = ref<Record<string, DistinctFieldValues>>({})
+  const columns = ref<Record<string, ColumnState>>({})
   const count = ref<number | null>(null)
   const totalCount = ref<number | null>(null)
   const loading = ref(false)
-  const error = ref<string | null>(null)
+  const countsFailed = ref(false)
+
+  const fieldValues = computed<Record<string, DistinctFieldValues>>(() =>
+    Object.fromEntries(
+      Object.entries(columns.value).flatMap(([esField, column]) =>
+        column.values ? [[esField, column.values]] : [],
+      ),
+    ),
+  )
+  const searching = computed<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      Object.entries(columns.value).map(([esField, column]) => [esField, column.searching]),
+    ),
+  )
+  const error = computed(() =>
+    countsFailed.value || Object.values(columns.value).some((column) => column.failed)
+      ? LOAD_ERROR
+      : null,
+  )
 
   const activeFilters = computed<ActiveFilters>(() => activeFiltersOf(toValue(layer)))
   const hasActiveFilters = computed(() =>
     Object.values(activeFilters.value).some((values) => values.length > 0),
   )
 
-  // Each new request supersedes the previous one: the previous is aborted, and async writes are
-  // gated on `id === requestId` so a stale request can neither clobber newer state nor wipe a fresh
-  // error.
-  let requestId = 0
-  let controller: AbortController | null = null
+  const columnOf = (esField: string): ColumnState =>
+    columns.value[esField] ?? { term: '', searching: false, failed: false }
 
-  function nextRequest(): { id: number; signal: AbortSignal } {
-    controller?.abort()
-    controller = new AbortController()
-    return { id: ++requestId, signal: controller.signal }
+  function patchColumn(esField: string, patch: Partial<ColumnState>) {
+    columns.value = { ...columns.value, [esField]: { ...columnOf(esField), ...patch } }
   }
 
+  // Kept out of `columns`: a reactive proxy breaks the native `abort()`.
+  const columnControllers = new Map<string, AbortController>()
+  let countsController: AbortController | null = null
+
   /**
-   * Refresh faceted value counts: each column's counts exclude its own selection so its other
-   * values stay visible. Sole owner of `count`/`totalCount`/`fieldValues` so the paths never race.
+   * (Re)load one column's faceted values with its current term, superseding its previous request
+   * whether a refresh or a search started it. Counts exclude the column's own selection so its
+   * other values stay visible.
    */
-  async function refreshValues(
-    { id, signal }: { id: number; signal: AbortSignal },
-    withTotal = false,
-  ) {
-    const dataIndex = dataIndexOf(toValue(layer))
-    if (!dataIndex) return
-    const active = activeFilters.value
+  async function fetchColumn(dataIndex: GeoNetworkIndexConnection, field: IndexField) {
+    const { esField } = field
+    columnControllers.get(esField)?.abort()
+    const controller = new AbortController()
+    columnControllers.set(esField, controller)
+    patchColumn(esField, { searching: true })
+
     try {
-      const [results, total, grandTotal] = await Promise.all([
-        Promise.all(
-          fields.value.map((field) =>
-            fetchFieldValues(dataIndex, field, toFilterState(active, field.esField), signal),
-          ),
-        ),
-        fetchCount(dataIndex, toFilterState(active), signal),
+      const values = await fetchFieldValues(
+        dataIndex,
+        field,
+        toFilterState(activeFilters.value, esField),
+        { signal: controller.signal, search: columnOf(esField).term },
+      )
+      if (controller.signal.aborted) return
+      patchColumn(esField, { values, failed: false })
+    } catch (e) {
+      if (controller.signal.aborted) return
+      console.error(`Erreur lors du chargement des valeurs de ${esField}:`, e)
+      patchColumn(esField, { failed: true })
+    } finally {
+      if (columnControllers.get(esField) === controller) {
+        columnControllers.delete(esField)
+        patchColumn(esField, { searching: false })
+      }
+    }
+  }
+
+  async function fetchCounts(
+    dataIndex: GeoNetworkIndexConnection,
+    signal: AbortSignal,
+    withTotal: boolean,
+  ) {
+    try {
+      const [total, grandTotal] = await Promise.all([
+        fetchCount(dataIndex, toFilterState(activeFilters.value), signal),
         // Refetch the grand total whenever it is still unknown, so a failed initial load recovers.
         withTotal || totalCount.value === null
           ? fetchCount(dataIndex, [], signal)
           : Promise.resolve<number | null>(null),
       ])
-      if (id !== requestId) return
-      error.value = null
+      if (signal.aborted) return
+      countsFailed.value = false
       count.value = total
       if (grandTotal !== null) totalCount.value = grandTotal
-      fieldValues.value = Object.fromEntries(results.map((result) => [result.esField, result]))
     } catch (e) {
-      if (signal.aborted || id !== requestId) return
+      if (signal.aborted) return
       console.error('Erreur lors du chargement des valeurs ElasticSearch:', e)
-      error.value = LOAD_ERROR
+      countsFailed.value = true
     }
   }
 
+  /**
+   * Reload every column and the counts. The refresh that isn't superseded ends `loading`, so a
+   * selection change during the initial load takes over ending it.
+   */
+  async function refresh(withTotal = false) {
+    const dataIndex = dataIndexOf(toValue(layer))
+    if (!dataIndex) return
+    countsController?.abort()
+    countsController = new AbortController()
+    const { signal } = countsController
+    await Promise.all([
+      ...fields.value.map((field) => fetchColumn(dataIndex, field)),
+      fetchCounts(dataIndex, signal, withTotal),
+    ])
+    if (!signal.aborted) loading.value = false
+  }
+
+  /** Re-query one column's values for `term`, leaving the other columns untouched. */
+  async function searchValues(esField: string, term: string) {
+    const dataIndex = dataIndexOf(toValue(layer))
+    const field = fields.value.find((f) => f.esField === esField)
+    if (!dataIndex || !field) return
+    patchColumn(esField, { term })
+    await fetchColumn(dataIndex, field)
+  }
+
+  function cancelAll() {
+    countsController?.abort()
+    columnControllers.forEach((c) => c.abort())
+    columnControllers.clear()
+  }
+
   async function load() {
+    cancelAll()
+    columns.value = {}
     if (!dataIndexOf(toValue(layer))) {
-      fieldValues.value = {}
       count.value = null
       totalCount.value = null
       return
     }
-    const req = nextRequest()
     loading.value = true
-    error.value = null
-    await refreshValues(req, true)
-    if (req.id === requestId) loading.value = false
+    countsFailed.value = false
+    await refresh(true)
   }
 
   function setActiveFilters(active: ActiveFilters) {
@@ -137,24 +214,26 @@ export function useAttributeFilter(layer: MaybeRefOrGetter<MapLayer>) {
   // Reload on layer change; on a selection change, only refresh the faceted counts. Watching
   // serialized values (not the layer object) keeps unrelated layer updates — opacity, visibility —
   // from superseding an in-flight load.
-  watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], ([id], [oldId]) =>
-    id === oldId ? refreshValues(nextRequest()) : load(),
-  )
+  watch([() => toValue(layer)?.id, () => JSON.stringify(activeFilters.value)], ([id], [oldId]) => {
+    if (id !== oldId) return load()
+    return refresh()
+  })
   load()
 
-  // Cancel any in-flight request when the panel is torn down.
-  onScopeDispose(() => controller?.abort())
+  onScopeDispose(cancelAll)
 
   return {
     fields,
-    fieldValues: readonly(fieldValues),
+    fieldValues,
     count: readonly(count),
     totalCount: readonly(totalCount),
     loading: readonly(loading),
-    error: readonly(error),
+    error,
+    searching,
     activeFilters,
     hasActiveFilters,
     toggleValue,
     resetFilters,
+    searchValues,
   }
 }
