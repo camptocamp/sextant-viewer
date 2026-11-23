@@ -1,0 +1,50 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { mount } from '@vue/test-utils'
+import type { DateRangeIndexField } from '@/utils/geonetwork-index'
+import AttributeFilterDateRange from './AttributeFilterDateRange.vue'
+
+const field: DateRangeIndexField = {
+  esField: 'D',
+  label: 'Date',
+  type: 'dateRange',
+  minField: 'DMIN',
+  maxField: 'DMAX',
+}
+
+describe('AttributeFilterDateRange', () => {
+  const initialTz = process.env.TZ
+
+  // West of UTC, where a day parsed as UTC midnight then formatted locally shows the day before.
+  beforeEach(() => {
+    process.env.TZ = 'America/Guadeloupe'
+  })
+  afterEach(() => {
+    process.env.TZ = initialTz
+  })
+
+  it('shows the index bounds as the same days in any time zone', () => {
+    const wrapper = mount(AttributeFilterDateRange, {
+      props: { field, bounds: { min: '2024-03-01', max: '2024-12-31' }, selected: undefined },
+      global: {
+        stubs: {
+          Collapsible: { template: '<div><slot :open="true" /><slot name="content" /></div>' },
+        },
+      },
+    })
+    expect(wrapper.text()).toContain('Données du 01/03/2024 au 31/12/2024.')
+  })
+
+  it('marks both days when the period is inverted', () => {
+    const wrapper = mount(AttributeFilterDateRange, {
+      props: { field, bounds: null, selected: { from: '2024-12-01', to: '2024-01-01' } },
+      global: {
+        stubs: {
+          Collapsible: { template: '<div><slot :open="true" /><slot name="content" /></div>' },
+        },
+      },
+    })
+    const invalid = wrapper.findAll('input').map((input) => input.attributes('aria-invalid'))
+    expect(invalid).toEqual(['true', 'true'])
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+  })
+})

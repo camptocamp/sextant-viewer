@@ -4,6 +4,8 @@ import type { MapLayer } from '@/utils/layer.utils'
 
 const mocks = vi.hoisted(() => ({
   fetchFieldValues: vi.fn(),
+  fetchTreeValues: vi.fn(),
+  fetchDateBounds: vi.fn(),
   fetchCount: vi.fn(),
   fetchExtent: vi.fn(),
   updateLayer: vi.fn(),
@@ -12,6 +14,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/utils/geonetwork-index', () => ({
   fetchFieldValues: mocks.fetchFieldValues,
+  fetchTreeValues: mocks.fetchTreeValues,
+  fetchDateBounds: mocks.fetchDateBounds,
   fetchCount: mocks.fetchCount,
   fetchExtent: mocks.fetchExtent,
 }))
@@ -43,8 +47,8 @@ function makeLayer(filter: unknown[] = []): MapLayer {
         url: '/es',
         featureTypeId: 'ft',
         fields: [
-          { esField: 'A', label: 'A', aggField: 'ft_A_s', type: 'terms' },
-          { esField: 'B', label: 'B', aggField: 'ft_B_s', type: 'terms' },
+          { esField: 'A', label: 'A', aggField: 'ft_A_s', type: 'terms', matchType: 'equals' },
+          { esField: 'B', label: 'B', aggField: 'ft_B_s', type: 'terms', matchType: 'equals' },
         ],
       },
       filter,
@@ -53,6 +57,12 @@ function makeLayer(filter: unknown[] = []): MapLayer {
 }
 
 beforeEach(() => {
+  mocks.fetchTreeValues.mockReset()
+  mocks.fetchTreeValues.mockImplementation((_index, field) =>
+    Promise.resolve({ esField: field.esField, values: [], truncated: false }),
+  )
+  mocks.fetchDateBounds.mockReset()
+  mocks.fetchDateBounds.mockResolvedValue({ min: '1973-06-18', max: '2026-11-04' })
   mocks.fetchFieldValues.mockReset()
   mocks.fetchCount.mockReset()
   mocks.updateLayer.mockReset()
@@ -79,7 +89,7 @@ describe('useAttributeFilter', () => {
       layer.value,
       expect.objectContaining({
         extras: expect.objectContaining({
-          filter: [{ attributeName: 'A', matchType: 'equals', values: ['x'] }],
+          filter: [{ kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] }],
         }),
         version: 1,
       }),
@@ -88,7 +98,9 @@ describe('useAttributeFilter', () => {
   })
 
   it("faceting excludes each column's own selection", async () => {
-    const layer = ref(makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }]))
+    const layer = ref(
+      makeLayer([{ kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] }]),
+    )
     const scope = effectScope()
     scope.run(() => useAttributeFilter(() => layer.value))
     await flush()
@@ -97,7 +109,9 @@ describe('useAttributeFilter', () => {
     const callB = mocks.fetchFieldValues.mock.calls.find((c) => c[1].esField === 'B')
     // Column A drops its own selection so its other values stay visible; column B keeps it.
     expect(callA?.[2]).toEqual([])
-    expect(callB?.[2]).toEqual([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    expect(callB?.[2]).toEqual([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     scope.stop()
   })
 
@@ -147,7 +161,9 @@ describe('useAttributeFilter', () => {
     expect(api.count.value).toBeNull()
 
     // A newer request supersedes the first via the activeFilters watch.
-    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     await flush()
     expect(api.count.value).toBe(7)
 
@@ -173,7 +189,9 @@ describe('useAttributeFilter', () => {
     await flush()
     expect(api.loading.value).toBe(true)
 
-    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     await flush()
     expect(api.loading.value).toBe(false)
     expect(api.count.value).toBe(7)
@@ -181,7 +199,9 @@ describe('useAttributeFilter', () => {
   })
 
   it('a search refetches only the searched column, with its own faceting', async () => {
-    const layer = ref(makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }]))
+    const layer = ref(
+      makeLayer([{ kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] }]),
+    )
     const scope = effectScope()
     let api!: ReturnType<typeof useAttributeFilter>
     scope.run(() => {
@@ -196,7 +216,9 @@ describe('useAttributeFilter', () => {
     expect(mocks.fetchFieldValues).toHaveBeenCalledTimes(1)
     const [, field, filters, options] = mocks.fetchFieldValues.mock.calls[0]!
     expect(field.esField).toBe('A')
-    expect(filters).toEqual([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    expect(filters).toEqual([
+      { kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] },
+    ])
     expect(options.search).toBe('foo')
     expect(mocks.fetchCount).not.toHaveBeenCalled()
     scope.stop()
@@ -217,7 +239,7 @@ describe('useAttributeFilter', () => {
       ...layer.value,
       extras: {
         ...layer.value.extras,
-        filter: [{ attributeName: 'B', matchType: 'equals', values: ['y'] }],
+        filter: [{ kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] }],
       },
     } as MapLayer
     await flush()
@@ -283,7 +305,9 @@ describe('useAttributeFilter', () => {
     mocks.fetchFieldValues.mockImplementation((_index, field) =>
       Promise.resolve({ esField: field.esField, values: [{ value: 'fresh', count: 1 }] }),
     )
-    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] },
+    ])
     await flush()
     releaseSearch()
     await search
@@ -304,7 +328,9 @@ describe('useAttributeFilter', () => {
 
     const refreshA = heldValues('refresh')
     mocks.fetchFieldValues.mockImplementationOnce(refreshA.impl)
-    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] },
+    ])
     await flush()
     expect(api.searching.value.A).toBe(true)
     expect(api.searching.value.B).toBe(false)
@@ -330,7 +356,9 @@ describe('useAttributeFilter', () => {
         Promise.resolve({ esField: field.esField, values: [{ value: 'refresh', count: 1 }] }),
       )
       .mockImplementationOnce(refreshA.impl)
-    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] },
+    ])
     await flush()
 
     mocks.fetchFieldValues.mockImplementationOnce((_index, field) =>
@@ -357,7 +385,9 @@ describe('useAttributeFilter', () => {
 
     const refreshA = heldValues('refresh')
     mocks.fetchFieldValues.mockImplementationOnce(refreshA.impl)
-    layer.value = makeLayer([{ attributeName: 'B', matchType: 'equals', values: ['y'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'B', matchType: 'equals', values: ['y'] },
+    ])
     await flush()
 
     const searchA = heldValues('new')
@@ -440,7 +470,7 @@ describe('useAttributeFilter', () => {
   })
 
   it('zooms to the extent of the active selection', async () => {
-    const filter = [{ attributeName: 'A', matchType: 'equals', values: ['x'] }]
+    const filter = [{ kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] }]
     const layer = ref(makeLayer(filter))
     mocks.fetchExtent.mockResolvedValue([-5, 43, 8, 51])
     const scope = effectScope()
@@ -543,7 +573,9 @@ describe('useAttributeFilter', () => {
     mocks.fetchCount.mockImplementation(
       () => new Promise<number>((resolve) => (resolveCount = resolve)),
     )
-    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     await flush()
     await api.zoomToSelection()
     resolveCount(4)
@@ -566,7 +598,9 @@ describe('useAttributeFilter', () => {
 
     const zoom = api.zoomToSelection()
     mocks.fetchCount.mockResolvedValue(4)
-    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     await flush()
     resolveExtent([0, 0, 1, 1])
     await zoom
@@ -589,9 +623,257 @@ describe('useAttributeFilter', () => {
     await api.zoomToSelection()
     expect(api.zoomError.value).not.toBeNull()
 
-    layer.value = makeLayer([{ attributeName: 'A', matchType: 'equals', values: ['x'] }])
+    layer.value = makeLayer([
+      { kind: 'values', attributeName: 'A', matchType: 'equals', values: ['x'] },
+    ])
     await flush()
     expect(api.zoomError.value).toBeNull()
+    scope.stop()
+  })
+})
+
+describe('useAttributeFilter with tree, date-range and area filters', () => {
+  const DATE = {
+    kind: 'dateRange',
+    attributeName: 'D',
+    minField: 'DMIN',
+    maxField: 'DMAX',
+    from: '2020-01-01',
+    to: '2020-12-31',
+  }
+  const AREA = { kind: 'bbox', geometryName: 'geometry', extent: [-5, 48, -4, 49] }
+  const valuesOf = (attributeName: string, values: string[]) => ({
+    kind: 'values',
+    attributeName,
+    matchType: 'equals',
+    values,
+  })
+  const pathsOf = (values: string[]) => ({
+    kind: 'values',
+    attributeName: 'P',
+    matchType: 'tree',
+    values,
+    tokenSeparator: ';',
+  })
+
+  function makeRichLayer(filter: unknown[] = []): MapLayer {
+    return {
+      type: 'wms',
+      name: 'lyr',
+      version: 0,
+      extras: {
+        dataIndex: {
+          url: '/es',
+          featureTypeIds: ['ft'],
+          geometryName: 'geometry',
+          fields: [
+            { esField: 'A', label: 'A', aggField: 'ft_A_s', type: 'terms', matchType: 'equals' },
+            {
+              esField: 'P',
+              label: 'P',
+              aggField: 'ft_P_s_tree',
+              type: 'tree',
+              tokenSeparator: ';',
+            },
+            { esField: 'D', label: 'D', type: 'dateRange', minField: 'DMIN', maxField: 'DMAX' },
+          ],
+        },
+        filter,
+      },
+    } as unknown as MapLayer
+  }
+
+  function setup(filter: unknown[] = []) {
+    const layer = ref(makeRichLayer(filter))
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer.value))!
+    return { layer, scope, api }
+  }
+
+  const writtenFilter = () => mocks.updateLayer.mock.lastCall?.[1].extras.filter
+
+  it('applies the date range and the area to every column, including on faceting', async () => {
+    const { scope } = setup([valuesOf('A', ['x']), DATE, AREA])
+    await flush()
+
+    expect(mocks.fetchFieldValues.mock.calls[0]![2]).toEqual([DATE, AREA])
+    expect(mocks.fetchTreeValues.mock.calls[0]![2]).toEqual([valuesOf('A', ['x']), DATE, AREA])
+    expect(mocks.fetchCount.mock.calls[0]![1]).toEqual([valuesOf('A', ['x']), DATE, AREA])
+    scope.stop()
+  })
+
+  it('loads no value list for a date range, but its bounds with the layer', async () => {
+    const { scope, api } = setup()
+    await flush()
+
+    expect(mocks.fetchFieldValues.mock.calls.map((c) => c[1].esField)).toEqual(['A'])
+    expect(mocks.fetchDateBounds).toHaveBeenCalledTimes(1)
+    expect(api.dateBounds.value).toEqual({ D: { min: '1973-06-18', max: '2026-11-04' } })
+    scope.stop()
+  })
+
+  it('writes tree selections with their match type and token separator', () => {
+    const { scope, api } = setup()
+    api.toggleTreePath('P', 'x/y')
+    expect(writtenFilter()).toEqual([pathsOf(['x/y'])])
+    scope.stop()
+  })
+
+  it('selecting a tree path drops its selected descendants, not its siblings', () => {
+    const { scope, api } = setup([pathsOf(['x/y/z', 'x/yz', 'w'])])
+    api.toggleTreePath('P', 'x/y')
+    expect(writtenFilter()).toEqual([pathsOf(['x/yz', 'w', 'x/y'])])
+    scope.stop()
+  })
+
+  it('writes and clears the date range and the area', () => {
+    const { scope, api } = setup()
+    api.setDateRange('D', { from: '2020-01-01', to: '2020-12-31' })
+    expect(writtenFilter()).toEqual([DATE])
+    api.setBbox([-5, 48, -4, 49])
+    expect(writtenFilter()).toEqual([AREA])
+    scope.stop()
+
+    const cleared = setup([DATE, AREA])
+    cleared.api.setDateRange('D', null)
+    expect(writtenFilter()).toEqual([AREA])
+    cleared.api.setBbox(null)
+    expect(writtenFilter()).toEqual([DATE])
+    expect(cleared.api.hasActiveFilters.value).toBe(true)
+    cleared.scope.stop()
+  })
+
+  describe('on a tokenized column', () => {
+    const containsOf = (values: string[]) => ({ ...valuesOf('A', values), matchType: 'contains' })
+
+    function setupTokenized(filter: unknown[] = []) {
+      const layer = makeRichLayer(filter)
+      const { fields } = (layer.extras as { dataIndex: { fields: { matchType?: string }[] } })
+        .dataIndex
+      fields[0]!.matchType = 'contains'
+      const scope = effectScope()
+      const api = scope.run(() => useAttributeFilter(() => layer))!
+      return { scope, api }
+    }
+
+    it('writes selections with the contains match type', () => {
+      const { scope, api } = setupTokenized()
+      api.toggleValue('A', 'a')
+      expect(writtenFilter()).toEqual([containsOf(['a'])])
+      scope.stop()
+    })
+
+    it('rewrites a selection persisted as equals once loaded', () => {
+      const { scope } = setupTokenized([valuesOf('A', ['a']), AREA])
+      expect(mocks.updateLayer).toHaveBeenCalledTimes(1)
+      expect(writtenFilter()).toEqual([containsOf(['a']), AREA])
+      scope.stop()
+    })
+
+    it('leaves a filter already written as this panel would untouched', () => {
+      const { scope } = setupTokenized([containsOf(['a']), AREA])
+      expect(mocks.updateLayer).not.toHaveBeenCalled()
+      scope.stop()
+    })
+  })
+
+  it('keeps a persisted area when the geometry name could not be detected', async () => {
+    const layer = makeRichLayer([AREA])
+    delete (layer.extras as { dataIndex: { geometryName?: string } }).dataIndex.geometryName
+    const scope = effectScope()
+    const api = scope.run(() => useAttributeFilter(() => layer))!
+    await flush()
+
+    expect(api.geometryName.value).toBe('geometry')
+    expect(mocks.fetchCount.mock.calls[0]![1]).toEqual([AREA])
+    api.toggleValue('A', 'a')
+    expect(writtenFilter()).toEqual([valuesOf('A', ['a']), AREA])
+    scope.stop()
+  })
+
+  it('expanding a tree node refetches its column and levels; collapsing does not', async () => {
+    const { scope, api } = setup()
+    await flush()
+    mocks.fetchTreeValues.mockClear()
+    mocks.fetchFieldValues.mockClear()
+
+    await api.setExpanded('P', ['x'])
+    expect(mocks.fetchTreeValues).toHaveBeenCalledTimes(1)
+    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toMatchObject({
+      expanded: ['x'],
+      search: '',
+      signal: expect.any(AbortSignal),
+    })
+    expect(mocks.fetchFieldValues).not.toHaveBeenCalled()
+
+    await api.setExpanded('P', [])
+    expect(mocks.fetchTreeValues).toHaveBeenCalledTimes(1)
+    scope.stop()
+  })
+
+  it('a selection change refetches the tree with its expanded levels', async () => {
+    const { layer, scope, api } = setup()
+    await flush()
+    await api.setExpanded('P', ['x'])
+    mocks.fetchTreeValues.mockClear()
+
+    layer.value = makeRichLayer([valuesOf('A', ['a'])])
+    await flush()
+    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toMatchObject({ expanded: ['x'], search: '' })
+    scope.stop()
+  })
+
+  it('reports a date-bounds failure until a refresh loads them', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mocks.fetchDateBounds
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockRejectedValueOnce(new Error('boom'))
+    const { layer, scope, api } = setup()
+    await flush()
+    expect(api.loadError.value).not.toBeNull()
+
+    layer.value = makeRichLayer([valuesOf('A', ['a'])])
+    await flush()
+    expect(api.loadError.value).not.toBeNull()
+
+    layer.value = makeRichLayer([valuesOf('A', ['b'])])
+    await flush()
+    expect(api.loadError.value).toBeNull()
+    expect(api.dateBounds.value).toEqual({ D: { min: '1973-06-18', max: '2026-11-04' } })
+    scope.stop()
+  })
+
+  it('a selection change during the initial load still loads the date bounds', async () => {
+    let releaseBounds!: () => void
+    mocks.fetchDateBounds.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseBounds = () => resolve({ min: '1900-01-01', max: '1900-12-31' })
+        }),
+    )
+    const { layer, scope, api } = setup()
+    await flush()
+    expect(api.loading.value).toBe(true)
+
+    layer.value = makeRichLayer([valuesOf('A', ['a'])])
+    await flush()
+    expect(api.loading.value).toBe(false)
+    expect(api.dateBounds.value).toEqual({ D: { min: '1973-06-18', max: '2026-11-04' } })
+
+    releaseBounds()
+    await flush()
+    expect(api.dateBounds.value).toEqual({ D: { min: '1973-06-18', max: '2026-11-04' } })
+    scope.stop()
+  })
+
+  it('expands the ancestors of a restored tree selection', async () => {
+    const { scope, api } = setup([pathsOf(['x/y/z'])])
+    await flush()
+    expect(api.expandedPaths.value).toEqual({ P: ['x', 'x/y'] })
+    expect(mocks.fetchTreeValues.mock.calls[0]![3]).toMatchObject({
+      expanded: ['x', 'x/y'],
+      search: '',
+    })
     scope.stop()
   })
 })

@@ -14,7 +14,7 @@ import {
 import { applyContextDiffToMap, createMapFromContext, listen } from '@geospatial-sdk/openlayers'
 import type Map from 'ol/Map'
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
+import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import FeaturePopup from './FeaturePopup.vue'
 import MapLoadingIndicator from './MapLoadingIndicator.vue'
 import ResetExtentButton from './ResetExtentButton.vue'
@@ -27,10 +27,7 @@ const { sdkContext } = storeToRefs(mapStore)
 const { selectedFeature } = storeToRefs(featureSelectionStore)
 
 const mapContainer = ref<HTMLElement | undefined>()
-const mapRef = shallowRef<Map | null>(null)
 const lastClickCoordinate = ref<[number, number] | null>(null)
-
-provide('map', mapRef)
 
 const emit = defineEmits<{
   'map-ready': [map: Map]
@@ -91,7 +88,8 @@ onMounted(() => {
   // createMapFromContext is synchronous and applyContextDiffToMap serializes its
   // own updates internally, so the watcher just diffs and applies.
   const map = createMapFromContext(fullMapContext.value, mapContainer.value)
-  mapRef.value = map
+  // Kept out of reactivity: Vue and the devtools must not walk the OpenLayers object graph.
+  mapStore.olMap = markRaw(map)
 
   // Set view padding to account for overlay panels (LayerPanel on left)
   map.getView().padding = MAP_VIEW_PADDING
@@ -106,18 +104,18 @@ onMounted(() => {
 })
 
 watch(fullMapContext, (newContext, oldContext) => {
-  if (!mapRef.value) return
+  if (!mapStore.olMap) return
   const diff = computeMapContextDiff(newContext, oldContext)
-  applyContextDiffToMap(mapRef.value, diff)
+  applyContextDiffToMap(mapStore.olMap, diff)
 })
 
 onBeforeUnmount(() => {
   featureSelectionStore.clearSelection()
 
-  if (mapRef.value) {
-    mapRef.value.setTarget(undefined)
-    mapRef.value.dispose()
-    mapRef.value = null
+  if (mapStore.olMap) {
+    mapStore.olMap.setTarget(undefined)
+    mapStore.olMap.dispose()
+    mapStore.olMap = null
   }
 })
 </script>
