@@ -4,7 +4,7 @@ import type Layer from 'ol/layer/Layer'
 import type Map from 'ol/Map'
 import ImageSource from 'ol/source/Image'
 import TileSource from 'ol/source/Tile'
-import { computed, onBeforeUnmount, ref, watch, type ShallowRef } from 'vue'
+import { computed, onBeforeUnmount, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 
 /**
  * Tracks whether any layer on the map is currently loading imagery.
@@ -22,7 +22,7 @@ import { computed, onBeforeUnmount, ref, watch, type ShallowRef } from 'vue'
  * Layers added after initial setup are automatically tracked via the map's
  * layers collection 'add' event.
  */
-export function useLayerLoadingState(mapRef: ShallowRef<Map | null>) {
+export function useLayerLoadingState(map: MaybeRefOrGetter<Map | null>) {
   // Number of tile/image requests currently in flight across all layers
   const pendingCount = ref(0)
   // Stores unsubscribe functions so we can clean up all listeners on unmount
@@ -88,9 +88,9 @@ export function useLayerLoadingState(mapRef: ShallowRef<Map | null>) {
 
   // Wait for the map instance to become available, then wire everything up
   watch(
-    () => mapRef.value,
-    (map) => {
-      if (map) setupListeners(map)
+    () => toValue(map),
+    (current) => {
+      if (current) setupListeners(current)
     },
     { immediate: true },
   )

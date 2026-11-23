@@ -16,7 +16,7 @@ describe('applyWmsFilter', () => {
   it('encodes active selections as the layer filter and strips app-only extras', () => {
     const result = applyWmsFilter(
       wmsLayer({
-        filter: [{ attributeName: 'THEME', matchType: 'equals', values: ['a'] }],
+        filter: [{ kind: 'values', attributeName: 'THEME', matchType: 'equals', values: ['a'] }],
         dataIndex: { url: 'https://host/es', featureTypeIds: ['ft'] },
       }),
     ) as ExtendedMapLayerWms
@@ -35,7 +35,7 @@ describe('applyWmsFilter', () => {
   it('preserves customParams untouched alongside the filter', () => {
     const result = applyWmsFilter(
       wmsLayer(
-        { filter: [{ attributeName: 'T', matchType: 'equals', values: ['x'] }] },
+        { filter: [{ kind: 'values', attributeName: 'T', matchType: 'equals', values: ['x'] }] },
         { OTHER: 'keep' },
       ),
     ) as ExtendedMapLayerWms
@@ -59,7 +59,7 @@ describe('stripAttributeFilterExtras', () => {
   it('drops the internal dataIndex and filter extras, keeping the rest', () => {
     const result = stripAttributeFilterExtras(
       wmsLayer({
-        filter: [{ attributeName: 'THEME', matchType: 'equals', values: ['a'] }],
+        filter: [{ kind: 'values', attributeName: 'THEME', matchType: 'equals', values: ['a'] }],
         dataIndex: { url: 'https://host/es', featureTypeIds: ['ft'] },
         wmsDimensions: [],
       } as ExtendedMapLayerWms['extras']),

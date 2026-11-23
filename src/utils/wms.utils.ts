@@ -5,11 +5,19 @@ import {
   type WmsLayerTimeDimension,
 } from '@camptocamp/ogc-client'
 import type { MapContextLayerWms } from '@geospatial-sdk/core'
-import { and, equalTo, like, or } from 'ol/format/filter'
+import { and, bbox, equalTo, greaterThanOrEqualTo, lessThan, like, or } from 'ol/format/filter'
 import { writeFilter } from 'ol/format/WFS'
 import type Filter from 'ol/format/filter/Filter'
-import type { FilterByAttribute, WmsFilterState } from '@/types/wms.types'
+import type {
+  FilterByAttribute,
+  FilterByDateRange,
+  WmsFilter,
+  WmsFilterState,
+} from '@/types/wms.types'
 import type { MapLayer } from './layer.utils'
+import { PATH_SEPARATOR } from './geonetwork-index/pathTree'
+import { dayAfter } from './date.utils'
+import { clampToGlobe } from './geo.utils'
 
 export type AnyWmsDimension = WmsLayerDimension | WmsLayerTimeDimension
 
@@ -281,8 +289,35 @@ const ESCAPE_CHAR = '!'
 
 const escapeLikeValue = (value: string) => value.replaceAll(/[*.!]/g, (c) => `${ESCAPE_CHAR}${c}`)
 
+/**
+ * `PropertyIsLike` patterns matching `path` or a descendant as a whole token of a hierarchical
+ * column: `A/B` must neither match `A/BC` nor, in a `;`-tokenized column, `X/A/B`.
+ */
+function treePathPatterns(path: string, tokenSeparator?: string): string[] {
+  const escapedPath = escapeLikeValue(path)
+  const descendants = `${escapedPath}${escapeLikeValue(PATH_SEPARATOR)}${WILD_CARD}`
+  const patterns = [escapedPath, descendants]
+  if (!tokenSeparator) return patterns
+  const escapedToken = escapeLikeValue(tokenSeparator)
+  const afterOtherTokens = `${WILD_CARD}${escapedToken}`
+  const beforeOtherTokens = `${escapedToken}${WILD_CARD}`
+  return [
+    ...patterns,
+    `${escapedPath}${beforeOtherTokens}`,
+    `${afterOtherTokens}${escapedPath}`,
+    `${afterOtherTokens}${escapedPath}${beforeOtherTokens}`,
+    `${afterOtherTokens}${descendants}`,
+  ]
+}
+
 function buildComparison(attribute: FilterByAttribute, value: string): Filter | null {
   switch (attribute.matchType) {
+    case 'tree':
+      return or(
+        ...treePathPatterns(value, attribute.tokenSeparator).map((pattern) =>
+          like(attribute.attributeName, pattern, WILD_CARD, SINGLE_CHAR, ESCAPE_CHAR),
+        ),
+      )
     case 'equals':
       return equalTo(attribute.attributeName, value)
     case 'contains':
@@ -309,17 +344,42 @@ function buildFieldGroup(attribute: FilterByAttribute, values: string[]): Filter
   return comparisons.length > 1 ? or(...comparisons) : comparisons[0]!
 }
 
+// OL types comparison literals as numbers but serializes them with `'' + expression`, so an ISO
+// date goes through untouched.
+const dateLiteral = (date: string) => date as unknown as number
+
+/** Overlap of each feature's period with the selected one. */
+function buildDateRange(filter: FilterByDateRange): Filter {
+  return and(
+    greaterThanOrEqualTo(filter.maxField, dateLiteral(filter.from)),
+    lessThan(filter.minField, dateLiteral(dayAfter(filter.to))),
+  )
+}
+
+function buildClause(filter: WmsFilter): Filter | null {
+  switch (filter.kind) {
+    case 'dateRange':
+      return buildDateRange(filter)
+    case 'bbox':
+      // Lon/lat order: QGIS Server reads an `EPSG:4326` envelope in a 1.1.0 filter as x/y.
+      return bbox(filter.geometryName, filter.extent, 'EPSG:4326')
+    case 'values': {
+      const values = filter.values.filter((value) => value != null && value !== '')
+      return values.length > 0 ? buildFieldGroup(filter, values) : null
+    }
+    default:
+      // Unknown kinds (stale persisted state, consumer contexts) must not break the render.
+      console.error(`Type de filtre non supporté: ${(filter as { kind: string }).kind}`)
+      return null
+  }
+}
+
 /**
  * Build an OL Filter from a WMS filter state.
  * Returns `null` if the filter state is empty (or holds no usable clause).
  */
 function buildOgcFilter(filter: WmsFilterState): Filter | null {
-  const groups: Filter[] = []
-  for (const attribute of filter) {
-    const values = attribute.values.filter((value) => value != null && value !== '')
-    const group = values.length > 0 ? buildFieldGroup(attribute, values) : null
-    if (group) groups.push(group)
-  }
+  const groups = filter.map(buildClause).filter((group): group is Filter => group !== null)
 
   if (groups.length === 0) return null
 
@@ -332,15 +392,21 @@ function serializeFilter(filter: Filter): string {
 }
 
 /**
- * The layer's active selections, keyed by column (`esField` / `attributeName`) — the shape both the
- * filter UI and the WPS profile address them by (`linkedWfsFilter` names the same column).
+ * The layer's active selections, keyed by column (`attributeName`) — the shape the WPS profile
+ * addresses them by (`linkedWfsFilter` names the same column). A date range yields `[from, to]`,
+ * which `.from` / `.to` links read; the area yields `['minx,miny,maxx,maxy']` (EPSG:4326) under
+ * the fixed `geometry` key, whatever the WFS geometry property is named.
  */
 export function activeFiltersOf(layer: MapLayer): Record<string, string[]> {
   const out: Record<string, string[]> = {}
   // `layer.type` and a cast rather than `isWmsLayer`: layer.utils imports this module, so importing
   // a value back from it would close a runtime cycle (same reason as `getWmsTimeDimension` above).
   const filter = (layer.type === 'wms' && (layer.extras?.filter as WmsFilterState)) || []
-  for (const { attributeName, values } of filter) out[attributeName] = values
+  for (const entry of filter) {
+    if (entry.kind === 'values') out[entry.attributeName] = entry.values
+    else if (entry.kind === 'dateRange') out[entry.attributeName] = [entry.from, entry.to]
+    else if (entry.kind === 'bbox') out.geometry = [clampToGlobe(entry.extent).join(',')]
+  }
   return out
 }
 

@@ -7,11 +7,9 @@ import { getLayerLabel } from '@/utils/layer.utils'
 import type Map from 'ol/Map'
 import Overlay from 'ol/Overlay'
 import { fromLonLat } from 'ol/proj'
-import type { ShallowRef } from 'vue'
-import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import FeaturePopupContent from './FeaturePopupContent.vue'
 
-const mapRef = inject<ShallowRef<Map | null>>('map')
 const featureSelectionStore = useFeatureSelectionStore()
 const mapStore = useMapStore()
 const { extractFeatureInfo } = useFeatureInfo()
@@ -67,7 +65,7 @@ watch(
 )
 
 watch(
-  () => mapRef?.value,
+  () => mapStore.olMap,
   (map) => {
     if (map && !overlay.value) {
       initOverlay(map)
@@ -78,7 +76,7 @@ watch(
 )
 
 onMounted(() => {
-  const map = mapRef?.value
+  const map = mapStore.olMap
   if (map) {
     initOverlay(map)
     updateOverlayPosition()
@@ -90,7 +88,7 @@ function handleClose() {
 }
 
 onBeforeUnmount(() => {
-  const map = mapRef?.value
+  const map = mapStore.olMap
   if (map && overlay.value) {
     map.removeOverlay(overlay.value)
   }
